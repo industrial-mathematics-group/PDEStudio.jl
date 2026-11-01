@@ -229,6 +229,7 @@ function reset_plotter!()
     manager.is_open = false
     manager.master_fig = nothing
     manager.camera_locked[] = false
+    manager.pending_domain = nothing
 
     # Stop a running animation (its timer would keep driving the sliders of the closed window)
     timer = manager.animation_timer[]
@@ -268,12 +269,26 @@ function reset_plotter!()
 end
 
 """
-    launch_plotter()
+    launch_plotter(config = nothing; style = nothing) -> Figure
 
-Initializes the main `PDEStudio` interactive interface. 
-It constructs the foundational Makie `Figure`, partitions the layout into a control panel and a plot area, wires up the core reactive listeners, and displays the window. Returns the active `Makie.Figure` object.
+Builds the studio window and returns its `Figure` (show it with `display`, or use [`@launch`](@ref), which does).
+
+- `style`: the plot style to start with, a group (`:lines`, `:scatter`, `:contour`, `:heatmap`, `:volume`: its
+  first style) or a style (e.g. `:heatmap_surface`, `:contour_3d`). The axes follow from the data: a 2D style shows
+  `x` and `y`, or `x` and `t` for 1D data.
+- `config`: a `SimulationConfig` to bind and run. It is run first (the results are cached), so the window starts
+  with the right setup: the mode (Lagrangian data opens as particles unless `style` needs a grid) and the dimensions
+  (axes the window doesn't know yet, such as a time axis `:iteration`, are added, see [`set_allowed_dims!`](@ref)).
+
+```julia
+fig = launch_plotter(; style = :heatmap)              # empty window, heatmaps once data arrives
+fig = launch_plotter(test_heat_2d(); style = :heatmap)
+display(fig)
+```
 """
-function launch_plotter()
+function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
+    isnothing(config) || _prepare_for_config!(config, style)
+    plot_style = isnothing(style) ? nothing : _resolve_plot_style(style, manager.mode[])
 
     reset_plotter!()
 
@@ -282,6 +297,7 @@ function launch_plotter()
     plot_layout = master_fig[1, 2] = GridLayout(alignmode = Outside())  # titles and labels inside: no extra height for the controls
     
     create_controls(ctrl_layout)
+    isnothing(plot_style) || _set_style!(manager.widgets[:plot_style], plot_style)
     # A configuration bound before launching needs its slider labels and mapping on the new widgets.
     isnothing(manager.active_config) || _map_parameters_to_sliders!(manager.active_config)
     setup_ui_interactions!(master_fig, plot_layout, Val(manager.mode[]))
@@ -291,8 +307,88 @@ function launch_plotter()
 
     setup_plot_window!(master_fig, plot_layout)
     resize_to_layout!(master_fig)
+    if !isnothing(config)
+        set_sim_config!(config)
+        force_simulation()
+    end
     return master_fig 
 end
+
+"""
+    @launch [style] [config]
+
+Opens the studio and shows it, optionally with a plot style and a configuration to run:
+
+```julia
+@launch                              # the empty studio
+@launch heatmap                      # heatmaps once data arrives
+@launch test_advection_1d()          # run a configuration and show it
+@launch heatmap test_heat_2d()       # both
+@launch contour_3d my_config         # a specific style (see `launch_plotter`) and a variable
+```
+
+The same as `display(launch_plotter(config; style))` (see [`launch_plotter`](@ref)); in a browser (WGLMakie) the
+returned figure is shown by whoever displays it (REPL, notebook, Bonito app) instead. Returns the `Figure`.
+"""
+macro launch(args...)
+    style, config = nothing, nothing
+    for a in args
+        if a isa Symbol && _is_plot_style_name(a)
+            isnothing(style) || throw(ArgumentError("@launch: two plot styles, $(style.value) and $a"))
+            style = QuoteNode(a)
+        elseif isnothing(config)
+            config = esc(a)
+        else
+            bad = args[1]
+            throw(ArgumentError("@launch takes a plot style and a configuration; `$bad` is not a plot style " *
+                                "(groups: lines, scatter, contour, heatmap, volume, or a style such as heatmap_surface)"))
+        end
+    end
+    return :(PDEStudio._launch_and_show($config, $style))
+end
+
+function _launch_and_show(config, style)
+    config isa Union{Nothing, SimulationConfig} ||
+        throw(ArgumentError("@launch: expected a SimulationConfig, got a $(typeof(config)) (or an unknown plot style)"))
+    fig = launch_plotter(config; style = style)
+    _in_browser() || display(fig)
+    return fig
+end
+
+_in_browser() = (b = Makie.current_backend(); !ismissing(b) && !isnothing(b) && nameof(b) === :WGLMakie)
+
+# Every style name and group `launch_plotter(; style)` accepts
+_is_plot_style_name(s::Symbol) =
+    haskey(EULERIAN_PLOT_STYLE_OPTIONS, s) || haskey(LAGRANGIAN_PLOT_STYLE_OPTIONS, s) || haskey(PLOT_DIM_MAP, s)
+
+# A style group or style name -> the style of the current mode
+function _resolve_plot_style(style::Symbol, mode::Symbol)
+    options = mode === :eulerian ? EULERIAN_PLOT_STYLE_OPTIONS : LAGRANGIAN_PLOT_STYLE_OPTIONS
+    styles = Symbol[o[2] for group in values(options) for o in group]
+    style in styles && return style
+    haskey(options, style) && return options[style][1][2]
+    throw(ArgumentError("unknown plot style $(repr(style)) for $mode data: use a group " *
+                        "($(join(sort(collect(keys(options))), ", "))) or a style ($(join(sort(styles), ", ")))"))
+end
+
+# Runs `config` (cached) and sets the mode and dimensions its data needs before the window is built.
+function _prepare_for_config!(config::SimulationConfig, style)
+    @info "Running the configuration before opening the studio (the results are cached)..."
+    run_all_simulations(config; calculate_stats = true, force_overwrite = false)
+    data = _template_data(config)
+    isnothing(data) && return nothing
+    grid_style = !isnothing(style) && !_is_plot_style_name_of(style, :lagrangian)
+    mode = data isa LSimData && !grid_style ? :lagrangian : :eulerian
+    if mode !== manager.mode[]
+        manager.active_config = nothing   # bound again after the window is built
+        set_mode!(mode)
+    end
+    _allow_dims_of!(data.domain)
+    return nothing
+end
+
+_is_plot_style_name_of(s::Symbol, mode::Symbol) =
+    (try _resolve_plot_style(s, mode); true catch e; e isa ArgumentError || rethrow(); false end)
 
 # =================================
 # --- LAYOUT & RENDER HANDLERS ---
