@@ -38,3 +38,7 @@ docs/build/
 
 # Browser tests (test/browser): npm packages
 node_modules/
+
+# Logos and documentation assets are tracked despite the image rules above
+!logos/**
+!docs/src/assets/**
