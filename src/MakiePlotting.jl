@@ -380,7 +380,7 @@ function _prepare_for_config!(config::SimulationConfig, style)
     grid_style = !isnothing(style) && !_is_plot_style_name_of(style, :lagrangian)
     mode = data isa LSimData && !grid_style ? :lagrangian : :eulerian
     if mode !== manager.mode[]
-        manager.active_config = nothing   # bound again after the window is built
+        reset_plotter!()                  # the window is rebuilt anyway
         set_mode!(mode)
     end
     _allow_dims_of!(data.domain)

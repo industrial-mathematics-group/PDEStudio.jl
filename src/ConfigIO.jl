@@ -384,6 +384,9 @@ function load_and_apply_csv!(filepath::AbstractString)
     if !isnothing(dims)
         haskey(dims, "allowed_dims") && (new_dims = _parse_dims(dims["allowed_dims"]))
         get(dims, "max_params", nothing) isa Real && (new_max = Int(dims["max_params"]))
+        # the mode the file was saved in (files of earlier versions have none: the current mode stays)
+        mode = get(dims, "mode", nothing)
+        mode in (:eulerian, :lagrangian) && set_mode!(mode)
     end
     # Make room for every swept parameter of the loaded configuration.
     n_varied = isnothing(bundled_config) ? length(get(get(parsed, "Simulation", Dict()), "Sweep", Dict())) :
@@ -733,6 +736,7 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
         isnothing(config) || _add_simulation_rows!(rows, config)
         add_row!(rows, "Config", "Dimensions", "allowed_dims", manager.allowed_dims)
         add_row!(rows, "Config", "Dimensions", "max_params", manager.max_params)
+        add_row!(rows, "Config", "Dimensions", "mode", manager.mode[])
         for (dim, res) in _sorted_pairs(manager.resolution_base)
             add_row!(rows, "Config", "Resolution_Base", dim, res)
         end

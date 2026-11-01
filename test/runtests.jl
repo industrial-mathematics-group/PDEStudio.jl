@@ -1782,6 +1782,52 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # Verify the backend correctly allocated a Lagrangian cache
         @test typeof(manager.caches[1][:upwind]).name.name == :LagrangianPlotCache
     end
+    # The mode (grid / particle data) switches live: same window, same configuration, data reloaded for the mode
+    ingroup("editors") && @testset "Mode switch (live)" begin
+        reset_plotter!()
+        set_mode!(:eulerian)
+        w() = manager.widgets
+        status() = replace(w()[:status][], '\n' => ' ')
+        lag = SimulationConfig(create_param_dict(:N => 12, :sim_func_name => :particle_solver_1d),
+                               create_method_dict(:a => create_param_dict(), :b => create_param_dict(:v => 2.0)), [:a, :b])
+        fig = launch_plotter()
+        display(fig)
+        w()[:mode_button].clicks[] += 1
+        @test manager.mode[] === :lagrangian && manager.master_fig === fig && w()[:mode_button].label[] == "Mode: Particles (Lagrangian)"
+        @test startswith(status(), "Switched to the particle")
+        w()[:mode_button].clicks[] += 1
+        @test manager.mode[] === :eulerian
+
+        # particle data in the grid mode (converted), then switched to particles and back, in the same window
+        set_sim_config!(lag)
+        force_simulation()
+        @test haskey(manager.plot_data[], :a) && manager.plot_data[][:a] isa PDEStudio.PlotSweepData
+        @test PDEStudio._get_first_valid(manager.plot_data[][:a]) isa ESimData
+        w()[:mode_button].clicks[] += 1
+        @test manager.mode[] === :lagrangian && manager.master_fig === fig && manager.active_config === lag
+        @test PDEStudio._get_first_valid(manager.plot_data[][:a]) isa LSimData
+        @test w()[:plot_style].selection[] in manager.allowed_styles && occursin("Lagrangian", status())
+        @test haskey(manager.listeners, :Lagrangian_Chain_A) && !haskey(manager.listeners, :Eulerian_Chain_A)
+        # particles are shown as computed: only the references have a resolution
+        @test all(last, PDEStudio._resolution_items())
+        # the mode is saved with an export and applied when the file is loaded
+        dir = mktempdir()
+        PDEStudio.save_params_to_csv("lagmode", dir, Dict{String, Any}())
+        @test any(l -> l == "Config,Dimensions,mode,:lagrangian", readlines(joinpath(dir, "lagmode.csv")))
+        w()[:mode_button].clicks[] += 1
+        @test manager.mode[] === :eulerian && PDEStudio._get_first_valid(manager.plot_data[][:a]) isa ESimData
+        @test haskey(manager.listeners, :Eulerian_Chain_A) && !haskey(manager.listeners, :Lagrangian_Chain_A)
+        set_sim_config!(joinpath(dir, "lagmode.csv"))
+        @test manager.mode[] === :lagrangian && manager.master_fig === fig
+        # a style the mode doesn't have is replaced by its default (also without a window)
+        reset_plotter!()
+        set_mode!(:eulerian)
+        manager.layout_cache[:plot_style] = :heatmap_flat
+        set_mode!(:lagrangian)
+        @test manager.layout_cache[:plot_style] === :scatter_1d
+        set_mode!(:eulerian)
+    end
+
     # launch_plotter(; style), @launch and data whose axes the window doesn't have yet
     ingroup("plots-1") && @testset "Launcher: styles, @launch and the axes of the data" begin
         reset_plotter!()
