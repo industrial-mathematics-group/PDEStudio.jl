@@ -67,7 +67,7 @@ See [File Operations](file_ops.md) for the details.
 | [`save_sim_preset`](@ref)`(name)` | Saves the bound simulation as a simulation preset. |
 | [`set_sim_preset!`](@ref)`(name)` | Applies a simulation preset (replace or patch). |
 | [`reset_sim_config!`](@ref)`()` | Restores the configuration last bound with `set_sim_config!`. |
-| [`set_mode!`](@ref)`(:eulerian / :lagrangian)` | Switches between grid and particle rendering. |
+| [`set_mode!`](@ref)`(:eulerian / :lagrangian)` | Switches between grid and particle rendering, live (also *Files → Mode*). |
 | [`set_allowed_dims!`](@ref)`(dims)`, [`set_max_params!`](@ref)`(n)` | Structural limits: the dimensions (axes, default `(:x, :y, :z, :t)`; `@launch` adds the axes of the data) and the number of parameter sliders. |
 | [`set_resolution!`](@ref)`(dim, n)` | Display resolution of a dimension (data is resampled for display; also *Files → Resolution ›*). |
 | [`reset_plotter!`](@ref)`()`, [`reset_manager!`](@ref)`()` | Closes the window / resets the whole studio without restarting Julia. |

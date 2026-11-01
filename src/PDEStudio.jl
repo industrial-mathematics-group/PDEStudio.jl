@@ -312,11 +312,20 @@ end
 """
     set_mode!(mode::Symbol)
 
-Switches the fundamental operation mode of the UI (e.g., `:eulerian` or `:lagrangian`). This alters which primitive engines are loaded and resets the UI state. The bound `SimulationConfig` is kept (call `launch_plotter()` again and press *Run Simulation*).
+Switches how the data is shown: `:eulerian` (grid data: lines, scatter, contours, heatmaps, volumes) or
+`:lagrangian` (particles: scatter plots of their positions). Data of the other kind is converted (PDEStudioCore's
+`convert_to_eulerian` / `convert_to_lagrangian`), so both modes show every dataset; statistics over time or swept
+parameters are plotted in the Eulerian mode.
+
+The switch is live (also *Files → Mode*): the open window, the bound configuration, the look and the editors are kept;
+the data is reloaded for the new mode (the results are cached) and a plot style the mode doesn't have is replaced by
+its default (`lines_1d` / `scatter_1d`).
 """
 function set_mode!(mode::Symbol)
     mode in (:eulerian, :lagrangian) || throw(ArgumentError("mode must be :eulerian or :lagrangian, got :$mode"))
+    mode === manager.mode[] && return nothing
     manager.mode[] = mode
+    return nothing
 end
 
 """
@@ -435,17 +444,7 @@ function reset_manager!()
 end
 
 function __init__()
-    on(manager.mode) do _
-        # Keep the bound simulation across a mode switch; everything else is rebuilt.
-        config = manager.active_config
-        base = manager.base_config
-        reset_plotter!()
-        reset_manager!()
-        if !isnothing(config)
-            set_sim_config!(config; snapshot = false)
-            isnothing(base) || (manager.base_config = base)
-        end
-    end
+    on(_switch_mode!, manager.mode)   # hot swap: the window, the bound simulation and the look are kept
     reset_manager!()
 end
 

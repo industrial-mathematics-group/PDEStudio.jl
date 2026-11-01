@@ -21,6 +21,23 @@ Instead of constantly tweaking sliders to compare states, you can unroll your di
     *   *Colorbar Only:* Axes can zoom independently, but the color mapping is universally locked.
     *   *Decoupled:* Every plot scales completely independently.
 
+### 🔀 Grid and Particle Data (Mode)
+
+The studio shows data in one of two modes, switched with **Files → Mode** (or [`set_mode!`](@ref)):
+
+| Mode | Shows | Plot styles | Statistics |
+| :--- | :--- | :--- | :--- |
+| **Grid (Eulerian)** | fields on a grid; particle data is interpolated onto a grid | all | over time, swept parameters and space |
+| **Particles (Lagrangian)** | the particles at their positions (as computed, nothing is resampled) | the scatter styles of the particle dimension | — (switch to the grid mode) |
+
+The switch is live: the window, the bound configuration, the look and the open editors stay; the data is reloaded for
+the new mode (the results are cached) and a plot style the mode doesn't have becomes its default. Exports save the
+mode, and loading the file restores it. `@launch` opens particle data in the particle mode unless the chosen style
+needs a grid (`@launch heatmap test_particles_2d()` shows them interpolated).
+
+In the particle mode *Files → Resolution ›* lists only the references (evaluated on a grid); the particles themselves
+are shown as computed.
+
 ### 📐 Plot Options (Data Projection)
 
 While Layout dictates *how* things are drawn, Plot Options dictate *what* is drawn. Changes made here are instantly resolved via the **Update Plot** button without needing to rebuild the layout.

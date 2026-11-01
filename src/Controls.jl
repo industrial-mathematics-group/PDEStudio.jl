@@ -157,7 +157,8 @@ end
 Builds the `Files` tab: the name / path box (exports, presets, loading; *Browse…* opens the system's file dialog)
 and the description of a new preset; loading a CSV or a Julia configuration file (or drop it anywhere on the window;
 files that run code need a second click), export and its settings (an editor page of `ui[:export]`); the
-resolution of the data and the references (an editor page, see `_set_resolution_from_ui!`); and the presets: save / reset the simulation (the physics) and the look (the visual settings), and *Presets ›*, the list
+mode (grid or particle data, see [`set_mode!`](@ref)) and the resolution of the data and the references (an editor
+page, see `_set_resolution_from_ui!`); and the presets: save / reset the simulation (the physics) and the look (the visual settings), and *Presets ›*, the list
 of the saved presets with *Apply* and *Edit ›* (the rows of the preset file). Results are shown in the status line.
 """
 function create_file_controls!(layout::GridLayout)
@@ -175,7 +176,8 @@ function create_file_controls!(layout::GridLayout)
     Label(layout[4, 1:4], "Load: a CSV, or a Julia file returning a SimulationConfig (runs its code). Files can also be dropped.",
           halign = :left, fontsize = 11, color = :gray40)
     Label(layout[5, 1], "Data", halign = :left, fontsize = 13)
-    w[:resolution_button] = Button(layout[5, 2:3], label = "Resolution ›", width = nothing)
+    w[:mode_button] = Button(layout[5, 2:3], label = _mode_label(manager.mode[]), width = nothing)
+    w[:resolution_button] = Button(layout[5, 4], label = "Resolution ›", width = nothing)
 
     Label(layout[6, 1:4], "Presets", halign = :left, font = :bold, color = :darkred)
     neutral = RGBf(0.92, 0.92, 0.92)
