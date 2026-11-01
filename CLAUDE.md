@@ -12,9 +12,15 @@ Bonito (served from a compute node); CairoMakie is used for exports.
 julia --project -e 'using Pkg; Pkg.test()'                 # full suite (needs the X display; the container has Xvfb on :99)
 julia --project=test -e 'using Pkg; Pkg.instantiate()'      # once
 julia -t 8 --project=test test/runtests.jl                  # same suite, faster to iterate
+PDESTUDIO_TEST_GROUP=editors julia --project=test test/runtests.jl   # one test group (helpers, plots-1, plots-2, editors, browser)
 julia --project=docs docs/make.jl                           # docs (instantiate docs env first)
 (cd test/browser && npm ci)                                 # once: playwright-core for the browser tests
 ```
+
+The suite is compile-bound (~30 s per process for the first window, simulation and plot), so `runtests.jl` runs it
+as test groups in parallel child processes (`PDESTUDIO_TEST_JOBS`, default: CPU threads / free memory, at most the
+number of groups; `1` runs everything in one process). Each new `@testset` in the UI testset needs an
+`ingroup("<group>") &&` in front (keep the groups balanced); every UI group runs the shared setup first.
 
 The suite ends with browser tests (`test/browser/`): the studio served with WGLMakie, driven in headless
 Chromium by `upload.js` (real clicks, file chooser, drops). They run when node, `test/browser/node_modules` and a
