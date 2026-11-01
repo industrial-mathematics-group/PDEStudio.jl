@@ -543,7 +543,20 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
     manager.listeners[:Browse_Click] = on(_ -> (@async _browse_for_config()), manager.widgets[:browse_button].clicks)
 
     manager.listeners[:Run_Click] = on(run_btn.clicks) do _
-        
+        if !isnothing(manager.pending_domain)
+            # The data needs more dimensions (see `simulation_trigger`): rebuild the window with them and run again.
+            domain, config = manager.pending_domain, manager.active_config
+            manager.pending_domain = nothing
+            Base.invokelatest() do
+                _allow_dims_of!(domain)
+                fig = launch_plotter()
+                display(fig)
+                set_sim_config!(config; snapshot = false)
+                force_simulation()
+            end
+            return
+        end
+
         if !isnothing(manager.csv_cache)
             @info "Structural rebuild initiated. Relaunching UI..."
             

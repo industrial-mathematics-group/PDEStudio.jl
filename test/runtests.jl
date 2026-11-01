@@ -130,6 +130,12 @@ function exact_advection(st::SVector{2, Float64})
     return SVector{1, Float64}(sin(x - c*t) + 2.0)
 end
 
+# The same with the time axis named :iteration (a name outside the default dimensions)
+function advection_iterations_1d(params::ParamDict)
+    d = advection_solver_1d(params)
+    return create_sim_data(d.axes[1], d.u, d.axes[2], params; time_dim = :iteration)
+end
+
 function exact_advection_factory(params::ParamDict)
     return (x -> exact_advection(x))
 end
@@ -1776,6 +1782,63 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # Verify the backend correctly allocated a Lagrangian cache
         @test typeof(manager.caches[1][:upwind]).name.name == :LagrangianPlotCache
     end
+    # launch_plotter(; style), @launch and data whose axes the window doesn't have yet
+    ingroup("plots-1") && @testset "Launcher: styles, @launch and the axes of the data" begin
+        reset_plotter!()
+        set_mode!(:eulerian)
+        w() = manager.widgets
+        status() = replace(w()[:status][], '\n' => ' ')
+        one_method(solver; kw...) = SimulationConfig(create_param_dict(:cfl => 0.5, :N => 40, :sim_func_name => solver, kw...),
+                                                     create_method_dict(:upwind => create_param_dict(:scheme => "upwind")), [:upwind])
+        adv = one_method(:advection_solver_1d)
+
+        # a style before any data: a group means its first style; unknown styles are refused
+        launch_plotter(; style = :heatmap)
+        @test w()[:plot_style].selection[] === :heatmap_flat
+        @test_throws ArgumentError launch_plotter(; style = :bogus)
+
+        # @launch style config: runs it and shows 1D data over time as an x-t heatmap
+        fig = @launch heatmap adv
+        @test fig isa Figure && manager.master_fig === fig
+        @test w()[:plot_style].selection[] === :heatmap_flat
+        @test w()[:x_axis].selection[] === :x && w()[:y_axis].selection[] === :t
+        @test haskey(manager.plot_data[], :upwind) && startswith(status(), "Simulation finished")
+        @launch contour_3d adv
+        @test w()[:plot_style].selection[] === :contour_3d
+        @test_throws ArgumentError PDEStudio._launch_and_show(42, nothing)   # not a configuration
+
+        # Lagrangian data opens as particles; a grid style keeps the Eulerian mode (the particles are converted)
+        lag = SimulationConfig(create_param_dict(:N => 10, :sim_func_name => :particle_solver_1d),
+                               create_method_dict(:a => create_param_dict()), [:a])
+        @launch lag
+        @test manager.mode[] === :lagrangian && haskey(manager.plot_data[], :a)
+        @launch heatmap lag
+        @test manager.mode[] === :eulerian && haskey(manager.plot_data[], :a)
+
+        # a time axis named :iteration: @launch adds it to the dimensions of the window
+        iter = one_method(:advection_iterations_1d)
+        @launch heatmap iter
+        @test :iteration in manager.allowed_dims && haskey(manager.plot_data[], :upwind)
+        @test w()[:y_axis].selection[] === :iteration
+        @test manager.resolution_base[:iteration] == manager.resolution_base[:t]   # the resolution of a time axis
+
+        # ... window first: the run explains it and stages a rebuild, Run Simulation does it
+        set_allowed_dims!((:x, :y, :z, :t))
+        fig = launch_plotter()
+        display(fig)
+        set_sim_config!(iter)
+        force_simulation()
+        @test !isnothing(manager.pending_domain) && isempty(manager.plot_data[])
+        @test occursin("Run Simulation rebuilds the window", status()) && w()[:run_button].buttoncolor[] === :orange
+        w()[:run_button].clicks[] += 1
+        yield()
+        @test :iteration in manager.allowed_dims && manager.master_fig !== fig && isnothing(manager.pending_domain)
+        @test haskey(manager.plot_data[], :upwind) && startswith(status(), "Simulation finished")
+
+        set_allowed_dims!((:x, :y, :z, :t))
+        set_mode!(:eulerian)
+    end
+
     # The built-in examples of PDEStudioCore (the quick start of the README) load and run in the studio
     ingroup("plots-2") && @testset "Built-in examples (PDEStudioCore)" begin
         if !isdefined(PDEStudioCore, :test_advection_1d)
