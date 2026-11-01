@@ -14,10 +14,19 @@ What has changed since the last release. Released versions are described in the
   particles (unless the style needs a grid) and axes outside `(:x, :y, :z, :t)`, e.g. `time_dim = :iteration`, are
   added to the allowed dimensions (a time axis gets the time resolution).
 
+- **Files → Mode:** switches between grid (Eulerian) and particle (Lagrangian) data **live**: the window, the bound
+  configuration, the look and the editors are kept, the data is reloaded for the new mode (cached) and a plot style
+  the mode doesn't have becomes its default. `set_mode!` works the same way (it used to close the window and reset
+  the whole manager, look included). Exports save the mode (`Config, Dimensions, mode`, a new optional row; older
+  files keep the current mode).
+- **Resolution page in the particle mode:** only the references (particles are shown as computed).
+
 ### Fixed
 - **Data with axes the window doesn't have** (e.g. a time axis `:iteration` without `set_allowed_dims!`) was dropped
   silently: an empty plot, "Simulation finished" and the sliders of the previous configuration. Now the status line
   names the missing axes, the old data is cleared and *Run Simulation* rebuilds the window with them.
+- **Export message:** an image exported to a path typed into *Name / path* was reported as saved to the default
+  `figures` folder; the status line now names the folder it went to.
 
 ### Changed
 - **Quick start with the built-in examples of PDEStudioCore:** `set_sim_config!(test_advection_1d())` (or

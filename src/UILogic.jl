@@ -541,6 +541,9 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
     end
 
     manager.listeners[:Browse_Click] = on(_ -> (@async _browse_for_config()), manager.widgets[:browse_button].clicks)
+    manager.listeners[:Mode_Click] = on(manager.widgets[:mode_button].clicks) do _
+        set_mode!(manager.mode[] === :eulerian ? :lagrangian : :eulerian)
+    end
 
     manager.listeners[:Run_Click] = on(run_btn.clicks) do _
         if !isnothing(manager.pending_domain)
@@ -586,6 +589,62 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
         manager.triggers[:Simulation][] += 1
         return
     end
+end
+
+# ------------------------------------------------------------------------------
+# Mode (grid or particle data), switched live
+# ------------------------------------------------------------------------------
+
+_mode_label(mode::Symbol) = mode === :eulerian ? "Mode: Grid (Eulerian)" : "Mode: Particles (Lagrangian)"
+
+# The plot styles of a mode
+_mode_styles(mode::Symbol) = Symbol[o[2] for opts in values(mode === :eulerian ? EULERIAN_PLOT_STYLE_OPTIONS :
+                                                                                  LAGRANGIAN_PLOT_STYLE_OPTIONS) for o in opts]
+
+const _MODE_LISTENERS = (:Eulerian_Chain_A, :Eulerian_Chain_B, :Eulerian_Style_Change,
+                         :Lagrangian_Chain_A, :Lagrangian_Chain_B, :Lagrangian_Style_Change, :Chain_C)
+
+"""
+    _switch_mode!(mode)
+
+Applies a new mode (the listener of `manager.mode`, see [`set_mode!`](@ref)) without rebuilding the window or the
+manager: drops the data, plot caches and allowed styles of the old mode, keeps the plot style if the new mode has
+it (otherwise its default), rewires the menu cascades of the mode on the existing widgets and runs the bound
+configuration again if its plots were shown (cached), which loads the data for the new mode and rebuilds them.
+"""
+function _switch_mode!(mode::Symbol)
+    shown = !isempty(manager.plot_data[])
+    empty!(manager.plot_data[])
+    empty!(manager.caches)
+    empty!(manager.allowed_styles)
+    style = get(manager.layout_cache, :plot_style, nothing)
+    style in _mode_styles(mode) || (style = get_base_layout_options()[:plot_style])
+    manager.layout_cache[:plot_style] = style
+    manager.is_open || return nothing
+
+    for k in _MODE_LISTENERS
+        haskey(manager.listeners, k) || continue
+        l = manager.listeners[k]
+        l isa Vector ? foreach(off, l) : off(l)
+        delete!(manager.listeners, k)
+    end
+    w = manager.widgets
+    _set_style!(w[:plot_style], style)
+    _setup_chain_A!(Val(mode))
+    _setup_chain_B!(Val(mode))
+    _setup_chain_C!(Val(mode))
+    haskey(w, :mode_button) && (w[:mode_button].label[] = _mode_label(mode))
+    _render_editor!()
+
+    name = mode === :eulerian ? "grid (Eulerian)" : "particle (Lagrangian)"
+    config = manager.active_config
+    if !shown || isnothing(config) || isnothing(_template_data(config))
+        _status!("Switched to the $name mode.", :ok)
+    else
+        force_simulation()   # cached: reloads the data for the new mode
+        isempty(manager.plot_data[]) || _status!("Switched to the $name mode (the data is converted where needed).", :ok)
+    end
+    return nothing
 end
 
 # ------------------------------------------------------------------------------
@@ -1468,7 +1527,9 @@ end
 _default_resolution(dim::Symbol, is_ref::Bool) = is_ref ? (dim === :t ? 100 : 400) : (dim === :t ? 50 : 200)
 
 # The rows of the resolution page: every dimension for the data, then for the references.
-_resolution_items() = Any[[(d, false) for d in manager.allowed_dims]; [(d, true) for d in manager.allowed_dims]]
+# Particle data is shown as it is: in the Lagrangian mode only the references (evaluated on a grid) have a resolution.
+_resolution_items() = manager.mode[] === :lagrangian ? Any[(d, true) for d in manager.allowed_dims] :
+                      Any[[(d, false) for d in manager.allowed_dims]; [(d, true) for d in manager.allowed_dims]]
 
 function _bind_resolution_row!(i::Int, item)
     dim, is_ref = item
@@ -1560,7 +1621,8 @@ function _render_editor!()
     elseif tab === :shared
         "Shared parameters"
     elseif mode === :resolution
-        "Resolution (points per dimension)"
+        manager.mode[] === :lagrangian ? "Resolution of the references (particles: as computed)" :
+                                         "Resolution (points per dimension)"
     elseif tab === :advanced
         isnothing(scope) ? "Advanced: the SimulationConfig" :
         scope === ADV_METHODS ? "Methods (raw)" : "$(_scope_label(:simulation, scope))  (raw)"
@@ -2192,7 +2254,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 
                 metadata = Dict("Save Type" => "Static Frame", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
                 save_params_to_csv(base_name, save_dir, metadata)
-                _status!("Exported $base_name ($(join(formats, ", "))) to $save_dir", :ok)
+                # an absolute path in the name box replaces the save folder (joinpath)
+                _status!("Exported $(basename(base_name)) ($(join(formats, ", "))) to $(dirname(joinpath(save_dir, base_name)))", :ok)
                 
             else
                 _report(:warn, "No valid static formats selected and no animation extension provided. Export bypassed.")
