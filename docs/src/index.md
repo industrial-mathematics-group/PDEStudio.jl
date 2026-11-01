@@ -79,24 +79,30 @@ See [File Operations](file_ops.md) for the details.
 using PDEStudio   # reexports PDEStudioCore
 using GLMakie     # or WGLMakie for browser rendering
 
-# 1. The physics (see the PDEStudioCore documentation)
-shared  = create_param_dict(:N => 100, :cfl => 0.5, :sim_func_name => :my_solver)
-methods = create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
-                             :lax_friedrichs => create_param_dict(:scheme => "lax_friedrichs"))
-config  = SimulationConfig(shared, methods, [:upwind, :lax_friedrichs];  # active methods (`defaults`)
-                           varied = create_varied_dict(:cfl => [0.3, 0.5, 0.8]),
-                           reference = :my_exact_solution)
-
-# 2. Launch and display the studio
+# 1. Launch and display the studio
 fig = launch_plotter()
 display(fig)
 
-# 3. Bind the physics and run it (or click "Run Simulation")
-set_sim_config!(config)
+# 2. Bind a simulation and run it (or click "Run Simulation")
+set_sim_config!(test_advection_1d())
 force_simulation()
 ```
 
-A complete, runnable script is `examples/advection_1d.jl`.
+`test_advection_1d()` is one of the built-in examples of PDEStudioCore, each a function returning a ready
+`SimulationConfig`: `test_advection_1d`, `test_burgers_1d`, `test_heat_1d`, `test_heat_2d`, `test_poisson_2d` and
+`test_particles_2d` (Lagrangian: `set_mode!(:lagrangian)` before `launch_plotter()`). Their solvers, in PDEStudioCore's
+[`src/Examples/`](https://github.com/blhackslash/PDEStudioCore.jl/tree/main/src/Examples), show how to write your own;
+a configuration of your own is bound the same way:
+
+```julia
+config = SimulationConfig(create_param_dict(:N => 100, :cfl => 0.5, :sim_func_name => :my_solver),
+                          create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
+                                             :lax_friedrichs => create_param_dict(:scheme => "lax_friedrichs")),
+                          [:upwind, :lax_friedrichs];                   # active methods (`defaults`)
+                          varied = create_varied_dict(:cfl => [0.3, 0.5, 0.8]),
+                          reference = :my_exact_solution)
+set_sim_config!(config)
+```
 
 ---
 

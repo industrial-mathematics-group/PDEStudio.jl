@@ -1776,8 +1776,27 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # Verify the backend correctly allocated a Lagrangian cache
         @test typeof(manager.caches[1][:upwind]).name.name == :LagrangianPlotCache
     end
-    ingroup("editors") && @testset "README Test file" begin
-        @test include("../examples/advection_1d.jl") === false
+    # The built-in examples of PDEStudioCore (the quick start of the README) load and run in the studio
+    ingroup("plots-2") && @testset "Built-in examples (PDEStudioCore)" begin
+        if !isdefined(PDEStudioCore, :test_advection_1d)
+            @info "PDEStudioCore $(pkgversion(PDEStudioCore)) has no built-in examples yet; skipping their test."
+            @test_skip false
+        else
+            for (name, mode) in ((:test_advection_1d, :eulerian), (:test_burgers_1d, :eulerian), (:test_heat_1d, :eulerian),
+                                 (:test_heat_2d, :eulerian), (:test_poisson_2d, :eulerian), (:test_particles_2d, :lagrangian))
+                @testset "$name" begin
+                    reset_plotter!()
+                    set_mode!(mode)
+                    fig = launch_plotter()
+                    display(fig)
+                    set_sim_config!(getfield(PDEStudioCore, name)())
+                    force_simulation()
+                    @test startswith(manager.widgets[:status][], "Simulation finished")
+                    @test !isempty(manager.plot_data[])
+                end
+            end
+            set_mode!(:eulerian)
+        end
     end
     reset_plotter!()
 end
