@@ -4,6 +4,65 @@ using WGLMakie
 using Test
 using StaticArrays
 
+# ==============================================================================
+# --- TEST GROUPS ---
+# ==============================================================================
+# The suite is dominated by compilation (the first window, simulation and plot of each style; ~30 s per process
+# before the first test), so its parts run as test groups in separate processes, in parallel:
+#   PDESTUDIO_TEST_JOBS=n     at most n processes (default: the CPU threads, at most the number of groups and one
+#                             per 2.5 GiB of free memory; a group peaks at about 2 GiB); 1 runs everything in this
+#                             process, one testset after the other (as before the groups).
+#   PDESTUDIO_TEST_GROUP=name runs one group in this process (what the parallel runner starts).
+# Each UI group starts with the shared setup of the UI testset (window, sweep simulation, helper functions).
+const TEST_GROUPS = ["helpers", "plots-1", "plots-2", "editors", "browser"]
+const UI_TEST_GROUPS = ["plots-1", "plots-2", "editors"]
+const TEST_GROUP = get(ENV, "PDESTUDIO_TEST_GROUP", "")
+TEST_GROUP == "" || TEST_GROUP in TEST_GROUPS ||
+    error("PDESTUDIO_TEST_GROUP=$(TEST_GROUP) is not a test group ($(join(TEST_GROUPS, ", ")))")
+ingroup(group) = TEST_GROUP == "" || TEST_GROUP == group
+
+# Runs the groups in child processes (same julia flags, e.g. --check-bounds and coverage, the same project and
+# environment) and prints each group's output when it finishes: in full if it failed, else its test summary.
+function run_groups_in_parallel(jobs)
+    threads = max(1, Threads.nthreads() ÷ jobs)
+    cmd(name) = addenv(`$(Base.julia_cmd()) --project=$(Base.active_project()) --threads=$threads $(@__FILE__)`,
+                       "PDESTUDIO_TEST_GROUP" => name)
+    logs = Dict(name => tempname() for name in TEST_GROUPS)
+    queue, running, failed = copy(TEST_GROUPS), Dict{String, Tuple{Base.Process, IOStream, Float64}}(), String[]
+    println("Running $(length(TEST_GROUPS)) test groups in up to $jobs processes ($threads thread(s) each)")
+    while !isempty(queue) || !isempty(running)
+        while length(running) < jobs && !isempty(queue)
+            name = popfirst!(queue)
+            io = open(logs[name], "w")
+            running[name] = (run(pipeline(cmd(name); stdout = io, stderr = io); wait = false), io, time())
+        end
+        sleep(0.5)
+        for (name, (proc, io, t0)) in collect(running)
+            process_exited(proc) || continue
+            close(io)
+            delete!(running, name)
+            out = read(logs[name], String)
+            ok = success(proc)
+            ok || push!(failed, name)
+            println("\n", "="^30, " test group `$name`: ", ok ? "passed" : "FAILED", " in $(round(time() - t0; digits = 1)) s")
+            i = findlast("Test Summary:", out)
+            print(ok && i !== nothing ? out[first(i):end] : out)
+        end
+    end
+    @testset "PDEStudio" begin
+        @testset "$name" for name in TEST_GROUPS
+            @test !(name in failed)
+        end
+    end
+end
+
+const TEST_JOBS = parse(Int, get(ENV, "PDESTUDIO_TEST_JOBS",
+    string(clamp(min(Sys.CPU_THREADS, Int(Sys.free_memory() ÷ (5 * 2^29))), 1, length(TEST_GROUPS)))))
+if TEST_GROUP == "" && TEST_JOBS > 1
+    run_groups_in_parallel(TEST_JOBS)   # throws (so the process fails) if a group failed
+    exit()
+end
+
 # A screen with a browser file picker, like WGLMakie's (Browse… opens it instead of FILE_DIALOG)
 struct PickerScreen <: Makie.MakieScreen
     opened::Base.RefValue{Int}
@@ -123,7 +182,7 @@ end
 # ==============================================================================
 # --- HELPERS (no window needed) ---
 # ==============================================================================
-@testset "PDEStudio: Helpers" begin
+ingroup("helpers") && @testset "PDEStudio: Helpers" begin
     @testset "Export formats" begin
         @test PDEStudio._export_formats(["PNG", ".pdf", "mp4", "tiff"]) == ["png", "pdf"]
         @test PDEStudio._export_formats("svg") == ["svg"]       # a single entry typed into the editor
@@ -208,7 +267,7 @@ end
 # ==============================================================================
 # --- TEST SUITE ---
 # ==============================================================================
-@testset "PDEStudio: UI Rendering Integration" begin
+any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" begin
     # 0. Setup Temporary Environment & 3D Simulation Sweep
     set_stat_preset!("hyperbolic")
     set_save_path!(mktempdir())
@@ -321,7 +380,7 @@ end
     # --- DYNAMIC PLOT TESTING LOOP ---
     base_plots = [:lines, :scatter, :contour, :heatmap, :volume]
 
-    for bp in base_plots
+    for bp in filter(bp -> ingroup(bp in (:lines, :scatter, :contour) ? "plots-1" : "plots-2"), base_plots)
         @testset "$(titlecase(string(bp))) Base Plot Styles" begin
 
             style_options = EULERIAN_PLOT_STYLE_OPTIONS[bp]
@@ -348,7 +407,7 @@ end
     # =========================================================================
     # --- COMPARE MECHANISM (Surface Plot) ---
     # =========================================================================
-    @testset "Compare Mechanism (Surface Plot)" begin
+    ingroup("plots-2") && @testset "Compare Mechanism (Surface Plot)" begin
         # 0. Provide a completely clean slate so previous test states don't interfere
         reset_plotter!()
         fig = launch_plotter()
@@ -400,7 +459,7 @@ end
     # =========================================================================
     # --- EXPORT MECHANISMS ---
     # =========================================================================
-    @testset "Export Mechanisms (Static & Animated)" begin
+    ingroup("plots-2") && @testset "Export Mechanisms (Static & Animated)" begin
         # 0. CLEAN SLATE: Wipe the 3D camera and compare modes from the previous test!
         reset_plotter!()
         fig = launch_plotter()
@@ -469,7 +528,7 @@ end
     # =========================================================================
     # --- CSV PIPELINE & PRESETS ---
     # =========================================================================
-    @testset "CSV Pipeline & Presets" begin
+    ingroup("editors") && @testset "CSV Pipeline & Presets" begin
         # 0. Clean Slate
         reset_plotter!()
         fig = launch_plotter()
@@ -533,7 +592,7 @@ end
     # =========================================================================
     # --- VISUAL PRESETS: ROUND TRIP ---
     # =========================================================================
-    @testset "Visual Presets: Round Trip" begin
+    ingroup("editors") && @testset "Visual Presets: Round Trip" begin
         # Uses the window and the configuration of the previous testset
         manager.ui[:export][:animation_FPS] = 12
         PDEStudio.set_label!(:component_1, "Density")
@@ -554,7 +613,7 @@ end
     # =========================================================================
     # --- SIMULATION PRESETS (API) ---
     # =========================================================================
-    @testset "Simulation Presets (API)" begin
+    ingroup("editors") && @testset "Simulation Presets (API)" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -616,7 +675,7 @@ end
     # =========================================================================
     # --- SIMULATION PRESETS & EDITOR (UI) ---
     # =========================================================================
-    @testset "Simulation Presets & Editor (UI)" begin
+    ingroup("editors") && @testset "Simulation Presets & Editor (UI)" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -709,7 +768,7 @@ end
     # =========================================================================
     # --- EDITOR: PRESETS SCOPE & LIVE PRESET LISTS ---
     # =========================================================================
-    @testset "Files tab: preset lists & preset files" begin
+    ingroup("editors") && @testset "Files tab: preset lists & preset files" begin
         reset_plotter!()
         shared = create_param_dict(:cfl => 0.5, :N => 20, :sim_func_name => :advection_solver_1d)
         methods = create_method_dict(:upwind => create_param_dict(:scheme => "upwind"))
@@ -791,7 +850,7 @@ end
     # =========================================================================
     # --- LOADING: JULIA CONFIG FILES, BUNDLED SOURCES, THE FILE DIALOG ---
     # =========================================================================
-    @testset "Loading Julia config files & bundled sources" begin
+    ingroup("editors") && @testset "Loading Julia config files & bundled sources" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -965,7 +1024,7 @@ end
     # =========================================================================
     # --- METHOD ORDER FOLLOWS `defaults` ---
     # =========================================================================
-    @testset "Method order follows defaults" begin
+    ingroup("editors") && @testset "Method order follows defaults" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -1011,7 +1070,7 @@ end
     # =========================================================================
     # --- CONTROL TABS (fixed widgets, hidden panels parked off-screen) ---
     # =========================================================================
-    @testset "Control tabs" begin
+    ingroup("editors") && @testset "Control tabs" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -1274,7 +1333,7 @@ end
     # =========================================================================
     # --- METHODS TAB: LIST, FILTER, EDIT, DRAWING ORDER ---
     # =========================================================================
-    @testset "Methods tab" begin
+    ingroup("editors") && @testset "Methods tab" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -1376,7 +1435,7 @@ end
     # =========================================================================
     # --- ADVANCED TAB: THE SIMULATIONCONFIG ITSELF ---
     # =========================================================================
-    @testset "Advanced tab (raw configuration)" begin
+    ingroup("editors") && @testset "Advanced tab (raw configuration)" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -1481,7 +1540,7 @@ end
     # =========================================================================
     # --- COMPARE OVER TIME & NON-NUMERIC SWEEPS ---
     # =========================================================================
-    @testset "Compare over Time & Non-numeric Sweeps" begin
+    ingroup("plots-2") && @testset "Compare over Time & Non-numeric Sweeps" begin
         reset_plotter!()
         fig = launch_plotter()
         display(fig)
@@ -1527,7 +1586,7 @@ end
     # =========================================================================
     # --- INBUILT PRESETS (API & UI) ---
     # =========================================================================
-    @testset "Inbuilt Presets & Global Reset" begin
+    ingroup("editors") && @testset "Inbuilt Presets & Global Reset" begin
         # 0. Clean Slate
         reset_plotter!()
         fig = launch_plotter()
@@ -1588,7 +1647,7 @@ end
     # =========================================================================
     # --- PLOTTING UTILS (HUD, Outliers & Reference Lines) ---
     # =========================================================================
-    @testset "Plotting Utilities: HUD, Outliers & Reference Lines" begin
+    ingroup("plots-2") && @testset "Plotting Utilities: HUD, Outliers & Reference Lines" begin
         # 0. Clean Slate & 1D Scatter Setup
         reset_plotter!()
         fig = launch_plotter()
@@ -1677,7 +1736,7 @@ end
     # =========================================================================
     # --- LAGRANGIAN RENDER PIPELINE ---
     # =========================================================================
-    @testset "Lagrangian Render Pipeline" begin
+    ingroup("plots-2") && @testset "Lagrangian Render Pipeline" begin
         # 0. Clean Slate
         reset_plotter!()
         set_mode!(:lagrangian)
@@ -1717,11 +1776,11 @@ end
         # Verify the backend correctly allocated a Lagrangian cache
         @test typeof(manager.caches[1][:upwind]).name.name == :LagrangianPlotCache
     end
-    @testset "README Test file" begin
+    ingroup("editors") && @testset "README Test file" begin
         @test include("../examples/advection_1d.jl") === false
     end
     reset_plotter!()
 end
 
 # The studio in a real browser (needs node, playwright-core and Chromium; skipped otherwise, see the file)
-include("browser/browser_tests.jl")
+ingroup("browser") && include("browser/browser_tests.jl")
