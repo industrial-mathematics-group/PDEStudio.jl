@@ -4,6 +4,7 @@ module PDEStudio
 using Makie, CairoMakie, Reexport
 using Observables: ObserverFunction, onany
 using Dates, CSV, DataFrames, Pkg, LibGit2, Printf, Statistics, StaticArrays
+using PrecompileTools: @setup_workload, @compile_workload
 
 @reexport using PDEStudioCore
 
@@ -431,5 +432,8 @@ function __init__()
     end
     reset_manager!()
 end
+
+
+include("Precompile.jl")
 
 end

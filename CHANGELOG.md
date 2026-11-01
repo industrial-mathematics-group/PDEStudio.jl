@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Faster first start:** the window, a simulation and a plot are compiled while the package precompiles (new
+  dependency: PrecompileTools), so the first `launch_plotter()` and simulation of a session take about 40 % less time
+  (locally 32 s → 19 s; precompiling PDEStudio takes a few seconds longer). To skip it while developing PDEStudio:
+  `PrecompileTools.Preferences.set_preferences!(PDEStudio, "precompile_workload" => false; force = true)`.
+
 ## Unreleased: GUI redesign (breaking)
 
 The control panel was rebuilt around tabs and editor pages. Widgets are still created once per window: hidden panels
