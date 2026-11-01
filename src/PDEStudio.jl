@@ -14,7 +14,7 @@ if !(isdefined(PDEStudioCore, :StatsView) && hasfield(SimulationConfig, :varied)
           "version is loaded from $(pathof(PDEStudioCore)). Use the new version, e.g. `pkg> dev /path/to/PDEStudioCore.jl`.")
 end
 
-export launch_plotter, set_sim_config!, reset_plotter!, reset_manager!, set_mode!, set_allowed_dims!, set_max_params!, set_plot_preset!, force_simulation, set_resolution!
+export launch_plotter, @launch, set_sim_config!, reset_plotter!, reset_manager!, set_mode!, set_allowed_dims!, set_max_params!, set_plot_preset!, force_simulation, set_resolution!
 export set_sim_preset!, save_sim_preset, save_plot_preset, reset_sim_config!
 
 
@@ -158,6 +158,7 @@ Base.@kwdef mutable struct PlotManager
     plot_titles::Vector{String} = String[]
     active_plot_type::Symbol = :none                                 # :none before the first layout
     csv_cache::Union{Nothing, NamedTuple} = nothing                  # structural CSV staged until "Run Simulation"
+    pending_domain::Any = nothing                                    # data with axes the window lacks (rebuilt on "Run")
     is_exporting::Bool = false
     skip_next_camera_extract::Bool = false
     bypass_locks::Bool = false
@@ -348,6 +349,21 @@ function simulation_trigger()
 
         @info "Running dynamic calculations directly from active config..."
         elapsed = @elapsed run_all_simulations(curr_config; calculate_stats = true, force_overwrite = false)
+
+        # Data with axes the window doesn't have (e.g. a time axis `:iteration`) would be dropped: the next click on
+        # "Run Simulation" rebuilds the window with them (like a CSV that changes the dimensions).
+        domain = _get_template_domain(curr_config)
+        dims = _dims_for_data(domain)
+        if !isnothing(dims)
+            manager.pending_domain = domain
+            empty!(manager.plot_data[])   # data of an earlier configuration must not stay on the sliders of this one
+            msg = "The data has the axes $(join(domain.dim_keys, ", ")), the window only $(join(manager.allowed_dims, ", "))"
+            @warn "$msg. Run Simulation rebuilds the window with them (or call set_allowed_dims!($dims) before " *
+                  "launch_plotter(), or use @launch, which does it)."
+            _status!("$msg: Run Simulation rebuilds the window with them.", :warn)
+            haskey(manager.widgets, :run_button) && (manager.widgets[:run_button].buttoncolor[] = :orange)
+            return
+        end
         _status!("Simulation finished in $(round(elapsed, digits = 1)) s ($(length(active_methods)) methods).", :ok)
 
         if manager.methods[] != active_methods   # order matters: it is the legend / comparison order

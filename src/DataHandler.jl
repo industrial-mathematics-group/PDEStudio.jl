@@ -1,11 +1,10 @@
 """
-    _get_template_domain(sim_config::SimulationConfig)
+    _template_data(sim_config::SimulationConfig)
 
-Retrieves the mathematical domain metadata from the first dataset on disk that belongs to a non-reference method.
-It is used to lay out reference solutions and to pick the display resolution of Eulerian data.
+Loads the first dataset on disk that belongs to a non-reference method of the configuration (`:raw`, as stored).
 Returns `nothing` if nothing has been simulated yet.
 """
-function _get_template_domain(sim_config::SimulationConfig)
+function _template_data(sim_config::SimulationConfig)
     active_keys, active_values = analyze_configuration(sim_config)
     for m_name in sim_config.defaults
         is_reference_method(m_name) && continue
@@ -16,7 +15,7 @@ function _get_template_domain(sim_config::SimulationConfig)
             does_sim_data_exist(params) || continue
             try
                 # Load via :raw to bypass any resolution requirements
-                return load_sim_data(params, Val(:raw)).domain
+                return load_sim_data(params, Val(:raw))
             catch e
                 @warn "Failed to load template domain for $m_name." exception = (e, catch_backtrace())
                 break
@@ -24,6 +23,47 @@ function _get_template_domain(sim_config::SimulationConfig)
         end
     end
     return nothing
+end
+
+"""
+    _get_template_domain(sim_config::SimulationConfig)
+
+The domain of `_template_data`: used to lay out reference solutions and to pick the display resolution of
+Eulerian data. Returns `nothing` if nothing has been simulated yet.
+"""
+function _get_template_domain(sim_config::SimulationConfig)
+    data = _template_data(sim_config)
+    return isnothing(data) ? nothing : data.domain
+end
+
+"""
+    _dims_for_data(domain) -> Union{Tuple, Nothing}
+
+The dimensions the studio needs to show data of `domain`: `nothing` if the allowed dimensions
+([`set_allowed_dims!`](@ref)) already contain its axes, otherwise the allowed dimensions plus the missing ones (the
+time axis last, e.g. `(:x, :y, :z, :t, :iteration)` for data with the axes `(:x, :y, :iteration)`).
+"""
+function _dims_for_data(domain)
+    (isnothing(domain) || issubset(domain.dim_keys, manager.allowed_dims)) && return nothing
+    t = domain.time_dim
+    allowed = collect(manager.allowed_dims)
+    dims = Symbol[filter(!=(t), allowed); filter(d -> !(d in allowed) && d != t, collect(domain.dim_keys))]
+    isnothing(t) || push!(dims, t)
+    return Tuple(dims)
+end
+
+# Allows the dimensions of `domain` (see `_dims_for_data`); a time axis with another name than `:t` gets the
+# display resolution of a time axis. Resets the plotter (like `set_allowed_dims!`) if the dimensions change.
+function _allow_dims_of!(domain)
+    dims = _dims_for_data(domain)
+    isnothing(dims) && return false
+    t = domain.time_dim
+    if !isnothing(t)
+        get!(manager.resolution_base, t, 50)
+        get!(manager.resolution_ref, t, 100)
+    end
+    set_allowed_dims!(dims)
+    return true
 end
 
 """

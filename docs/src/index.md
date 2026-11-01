@@ -58,7 +58,8 @@ See [File Operations](file_ops.md) for the details.
 
 | Function | Purpose |
 | :--- | :--- |
-| [`launch_plotter`](@ref)`()` | Builds the studio window and its reactive listeners; returns the `Figure`. |
+| [`@launch`](@ref)` [style] [config]` | Runs a configuration (optional) and opens the studio with it, in a plot style (optional, e.g. `heatmap`). |
+| [`launch_plotter`](@ref)`(config; style)` | Builds the studio window (the same without showing it); returns the `Figure`. |
 | [`set_sim_config!`](@ref)`(config)` | Binds a `SimulationConfig` (or a CSV: `set_sim_config!("name.csv")`). Also the baseline for *Files → Simulation → Reset*. |
 | [`force_simulation`](@ref)`()` | Runs the bound configuration (same as clicking *Run Simulation*). |
 | [`set_plot_preset!`](@ref)`(name)` | Applies a built-in or saved visual preset; `set_plot_preset!()` restores the default look. |
@@ -67,7 +68,7 @@ See [File Operations](file_ops.md) for the details.
 | [`set_sim_preset!`](@ref)`(name)` | Applies a simulation preset (replace or patch). |
 | [`reset_sim_config!`](@ref)`()` | Restores the configuration last bound with `set_sim_config!`. |
 | [`set_mode!`](@ref)`(:eulerian / :lagrangian)` | Switches between grid and particle rendering. |
-| [`set_allowed_dims!`](@ref)`(dims)`, [`set_max_params!`](@ref)`(n)` | Structural limits: the physical dimensions and the number of parameter sliders. |
+| [`set_allowed_dims!`](@ref)`(dims)`, [`set_max_params!`](@ref)`(n)` | Structural limits: the dimensions (axes, default `(:x, :y, :z, :t)`; `@launch` adds the axes of the data) and the number of parameter sliders. |
 | [`set_resolution!`](@ref)`(dim, n)` | Display resolution of a dimension (data is resampled for display; also *Files → Resolution ›*). |
 | [`reset_plotter!`](@ref)`()`, [`reset_manager!`](@ref)`()` | Closes the window / resets the whole studio without restarting Julia. |
 
@@ -79,18 +80,27 @@ See [File Operations](file_ops.md) for the details.
 using PDEStudio   # reexports PDEStudioCore
 using GLMakie     # or WGLMakie for browser rendering
 
-# 1. Launch and display the studio
-fig = launch_plotter()
-display(fig)
-
-# 2. Bind a simulation and run it (or click "Run Simulation")
-set_sim_config!(test_advection_1d())
-force_simulation()
+@launch test_advection_1d()              # run a configuration and open the studio with it
+@launch heatmap test_heat_2d()           # ... in a plot style (a group: lines, scatter, contour, heatmap, volume, or a style)
 ```
+
+`@launch` runs the configuration first (the results are cached) and opens the studio set up for its data: particle
+data in Lagrangian mode (unless the style needs a grid), and axes the studio doesn't know yet (e.g. a time axis named
+`:iteration`) added to [`set_allowed_dims!`](@ref). The same step by step:
+
+```julia
+fig = launch_plotter(; style = :heatmap)  # build the window
+display(fig)
+set_sim_config!(test_heat_2d())           # bind a configuration
+force_simulation()                        # run it (or click "Run Simulation")
+```
+
+If the data then has axes the window lacks, the status line says so and the next *Run Simulation* rebuilds the
+window with them.
 
 `test_advection_1d()` is one of the built-in examples of PDEStudioCore, each a function returning a ready
 `SimulationConfig`: `test_advection_1d`, `test_burgers_1d`, `test_heat_1d`, `test_heat_2d`, `test_poisson_2d` and
-`test_particles_2d` (Lagrangian: `set_mode!(:lagrangian)` before `launch_plotter()`). Their solvers, in PDEStudioCore's
+`test_particles_2d` (Lagrangian data, opened as particles). Their solvers, in PDEStudioCore's
 [`src/Examples/`](https://github.com/blhackslash/PDEStudioCore.jl/tree/main/src/Examples), show how to write your own;
 a configuration of your own is bound the same way:
 

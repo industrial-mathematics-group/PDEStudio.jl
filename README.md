@@ -38,23 +38,20 @@ For comprehensive guides on the reactive UI architecture, layout synchronization
 using PDEStudio   # reexports PDEStudioCore
 using GLMakie     # or WGLMakie for browser rendering
 
-fig = launch_plotter()
-display(fig)
-
-set_sim_config!(test_advection_1d())   # a built-in example: three schemes and the exact solution, swept over the CFL number
-force_simulation()                     # or click "Run Simulation"
+@launch test_advection_1d()            # a built-in example: three schemes and the exact solution, swept over the CFL number
 ```
 
-Then explore it: the sliders pick the CFL number and the time, the *Plot* tab the plot style and axes, *Methods* the
+`@launch` runs the configuration and opens the studio with it; a plot style can come first: `@launch heatmap
+test_advection_1d()` shows the wave as an x–t heatmap (`@launch` alone opens the empty studio). Then explore it: the sliders pick the CFL number and the time, the *Plot* tab the plot style and axes, *Methods* the
 schemes. Other built-in examples:
 
 | Example | Equation | Tip |
 | :--- | :--- | :--- |
 | `test_burgers_1d()` | inviscid Burgers: a shock, conservative vs non-conservative schemes | X-Axis → Time, U-Axis → Mass |
 | `test_heat_1d()` | heat equation: explicit (unstable at `r = 0.6`), implicit, Crank–Nicolson | slider R |
-| `test_heat_2d()` | heat equation in 2D: explicit vs ADI | Plot Style → Heatmap, Y-Axis → Position (Y) |
-| `test_poisson_2d()` | Poisson equation: Jacobi, Gauss–Seidel, SOR; time = iterations | Heatmap, as above |
-| `test_particles_2d()` | particles in a rotating flow: Euler, RK2, RK4 | `set_mode!(:lagrangian)` before `launch_plotter()` |
+| `test_heat_2d()` | heat equation in 2D: explicit vs ADI | `@launch heatmap test_heat_2d()` |
+| `test_poisson_2d()` | Poisson equation: Jacobi, Gauss–Seidel, SOR; time = iterations | `@launch heatmap test_poisson_2d()` |
+| `test_particles_2d()` | particles in a rotating flow: Euler, RK2, RK4 | opens as particles (Lagrangian) |
 
 They come from [PDEStudioCore](https://github.com/blhackslash/PDEStudioCore.jl): each is a function returning a
 `SimulationConfig`, with its solver in PDEStudioCore's
@@ -67,8 +64,12 @@ and an optional exact solution (see the [PDEStudioCore README](https://github.co
 copy one of the example solvers). Bind it like an example:
 
 ```julia
-set_sim_config!(my_config)   # or load a saved CSV / a Julia config file: set_sim_config!("my_run.csv")
+@launch contour my_config    # or bind it to an open studio: set_sim_config!(my_config); force_simulation()
+set_sim_config!("my_run.csv")   # a saved CSV or a Julia config file
 ```
+
+Name the axes as you like (`create_sim_data(...; dims = (:r, :θ), time_dim = :iteration)`): `@launch` adds the axes
+the studio doesn't know yet; with a studio that is already open, *Run Simulation* rebuilds the window with them.
 
 ---
 
