@@ -32,123 +32,43 @@ Pkg.add("PDEStudio")
 
 For comprehensive guides on the reactive UI architecture, layout synchronization, parameter sweeping, and advanced server deployment macros, please refer to the **[Official Documentation](https://blhackslash.github.io/PDEStudio.jl/dev/)**.
 
-## Basic Workflow
-
-### 1. Create a Simulation Config with the backend **PDEStudioCore**:
+## Quick Start
 
 ```julia
-# examples/advection_1d.jl
-using PDEStudio # Reexports PDEStudioCore automatically
-using StaticArrays
+using PDEStudio   # reexports PDEStudioCore
+using GLMakie     # or WGLMakie for browser rendering
 
-# 1. Define the 1D Linear Advection solver
-function advection_1d(params::ParamDict)
-    # Extract shared physics and grid settings
-    N   = params[:N]
-    c   = params[:c]
-    T   = params[:T]
-    cfl = params[:cfl]
-    scheme = params[:scheme]
-
-    # Calculate step sizes based on the CFL condition
-    x = collect(range(0.0, 1.0, length=N))
-    dx = x[2] - x[1]
-    dt = cfl * dx / abs(c)
-    t = collect(0.0:dt:T)
-
-    # Allocate the 2D Spacetime Tensor (Space x Time)
-    u = zeros(SVector{1, Float64}, N, length(t))
-    
-    # Initial Condition: Sine wave
-    for i in 1:N
-        u[i, 1] = SVector{1, Float64}(sin(2 * pi * x[i]))
-    end
-
-    # Time integration loop with periodic boundary conditions
-    for j in 1:(length(t)-1)
-        for i in 1:N
-            # Periodic index wrapping
-            i_prev = i == 1 ? N : i - 1
-            i_next = i == N ? 1 : i + 1
-
-            u_curr = u[i, j][1]
-            u_prev = u[i_prev, j][1]
-            u_next = u[i_next, j][1]
-
-            # Route to the specific numerical scheme
-            if scheme == "upwind"
-                # Standard first-order upwind (assuming c > 0)
-                val = u_curr - cfl * (u_curr - u_prev)
-            elseif scheme == "lax_friedrichs"
-                # Lax-Friedrichs central difference
-                val = 0.5 * (u_next + u_prev) - 0.5 * cfl * (u_next - u_prev)
-            else
-                error("Unknown scheme: $scheme")
-            end
-
-            u[i, j+1] = SVector{1, Float64}(val)
-        end
-    end
-
-    return create_sim_data(x, u, t, params; time_dim=:t)
-end
-
-# 2. Setup Dictionaries
-shared_params = create_param_dict(
-    :N => 100,
-    :c => 1.0,
-    :T => 2.0,
-    :cfl => .5, # Define the default to be overwritten by the varied parameters
-    :sim_func_name => :advection_1d,
-)
-
-# Define the methods (these inject the :scheme parameter into the solver)
-methods = create_method_dict(
-    :upwind => create_param_dict(:scheme => "upwind"),
-    :lax_friedrichs => create_param_dict(:scheme => "lax_friedrichs")
-)
-
-# Parameter sweeps: Test both methods across different CFL limits
-varied = create_varied_dict(
-    :cfl => [0.3, 0.5, 0.8, 1.0]
-)
-
-# 3. Create the Configuration: shared parameters, all methods, the active methods (`defaults`) and the sweep
-config = SimulationConfig(
-    shared_params,
-    methods,
-    [:upwind, :lax_friedrichs];
-    varied = varied,
-)
-
-# 4. Run the Pipeline (optional, is run by the Studio automatically)
-set_save_path!(joinpath(@__DIR__, "results"))
-run_all_simulations(config, parallel=true, calculate_stats=true)
-```
-
-### 2. Start the preferred backend and launch the Studio:
-
-```julia
-using GLMakie # Switch to WGLMakie for browser rendering
-
-# Launch the interactive studio
 fig = launch_plotter()
-
-# Display the interactive studio
 display(fig)
+
+set_sim_config!(test_advection_1d())   # a built-in example: three schemes and the exact solution, swept over the CFL number
+force_simulation()                     # or click "Run Simulation"
 ```
 
-### 3. Attach your created config to the Studio and run the simulation
+Then explore it: the sliders pick the CFL number and the time, the *Plot* tab the plot style and axes, *Methods* the
+schemes. Other built-in examples:
+
+| Example | Equation | Tip |
+| :--- | :--- | :--- |
+| `test_burgers_1d()` | inviscid Burgers: a shock, conservative vs non-conservative schemes | X-Axis → Time, U-Axis → Mass |
+| `test_heat_1d()` | heat equation: explicit (unstable at `r = 0.6`), implicit, Crank–Nicolson | slider R |
+| `test_heat_2d()` | heat equation in 2D: explicit vs ADI | Plot Style → Heatmap, Y-Axis → Position (Y) |
+| `test_poisson_2d()` | Poisson equation: Jacobi, Gauss–Seidel, SOR; time = iterations | Heatmap, as above |
+| `test_particles_2d()` | particles in a rotating flow: Euler, RK2, RK4 | `set_mode!(:lagrangian)` before `launch_plotter()` |
+
+They come from [PDEStudioCore](https://github.com/blhackslash/PDEStudioCore.jl): each is a function returning a
+`SimulationConfig`, with its solver in PDEStudioCore's
+[`src/Examples/`](https://github.com/blhackslash/PDEStudioCore.jl/tree/main/src/Examples).
+
+## Your Own Simulation
+
+A solver is a function from the parameters of one run to a dataset; a `SimulationConfig` adds the methods, the sweep
+and an optional exact solution (see the [PDEStudioCore README](https://github.com/blhackslash/PDEStudioCore.jl), or
+copy one of the example solvers). Bind it like an example:
 
 ```julia
-# Bind the physics to the UI
-set_sim_config!(config)
-
-# Force the initial calculation (optional, can also be done in the GUI)
-force_simulation() 
+set_sim_config!(my_config)   # or load a saved CSV / a Julia config file: set_sim_config!("my_run.csv")
 ```
-
-### 4. Explore your simulation data in the Studio!
 
 ---
 
