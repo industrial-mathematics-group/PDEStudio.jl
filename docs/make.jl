@@ -10,7 +10,10 @@ makedocs(
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "https://blhackslash.github.io/PDEStudio.jl/",
-        assets = String[],
+        # The sidebar logo needs no entry here: Documenter shows docs/src/assets/logo.svg (and logo-dark.svg for the
+        # dark themes) automatically. `assets` only takes CSS/JS files and favicons.
+        assets = [asset("assets/favicon.png", class = :ico, islocal = true)],
+        sidebar_sitename = true,
     ),
     pages = [
         "Home" => "index.md",
