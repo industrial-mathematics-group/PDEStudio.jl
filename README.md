@@ -4,10 +4,10 @@
 <img alt="PDEStudio.jl" src="logos/svg/logo-dark.svg#gh-dark-mode-only" width="480">
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22962032.svg)](https://doi.org/10.5281/zenodo.22962032)
-[![Build Status](https://github.com/blhackslash/PDEStudio.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/blhackslash/PDEStudio.jl/actions/workflows/CI.yml)
-[![Coverage](https://codecov.io/gh/blhackslash/PDEStudio.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/blhackslash/PDEStudio.jl)
-[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://blhackslash.github.io/PDEStudio.jl/dev/)
-[![Stable Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://blhackslash.github.io/PDEStudio.jl/stable/)
+[![Build Status](https://github.com/industrial-mathematics-group/PDEStudio.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/industrial-mathematics-group/PDEStudio.jl/actions/workflows/CI.yml)
+[![Coverage](https://codecov.io/gh/industrial-mathematics-group/PDEStudio.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/industrial-mathematics-group/PDEStudio.jl)
+[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://industrial-mathematics-group.github.io/PDEStudio.jl/dev/)
+[![Stable Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://industrial-mathematics-group.github.io/PDEStudio.jl/stable/)
 
 </div>
 
