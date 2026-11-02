@@ -11,7 +11,7 @@
 
 </div>
 
-**PDEStudio.jl** is a highly interactive, Makie-driven graphical frontend engineered for the real-time visualization and exploration of Partial Differential Equation (PDE) simulations. It serves as the visual counterpart to the autonomous numerical backend, [PDEStudioCore.jl](https://github.com/blhackslash/PDEStudioCore.jl).
+**PDEStudio.jl** is a highly interactive, Makie-driven graphical frontend engineered for the real-time visualization and exploration of Partial Differential Equation (PDE) simulations. It serves as the visual counterpart to the autonomous numerical backend, [PDEStudioCore.jl](https://github.com/industrial-mathematics-group/PDEStudioCore.jl).
 
 The studio seamlessly handles both Eulerian grids and Lagrangian particle systems, dynamically adapting its primitives to support 1D, 2D, and 3D visualization. It features a tabbed control panel (plot and layout options, methods, shared parameters, the look, files and presets, and an advanced editor for the raw configuration), robust CSV serialization for state preservation, and an independent export pipeline for publication-quality static frames and animations.
 
@@ -30,7 +30,7 @@ Pkg.add("PDEStudio")
 
 ## Documentation
 
-For comprehensive guides on the reactive UI architecture, layout synchronization, parameter sweeping, and advanced server deployment macros, please refer to the **[Official Documentation](https://blhackslash.github.io/PDEStudio.jl/dev/)**.
+For comprehensive guides on the reactive UI architecture, layout synchronization, parameter sweeping, and advanced server deployment macros, please refer to the **[Official Documentation](https://industrial-mathematics-group.github.io/PDEStudio.jl/dev/)**.
 
 ## Quick Start
 
@@ -53,14 +53,14 @@ schemes. Other built-in examples:
 | `test_poisson_2d()` | Poisson equation: Jacobi, Gauss–Seidel, SOR; time = iterations | `@launch heatmap test_poisson_2d()` |
 | `test_particles_2d()` | particles in a rotating flow: Euler, RK2, RK4 | opens as particles (Lagrangian) |
 
-They come from [PDEStudioCore](https://github.com/blhackslash/PDEStudioCore.jl): each is a function returning a
+They come from [PDEStudioCore](https://github.com/industrial-mathematics-group/PDEStudioCore.jl): each is a function returning a
 `SimulationConfig`, with its solver in PDEStudioCore's
-[`src/Examples/`](https://github.com/blhackslash/PDEStudioCore.jl/tree/main/src/Examples).
+[`src/Examples/`](https://github.com/industrial-mathematics-group/PDEStudioCore.jl/tree/main/src/Examples).
 
 ## Your Own Simulation
 
 A solver is a function from the parameters of one run to a dataset; a `SimulationConfig` adds the methods, the sweep
-and an optional exact solution (see the [PDEStudioCore README](https://github.com/blhackslash/PDEStudioCore.jl), or
+and an optional exact solution (see the [PDEStudioCore README](https://github.com/industrial-mathematics-group/PDEStudioCore.jl), or
 copy one of the example solvers). Bind it like an example:
 
 ```julia
