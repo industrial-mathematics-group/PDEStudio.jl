@@ -384,8 +384,13 @@ function load_and_apply_csv!(filepath::AbstractString)
     if !isnothing(dims)
         haskey(dims, "allowed_dims") && (new_dims = _parse_dims(dims["allowed_dims"]))
         get(dims, "max_params", nothing) isa Real && (new_max = Int(dims["max_params"]))
-        # the mode the file was saved in (files of earlier versions have none: the current mode stays)
+        # the data kind of files saved by the short-lived Files -> Mode version (now the plot style says it:
+        # `particles_*` styles draw Lagrangian data)
         mode = get(dims, "mode", nothing)
+        layout = _scene_source(parsed, "Layout")
+        if mode === :lagrangian && layout isa AbstractDict && get(layout, "plot_style", nothing) isa Union{Symbol, AbstractString}
+            layout["plot_style"] = _public_style(_base_style(Symbol(layout["plot_style"])), :lagrangian)
+        end
         mode in (:eulerian, :lagrangian) && set_mode!(mode)
     end
     # Make room for every swept parameter of the loaded configuration.
@@ -456,7 +461,7 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
     if !isnothing(layout_source)
         for (k, v) in layout_source
             if k == "plot_style" && v isa Union{Symbol, AbstractString}
-                switch_ui_plot_type!(Symbol(v))
+                switch_ui_plot_type!(_base_style(Symbol(v)))   # particle styles use the scatter templates
                 break
             end
         end
@@ -736,7 +741,6 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
         isnothing(config) || _add_simulation_rows!(rows, config)
         add_row!(rows, "Config", "Dimensions", "allowed_dims", manager.allowed_dims)
         add_row!(rows, "Config", "Dimensions", "max_params", manager.max_params)
-        add_row!(rows, "Config", "Dimensions", "mode", manager.mode[])
         for (dim, res) in _sorted_pairs(manager.resolution_base)
             add_row!(rows, "Config", "Resolution_Base", dim, res)
         end
