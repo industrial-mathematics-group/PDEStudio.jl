@@ -273,12 +273,13 @@ end
 
 Builds the studio window and returns its `Figure` (show it with `display`, or use [`@launch`](@ref), which does).
 
-- `style`: the plot style to start with, a group (`:lines`, `:scatter`, `:contour`, `:heatmap`, `:volume`: its
-  first style) or a style (e.g. `:heatmap_surface`, `:contour_3d`). The axes follow from the data: a 2D style shows
-  `x` and `y`, or `x` and `t` for 1D data.
+- `style`: the plot style to start with, a group (`:lines`, `:scatter`, `:contour`, `:heatmap`, `:volume`,
+  `:particles`: its first style) or a style (e.g. `:heatmap_surface`, `:contour_3d`, `:particles_2d`). The axes
+  follow from the data: a 2D style shows `x` and `y`, or `x` and `t` for 1D data. The particle styles draw the data
+  as particles (Lagrangian), all others on a grid (Eulerian); data of the other kind is converted.
 - `config`: a `SimulationConfig` to bind and run. It is run first (the results are cached), so the window starts
-  with the right setup: the mode (Lagrangian data opens as particles unless `style` needs a grid) and the dimensions
-  (axes the window doesn't know yet, such as a time axis `:iteration`, are added, see [`set_allowed_dims!`](@ref)).
+  with the right setup: without a `style`, particle data opens in a particle style; axes the window doesn't know
+  yet (such as a time axis `:iteration`) are added (see [`set_allowed_dims!`](@ref)).
 
 ```julia
 fig = launch_plotter(; style = :heatmap)              # empty window, heatmaps once data arrives
@@ -288,7 +289,7 @@ display(fig)
 """
 function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
     isnothing(config) || _prepare_for_config!(config, style)
-    plot_style = isnothing(style) ? nothing : _resolve_plot_style(style, manager.mode[])
+    plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)
 
     reset_plotter!()
 
@@ -297,7 +298,7 @@ function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; styl
     plot_layout = master_fig[1, 2] = GridLayout(alignmode = Outside())  # titles and labels inside: no extra height for the controls
     
     create_controls(ctrl_layout)
-    isnothing(plot_style) || _set_style!(manager.widgets[:plot_style], plot_style)
+    isnothing(plot_style) || _set_public_style!(manager.widgets[:plot_style], plot_style)
     # A configuration bound before launching needs its slider labels and mapping on the new widgets.
     isnothing(manager.active_config) || _map_parameters_to_sliders!(manager.active_config)
     setup_ui_interactions!(master_fig, plot_layout, Val(manager.mode[]))
@@ -325,6 +326,7 @@ Opens the studio and shows it, optionally with a plot style and a configuration 
 @launch test_advection_1d()          # run a configuration and show it
 @launch heatmap test_heat_2d()       # both
 @launch contour_3d my_config         # a specific style (see `launch_plotter`) and a variable
+@launch particles test_particles_2d()   # the particles at their positions
 ```
 
 The same as `display(launch_plotter(config; style))` (see [`launch_plotter`](@ref)); in a browser (WGLMakie) the
@@ -341,7 +343,7 @@ macro launch(args...)
         else
             bad = args[1]
             throw(ArgumentError("@launch takes a plot style and a configuration; `$bad` is not a plot style " *
-                                "(groups: lines, scatter, contour, heatmap, volume, or a style such as heatmap_surface)"))
+                                "(groups: lines, scatter, contour, heatmap, volume, particles, or a style such as heatmap_surface)"))
         end
     end
     return :(PDEStudio._launch_and_show($config, $style))
@@ -358,27 +360,29 @@ end
 _in_browser() = (b = Makie.current_backend(); !ismissing(b) && !isnothing(b) && nameof(b) === :WGLMakie)
 
 # Every style name and group `launch_plotter(; style)` accepts
-_is_plot_style_name(s::Symbol) =
-    haskey(EULERIAN_PLOT_STYLE_OPTIONS, s) || haskey(LAGRANGIAN_PLOT_STYLE_OPTIONS, s) || haskey(PLOT_DIM_MAP, s)
+_is_plot_style_name(s::Symbol) = s === :particles || _is_particle_style(s) || haskey(EULERIAN_PLOT_STYLE_OPTIONS, s) ||
+                                 haskey(PLOT_DIM_MAP, s)
 
-# A style group or style name -> the style of the current mode
-function _resolve_plot_style(style::Symbol, mode::Symbol)
-    options = mode === :eulerian ? EULERIAN_PLOT_STYLE_OPTIONS : LAGRANGIAN_PLOT_STYLE_OPTIONS
-    styles = Symbol[o[2] for group in values(options) for o in group]
-    style in styles && return style
-    haskey(options, style) && return options[style][1][2]
-    throw(ArgumentError("unknown plot style $(repr(style)) for $mode data: use a group " *
-                        "($(join(sort(collect(keys(options))), ", "))) or a style ($(join(sort(styles), ", ")))"))
+# A style group or style name -> the user-facing style (the particle styles draw Lagrangian data)
+function _resolve_plot_style(style::Symbol)
+    _is_particle_style(style) && return style
+    style === :particles && return :particles_1d          # the particles' dimension picks 2D / 3D
+    style === :scatter_surface && return :particles_surface   # a particle-only plot type
+    haskey(PLOT_DIM_MAP, style) && return style
+    haskey(EULERIAN_PLOT_STYLE_OPTIONS, style) && return EULERIAN_PLOT_STYLE_OPTIONS[style][1][2]
+    grid = Symbol[o[2] for opts in values(EULERIAN_PLOT_STYLE_OPTIONS) for o in opts]
+    throw(ArgumentError("unknown plot style $(repr(style)): use a group (lines, scatter, contour, heatmap, volume, " *
+                        "particles) or a style ($(join(sort([grid; collect(keys(PARTICLE_STYLES))]), ", ")))"))
 end
 
-# Runs `config` (cached) and sets the mode and dimensions its data needs before the window is built.
+# Runs `config` (cached) and sets the data kind and the dimensions its data needs before the window is built.
 function _prepare_for_config!(config::SimulationConfig, style)
     @info "Running the configuration before opening the studio (the results are cached)..."
     run_all_simulations(config; calculate_stats = true, force_overwrite = false)
     data = _template_data(config)
     isnothing(data) && return nothing
-    grid_style = !isnothing(style) && !_is_plot_style_name_of(style, :lagrangian)
-    mode = data isa LSimData && !grid_style ? :lagrangian : :eulerian
+    # the style decides the data (particles or grid); without one, particle data opens in a particle style
+    mode = isnothing(style) ? (data isa LSimData ? :lagrangian : :eulerian) : _style_mode(_resolve_plot_style(style))
     if mode !== manager.mode[]
         reset_plotter!()                  # the window is rebuilt anyway
         set_mode!(mode)
@@ -386,9 +390,6 @@ function _prepare_for_config!(config::SimulationConfig, style)
     _allow_dims_of!(data.domain)
     return nothing
 end
-
-_is_plot_style_name_of(s::Symbol, mode::Symbol) =
-    (try _resolve_plot_style(s, mode); true catch e; e isa ArgumentError || rethrow(); false end)
 
 # =================================
 # --- LAYOUT & RENDER HANDLERS ---

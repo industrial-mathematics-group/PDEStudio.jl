@@ -5,6 +5,17 @@
 
 The *Scatter* family is the most versatile rendering class in the studio, acting as the primary bridge between Eulerian meshes and Lagrangian particle clouds. Instead of drawing continuous shapes, it plots discrete data points at explicit mathematical coordinates. 
 
+## Particle Styles
+The *Particles* group of the style page has the same plot types drawn from Lagrangian data: the particles at their
+computed positions instead of grid points (see [Grid and Particle Styles](../rendering.md)). They share the options of
+the scatter style they are based on.
+
+| Particle style | Based on |
+| :--- | :--- |
+| **1D Particles** (`:particles_1d`), **Particle Lines** (`:particles_lines`), **Particle Colors** (`:particles_colors`) | `:scatter_1d`, `:scatter_lines`, `:scatter_colors` |
+| **2D Particles** (`:particles_2d`), **2D Particles (Surface)** (`:particles_surface`) | `:scatter_2d`, `:scatter_surface` |
+| **3D Particles** (`:particles_3d`) | `:scatter_3d` |
+
 ## Shared Marker Options
 Because every scatter plot relies on discrete geometry, they uniformly support the following structural modifiers:
 *   **Markers (`:markers`):** Defines the geometric shape of the points (e.g., circles, crosses, triangles).

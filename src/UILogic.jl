@@ -116,7 +116,7 @@ function apply_options!(cache::AbstractDict, option_keys::Tuple, new_options::Di
                 _set_number!(widget, val)
                 continue
             elseif widget isa StyleChoice
-                _set_style!(widget, val)
+                _set_public_style!(widget, val)   # a particle style switches to the Lagrangian data
                 continue
             end
             opts = widget.options[]
@@ -149,7 +149,8 @@ function extract_options(option_keys::Tuple)
     opts = Dict{Symbol, Any}()
     for k in option_keys
         if haskey(manager.widgets, k)
-            opts[k] = manager.widgets[k].selection[]
+            sel = manager.widgets[k].selection[]
+            opts[k] = k === :plot_style ? _public_style(sel) : sel   # files store the user-facing style name
         end
     end
     return opts
@@ -541,9 +542,6 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
     end
 
     manager.listeners[:Browse_Click] = on(_ -> (@async _browse_for_config()), manager.widgets[:browse_button].clicks)
-    manager.listeners[:Mode_Click] = on(manager.widgets[:mode_button].clicks) do _
-        set_mode!(manager.mode[] === :eulerian ? :lagrangian : :eulerian)
-    end
 
     manager.listeners[:Run_Click] = on(run_btn.clicks) do _
         if !isnothing(manager.pending_domain)
@@ -592,10 +590,8 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
 end
 
 # ------------------------------------------------------------------------------
-# Mode (grid or particle data), switched live
+# The data behind the plot styles (Eulerian grids or Lagrangian particles), switched live
 # ------------------------------------------------------------------------------
-
-_mode_label(mode::Symbol) = mode === :eulerian ? "Mode: Grid (Eulerian)" : "Mode: Particles (Lagrangian)"
 
 # The plot styles of a mode
 _mode_styles(mode::Symbol) = Symbol[o[2] for opts in values(mode === :eulerian ? EULERIAN_PLOT_STYLE_OPTIONS :
@@ -607,9 +603,10 @@ const _MODE_LISTENERS = (:Eulerian_Chain_A, :Eulerian_Chain_B, :Eulerian_Style_C
 """
     _switch_mode!(mode)
 
-Applies a new mode (the listener of `manager.mode`, see [`set_mode!`](@ref)) without rebuilding the window or the
-manager: drops the data, plot caches and allowed styles of the old mode, keeps the plot style if the new mode has
-it (otherwise its default), rewires the menu cascades of the mode on the existing widgets and runs the bound
+Applies a new mode (the listener of `manager.mode`): choosing a particle style or another style switches between
+Lagrangian and Eulerian data (`_set_public_style!`, [`set_mode!`](@ref)). Works on the open window: drops the data,
+plot caches and allowed styles of the old mode, takes the plot style from the layout options if the new mode has it
+(otherwise its default), rewires the menu cascades of the mode on the existing widgets and runs the bound
 configuration again if its plots were shown (cached), which loads the data for the new mode and rebuilds them.
 """
 function _switch_mode!(mode::Symbol)
@@ -617,9 +614,11 @@ function _switch_mode!(mode::Symbol)
     empty!(manager.plot_data[])
     empty!(manager.caches)
     empty!(manager.allowed_styles)
-    style = get(manager.layout_cache, :plot_style, nothing)
-    style in _mode_styles(mode) || (style = get_base_layout_options()[:plot_style])
+    style = get(manager.layout_cache, :plot_style, :none)
+    style isa Symbol && _style_mode(style) === mode && _base_style(style) in _mode_styles(mode) ||
+        (style = get_base_layout_options()[:plot_style])
     manager.layout_cache[:plot_style] = style
+    style = _base_style(style)
     manager.is_open || return nothing
 
     for k in _MODE_LISTENERS
@@ -633,16 +632,15 @@ function _switch_mode!(mode::Symbol)
     _setup_chain_A!(Val(mode))
     _setup_chain_B!(Val(mode))
     _setup_chain_C!(Val(mode))
-    haskey(w, :mode_button) && (w[:mode_button].label[] = _mode_label(mode))
     _render_editor!()
 
-    name = mode === :eulerian ? "grid (Eulerian)" : "particle (Lagrangian)"
+    name = mode === :eulerian ? "grid styles: the data is shown on a grid" : "particle styles: the data is shown as particles"
     config = manager.active_config
     if !shown || isnothing(config) || isnothing(_template_data(config))
-        _status!("Switched to the $name mode.", :ok)
+        _status!("$(uppercasefirst(name)).", :ok)
     else
         force_simulation()   # cached: reloads the data for the new mode
-        isempty(manager.plot_data[]) || _status!("Switched to the $name mode (the data is converted where needed).", :ok)
+        isempty(manager.plot_data[]) || _status!("$(uppercasefirst(name)) (converted where needed).", :ok)
     end
     return nothing
 end
@@ -992,17 +990,24 @@ function _editor_sections(cat)
     return Pair{String, Vector{Symbol}}[]
 end
 
-# The plot styles of the mode, one titled group per base plot, without the ones the data doesn't allow.
+# The page of all plot styles (user-facing names): one titled group per base plot of the grid styles, and the particle
+# styles matching the dimension of the particles (all of them before there is data).
 function _plot_style_sections()
-    opts = manager.mode[] == :eulerian ? EULERIAN_PLOT_STYLE_OPTIONS : LAGRANGIAN_PLOT_STYLE_OPTIONS
-    bases = manager.mode[] == :eulerian ? (:lines, :scatter, :contour, :heatmap, :volume) : (:scatter,)
-    allowed = manager.allowed_styles
     sections = Pair{String, Vector{Symbol}}[]
-    for b in bases
-        styles = Symbol[o[2] for o in opts[b] if isempty(allowed) || o[2] in allowed]
-        isempty(styles) || push!(sections, frontend_key(b) => styles)
+    for b in (:lines, :scatter, :contour, :heatmap, :volume)
+        push!(sections, frontend_key(b) => Symbol[o[2] for o in EULERIAN_PLOT_STYLE_OPTIONS[b]])
     end
+    push!(sections, frontend_key(:particles) => _particle_styles_for_data())
     return sections
+end
+
+# The particle styles for the spatial dimension of the bound data (all of them before there is data)
+function _particle_styles_for_data()
+    data = manager.plot_data[]
+    sim = isempty(data) ? nothing : _get_first_valid(first(values(data)))
+    isnothing(sim) && return sort(collect(keys(PARTICLE_STYLES)); by = s -> PLOT_DIM_MAP[PARTICLE_STYLES[s]])
+    D = count(!=(sim.domain.time_dim), sim.domain.dim_keys)
+    return get(PARTICLE_STYLES_BY_DIM, D, PARTICLE_STYLES_BY_DIM[3])
 end
 
 # The display name of a plot type (the menu names of some only make sense next to their base plot, e.g. "Flat").
@@ -1011,14 +1016,16 @@ _style_label(style::Symbol) = get(_SCOPE_LABELS, style, frontend_key(style))
 """
     _choose_plot_style!(style)
 
-Selects a plot type from the page of all plot styles, returns to the Plot tab and flags *Apply Layout*.
+Selects a plot style from the page of all plot styles and returns to the Plot tab: within the grid or the particle
+styles it flags *Apply Layout*; between them it switches the data (Eulerian / Lagrangian) and redraws.
 """
 function _choose_plot_style!(style::Symbol)
     sc = manager.widgets[:plot_style]
-    changed = sc.selection[] != style
-    _set_style!(sc, style)
+    changed = _public_style(sc.selection[]) != style
+    switches = _style_mode(style) !== manager.mode[]
+    _set_public_style!(sc, style)   # particle <-> grid styles: the data is reloaded and redrawn right away
     show_editor_page!(:plot)
-    changed && _status!("Plot style: $(_style_label(style)). Apply Layout to redraw.", :ok)
+    changed && !switches && _status!("Plot style: $(_style_label(style)). Apply Layout to redraw.", :ok)
     return nothing
 end
 
@@ -1039,12 +1046,10 @@ end
 # Every page of the overview of an editor category.
 _editor_scopes(cat) = reduce(vcat, last.(_editor_sections(cat)); init = Symbol[])
 
-# The plot types of the mode, grouped by base plot.
+# The UI pages of the plot types: one per internal type (a particle style shares the page of its scatter style).
 function _plot_style_scopes()
-    groups = manager.mode[] == :eulerian ?
-             [EULERIAN_PLOT_STYLE_OPTIONS[b] for b in (:lines, :scatter, :contour, :heatmap, :volume)] :
-             [LAGRANGIAN_PLOT_STYLE_OPTIONS[:scatter]]
-    return Symbol[o[2] for opts in groups for o in opts]
+    scopes = Symbol[o[2] for b in (:lines, :scatter, :contour, :heatmap, :volume) for o in EULERIAN_PLOT_STYLE_OPTIONS[b]]
+    return unique!(push!(scopes, :scatter_surface))
 end
 
 # Whether the page of a UI scope belongs to the active plot (the active plot type and its axis variants).
@@ -1717,7 +1722,7 @@ function _render_overview!(cat)
             push!(scopes, s)
             btn = buttons[nb]
             btn.label[] = _scope_button_label(cat, s)
-            active = cat === :ui ? _ui_scope_active(s) : cat === :plot && s === manager.widgets[:plot_style].selection[]
+            active = cat === :ui ? _ui_scope_active(s) : cat === :plot && s === _public_style(manager.widgets[:plot_style].selection[])
             btn.buttoncolor[] = active ? RGBf(0.65, 0.78, 1.0) : RGBf(0.88, 0.92, 1.0)
             (i - 1) % OVERVIEW_COLS == 0 && (row += 1)
             _place!(btn, ov, row, (i - 1) % OVERVIEW_COLS + 1)
