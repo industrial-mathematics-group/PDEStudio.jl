@@ -47,7 +47,7 @@ const METHOD_FILTERS = (:active, :disabled, :all)
 const EDITOR_ROWS = 16        # key rows of a page (the height of the Plot tab); longer scopes get ◀ ▶ pages
 const OVERVIEW_BUTTONS = 30   # page buttons of an overview (UI: 5 general + 5 axes + up to 17 plot styles)
 const OVERVIEW_COLS = 3
-const OVERVIEW_SECTIONS = 5   # titled groups of an overview (UI: General, Labels, Axes, Plot styles; plot styles: one per base plot)
+const OVERVIEW_SECTIONS = 6   # titled groups of an overview (UI: General, Labels, Axes, Plot styles; plot styles: one per base plot and Particles)
 const EDITOR_ROWGAP = 4
 const SLIDER_ROWGAP = 5
 
@@ -157,8 +157,7 @@ end
 Builds the `Files` tab: the name / path box (exports, presets, loading; *Browse…* opens the system's file dialog)
 and the description of a new preset; loading a CSV or a Julia configuration file (or drop it anywhere on the window;
 files that run code need a second click), export and its settings (an editor page of `ui[:export]`); the
-mode (grid or particle data, see [`set_mode!`](@ref)) and the resolution of the data and the references (an editor
-page, see `_set_resolution_from_ui!`); and the presets: save / reset the simulation (the physics) and the look (the visual settings), and *Presets ›*, the list
+resolution of the data and the references (an editor page, see `_set_resolution_from_ui!`); and the presets: save / reset the simulation (the physics) and the look (the visual settings), and *Presets ›*, the list
 of the saved presets with *Apply* and *Edit ›* (the rows of the preset file). Results are shown in the status line.
 """
 function create_file_controls!(layout::GridLayout)
@@ -176,8 +175,7 @@ function create_file_controls!(layout::GridLayout)
     Label(layout[4, 1:4], "Load: a CSV, or a Julia file returning a SimulationConfig (runs its code). Files can also be dropped.",
           halign = :left, fontsize = 11, color = :gray40)
     Label(layout[5, 1], "Data", halign = :left, fontsize = 13)
-    w[:mode_button] = Button(layout[5, 2:3], label = _mode_label(manager.mode[]), width = nothing)
-    w[:resolution_button] = Button(layout[5, 4], label = "Resolution ›", width = nothing)
+    w[:resolution_button] = Button(layout[5, 2:3], label = "Resolution ›", width = nothing)
 
     Label(layout[6, 1:4], "Presets", halign = :left, font = :bold, color = :darkred)
     neutral = RGBf(0.92, 0.92, 0.92)
@@ -242,13 +240,35 @@ struct StyleChoice
 end
 
 function StyleChoice(pos, style::Symbol)
-    sc = StyleChoice(Button(pos, label = _style_label(style) * "  ›", width = nothing), Observable(style))
-    manager.listeners[:StyleChoice_Label] = on(s -> (sc.button.label[] = _style_label(s) * "  ›"), sc.selection)
+    sc = StyleChoice(Button(pos, label = _style_label(_public_style(style)) * "  ›", width = nothing), Observable(style))
+    # the label shows the user-facing name: the same scatter type reads "2D Scatter" or "2D Particles"
+    manager.listeners[:StyleChoice_Label] = onany((s, m) -> (sc.button.label[] = _style_label(_public_style(s, m)) * "  ›"),
+                                                  sc.selection, manager.mode)
     manager.listeners[:StyleChoice_Click] = on(_ -> show_editor_page!(:plot, STYLE_CHOOSER), sc.button.clicks)
     return sc
 end
 
-# Sets the plot style from code (presets, CSV files, the option caches); unknown or unavailable styles are ignored.
+"""
+    _set_public_style!(sc::StyleChoice, val)
+
+Sets a user-facing plot style (presets, CSV files, the option caches, the style page, `launch_plotter(; style)`):
+a particle style (`PARTICLE_STYLES`) switches to the Lagrangian data, any other style to the Eulerian data (live,
+see `_switch_mode!`), then selects the internal plot type. Unknown styles are ignored.
+"""
+function _set_public_style!(sc::StyleChoice, val)
+    s = Symbol(val)
+    base = _base_style(s)
+    haskey(PLOT_DIM_MAP, base) || return nothing
+    mode = _style_mode(s)
+    if mode !== manager.mode[]
+        manager.layout_cache[:plot_style] = s   # the style the switch keeps
+        set_mode!(mode)
+    end
+    _set_style!(sc, base)
+    return nothing
+end
+
+# Sets the internal plot type (a key of PLOT_DIM_MAP) in the current mode; unknown or unavailable types are ignored.
 function _set_style!(sc::StyleChoice, val)
     s = Symbol(val)
     (haskey(PLOT_DIM_MAP, s) && (isempty(manager.allowed_styles) || s in manager.allowed_styles)) || return nothing

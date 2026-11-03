@@ -1232,8 +1232,9 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         style_btn.clicks[] += 1
         @test manager.active_tab[] === :plot && w[:editor_title][] == "Plot style"
         @test hidden(:x_axis) && shown(:editor_back)           # the page replaces the options
-        @test Set(manager.editor_page_scopes) == euler_styles   # (scatter_surface is a Lagrangian style)
-        @test [w[Symbol("editor_section_", k)].text[] for k in 1:5] == ["Lines", "Scatter", "Contour", "Heatmap", "Volume"]
+        # every grid style, and the particle styles of the 1D data (the particle styles draw Lagrangian data)
+        @test Set(manager.editor_page_scopes) == union(euler_styles, Set([:particles_1d, :particles_lines, :particles_colors]))
+        @test [w[Symbol("editor_section_", k)].text[] for k in 1:6] == ["Lines", "Scatter", "Contour", "Heatmap", "Volume", "Particles"]
         j_active = findfirst(isequal(:lines_1d), manager.editor_page_scopes)
         @test w[Symbol("editor_page_", j_active)].buttoncolor[] != w[:editor_page_2].buttoncolor[]
         click_button!(:editor_back)                            # back without a change
@@ -1253,7 +1254,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
                                                    :labels, :components, :variables, :methods,
                                                    :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d]
         @test w[:editor_page_4].label[] == "Plot"               # the titles and axis labels of the plot
-        @test Set(manager.editor_page_scopes[13:end]) == euler_styles
+        @test Set(manager.editor_page_scopes[13:end]) == union(euler_styles, Set([:scatter_surface]))   # (particles: their scatter pages)
         @test !(:export in manager.editor_page_scopes)        # the export settings are in the Files tab
         open_scope!(:heatmap_flat)                             # a plot type lists the options it uses
         @test Set(manager.editor_row_keys) == Set(PDEStudio.STYLE_DEPENDENCIES[:heatmap_flat])
@@ -1782,8 +1783,9 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # Verify the backend correctly allocated a Lagrangian cache
         @test typeof(manager.caches[1][:upwind]).name.name == :LagrangianPlotCache
     end
-    # The mode (grid / particle data) switches live: same window, same configuration, data reloaded for the mode
-    ingroup("editors") && @testset "Mode switch (live)" begin
+    # Particle styles: choosing one shows the data as particles (Lagrangian), any other style on a grid (Eulerian);
+    # the switch is live (same window, configuration and look), the data is reloaded for the new kind
+    ingroup("editors") && @testset "Particle styles (live switch)" begin
         reset_plotter!()
         set_mode!(:eulerian)
         w() = manager.widgets
@@ -1792,39 +1794,42 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
                                create_method_dict(:a => create_param_dict(), :b => create_param_dict(:v => 2.0)), [:a, :b])
         fig = launch_plotter()
         display(fig)
-        w()[:mode_button].clicks[] += 1
-        @test manager.mode[] === :lagrangian && manager.master_fig === fig && w()[:mode_button].label[] == "Mode: Particles (Lagrangian)"
-        @test startswith(status(), "Switched to the particle")
-        w()[:mode_button].clicks[] += 1
-        @test manager.mode[] === :eulerian
-
-        # particle data in the grid mode (converted), then switched to particles and back, in the same window
+        @test !haskey(w(), :mode_button)   # no mode toggle: the style decides
         set_sim_config!(lag)
         force_simulation()
-        @test haskey(manager.plot_data[], :a) && manager.plot_data[][:a] isa PDEStudio.PlotSweepData
-        @test PDEStudio._get_first_valid(manager.plot_data[][:a]) isa ESimData
-        w()[:mode_button].clicks[] += 1
+        sim(m) = PDEStudio._get_first_valid(manager.plot_data[][m])
+        @test sim(:a) isa ESimData                                   # particle data on a grid (converted)
+
+        # the style page offers every grid style and the particle styles of the particles' dimension (1D here)
+        w()[:plot_style].button.clicks[] += 1
+        @test :heatmap_flat in manager.editor_page_scopes && :particles_1d in manager.editor_page_scopes
+        @test !(:particles_2d in manager.editor_page_scopes)
+        PDEStudio._choose_plot_style!(:particles_lines)
         @test manager.mode[] === :lagrangian && manager.master_fig === fig && manager.active_config === lag
-        @test PDEStudio._get_first_valid(manager.plot_data[][:a]) isa LSimData
-        @test w()[:plot_style].selection[] in manager.allowed_styles && occursin("Lagrangian", status())
+        @test w()[:plot_style].selection[] === :scatter_lines && w()[:plot_style].button.label[] == "Particle Lines  ›"
+        @test sim(:a) isa LSimData && occursin("as particles", status())
         @test haskey(manager.listeners, :Lagrangian_Chain_A) && !haskey(manager.listeners, :Eulerian_Chain_A)
-        # particles are shown as computed: only the references have a resolution
-        @test all(last, PDEStudio._resolution_items())
-        # the mode is saved with an export and applied when the file is loaded
+        @test all(last, PDEStudio._resolution_items())               # only the references have a resolution
+        # within the particle styles: Apply Layout as usual
+        PDEStudio._choose_plot_style!(:particles_colors)
+        @test manager.mode[] === :lagrangian && occursin("Apply Layout", status())
+        # files store the user-facing name, and loading it restores the particles
         dir = mktempdir()
-        PDEStudio.save_params_to_csv("lagmode", dir, Dict{String, Any}())
-        @test any(l -> l == "Config,Dimensions,mode,:lagrangian", readlines(joinpath(dir, "lagmode.csv")))
-        w()[:mode_button].clicks[] += 1
-        @test manager.mode[] === :eulerian && PDEStudio._get_first_valid(manager.plot_data[][:a]) isa ESimData
+        PDEStudio.save_params_to_csv("particles", dir, Dict{String, Any}())
+        rows = readlines(joinpath(dir, "particles.csv"))
+        @test "Scene,Layout,plot_style,:particles_colors" in rows && !any(startswith("Config,Dimensions,mode"), rows)
+        PDEStudio._choose_plot_style!(:lines_1d)
+        @test manager.mode[] === :eulerian && sim(:a) isa ESimData && w()[:plot_style].button.label[] == "1D Lines  ›"
         @test haskey(manager.listeners, :Eulerian_Chain_A) && !haskey(manager.listeners, :Lagrangian_Chain_A)
-        set_sim_config!(joinpath(dir, "lagmode.csv"))
-        @test manager.mode[] === :lagrangian && manager.master_fig === fig
-        # a style the mode doesn't have is replaced by its default (also without a window)
-        reset_plotter!()
-        set_mode!(:eulerian)
-        manager.layout_cache[:plot_style] = :heatmap_flat
-        set_mode!(:lagrangian)
-        @test manager.layout_cache[:plot_style] === :scatter_1d
+        set_sim_config!(joinpath(dir, "particles.csv"))
+        @test manager.mode[] === :lagrangian && w()[:plot_style].selection[] === :scatter_colors && manager.master_fig === fig
+        # Reset look keeps the kind of data (the default particle style)
+        set_plot_preset!()
+        @test manager.mode[] === :lagrangian && manager.layout_cache[:plot_style] === :particles_1d
+        # names: groups, particle styles, the particle-only type
+        @test PDEStudio._resolve_plot_style(:particles) === :particles_1d
+        @test PDEStudio._resolve_plot_style(:scatter_surface) === :particles_surface
+        @test PDEStudio._resolve_plot_style(:scatter) === :scatter_1d
         set_mode!(:eulerian)
     end
 

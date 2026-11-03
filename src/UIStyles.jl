@@ -40,6 +40,13 @@ const SYMBOL_TO_LABEL_MAP = Dict{Symbol, String}(
     :heatmap_flat => "Flat",
     :heatmap_surface => "Surface",
     :volume_3d => "3D Cloud (Volume)",
+    :particles => "Particles",
+    :particles_1d => "1D Particles",
+    :particles_lines => "Particle Lines",
+    :particles_colors => "Particle Colors",
+    :particles_2d => "2D Particles",
+    :particles_surface => "2D Particles (Surface)",
+    :particles_3d => "3D Particles",
 
     :x => "Position (X)",
     :y => "Position (Y)",
@@ -118,6 +125,31 @@ const EULERIAN_PLOT_STYLE_OPTIONS = Dict{Symbol, Vector{Any}}(
 const LAGRANGIAN_PLOT_STYLE_OPTIONS = Dict{Symbol, Vector{Any}}(
     :scatter => Any[menu_opt(:scatter_1d), menu_opt(:scatter_2d), menu_opt(:scatter_surface), menu_opt(:scatter_3d), menu_opt(:scatter_lines), menu_opt(:scatter_colors)] 
 )
+
+"""
+    PARTICLE_STYLES
+
+The particle styles: the scatter styles drawn from Lagrangian data (the particles at their positions, as computed).
+They are the names users see (style chooser, `@launch particles_2d`, presets, CSV files); internally the studio
+draws the scatter style of the same name in the Lagrangian mode (`manager.mode`, which selects the data the backend
+delivers and the plot caches). Every other style draws Eulerian (grid) data. Particle data in a grid style and grid
+data in a particle style are converted by PDEStudioCore.
+"""
+const PARTICLE_STYLES = Dict(:particles_1d => :scatter_1d, :particles_lines => :scatter_lines,
+                             :particles_colors => :scatter_colors, :particles_2d => :scatter_2d,
+                             :particles_surface => :scatter_surface, :particles_3d => :scatter_3d)
+const _PARTICLE_STYLE_OF = Dict(v => k for (k, v) in PARTICLE_STYLES)
+# The particle styles by the spatial dimension of the particles
+const PARTICLE_STYLES_BY_DIM = Dict(1 => [:particles_1d, :particles_lines, :particles_colors],
+                                    2 => [:particles_2d, :particles_surface], 3 => [:particles_3d])
+
+_is_particle_style(s::Symbol) = haskey(PARTICLE_STYLES, s)
+# The data a (user-facing) style draws: `:lagrangian` for the particle styles, `:eulerian` otherwise
+_style_mode(s::Symbol) = _is_particle_style(s) ? :lagrangian : :eulerian
+# The internal plot type of a style name (particle styles -> their scatter style)
+_base_style(s::Symbol) = get(PARTICLE_STYLES, s, s)
+# The user-facing name of the internal plot type `base` in `mode`
+_public_style(base::Symbol, mode::Symbol = manager.mode[]) = mode === :lagrangian ? get(_PARTICLE_STYLE_OF, base, base) : base
 
 const STYLE_DEPENDENCIES = Dict{Symbol, Vector{Symbol}}(
     :lines_1d         => [:colors, :line_width, :line_styles, :dashed_lines, :reference],
@@ -291,9 +323,9 @@ function set_plot_preset!()
     #    so `manager.ui` is never left empty (UI triggers read it before the next layout rebuild).
     empty!(manager.ui)
     base_layout = get_base_layout_options()
-    plot_type = (manager.active_plot_type === :none ? base_layout[:plot_style] : manager.active_plot_type)
+    plot_type = (manager.active_plot_type === :none ? _base_style(base_layout[:plot_style]) : manager.active_plot_type)
     manager.active_plot_type = :none
-    switch_ui_plot_type!(haskey(PLOT_DIM_MAP, plot_type) ? plot_type : base_layout[:plot_style])
+    switch_ui_plot_type!(haskey(PLOT_DIM_MAP, plot_type) ? plot_type : _base_style(base_layout[:plot_style]))
 
     # 2. Reset Layout and Sliders safely
     apply_layout_options!(base_layout)

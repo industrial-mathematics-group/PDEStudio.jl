@@ -298,7 +298,7 @@ function get_base_layout_options()
     is_lag = manager.mode[] == :lagrangian
     
     return Dict{Symbol, Any}(
-        :plot_style      => is_lag ? :scatter_1d : :lines_1d,
+        :plot_style      => is_lag ? :particles_1d : :lines_1d,   # user-facing style names (see PARTICLE_STYLES)
         :compare_target  => :none, 
         :compare_columns => 2,     
         :compare_link    => :fully_coupled,
@@ -312,14 +312,15 @@ end
 """
     set_mode!(mode::Symbol)
 
-Switches how the data is shown: `:eulerian` (grid data: lines, scatter, contours, heatmaps, volumes) or
-`:lagrangian` (particles: scatter plots of their positions). Data of the other kind is converted (PDEStudioCore's
-`convert_to_eulerian` / `convert_to_lagrangian`), so both modes show every dataset; statistics over time or swept
-parameters are plotted in the Eulerian mode.
+The data behind the plot styles: `:eulerian` (grids, every grid style) or `:lagrangian` (particles, the particle
+styles `particles_*`). Usually there is no need to call it: choosing a plot style sets it (the style page, presets,
+CSV files, `launch_plotter(; style)` / `@launch`). Data of the other kind is converted (PDEStudioCore's
+`convert_to_eulerian` / `convert_to_lagrangian`), so every style shows every dataset; statistics over time or swept
+parameters are plotted with the grid styles.
 
-The switch is live (also *Files → Mode*): the open window, the bound configuration, the look and the editors are kept;
-the data is reloaded for the new mode (the results are cached) and a plot style the mode doesn't have is replaced by
-its default (`lines_1d` / `scatter_1d`).
+The switch is live: the open window, the bound configuration, the look and the editors are kept; the data is
+reloaded (the results are cached) and a plot style of the other kind is replaced by the default of the new one
+(`lines_1d` / `particles_1d`).
 """
 function set_mode!(mode::Symbol)
     mode in (:eulerian, :lagrangian) || throw(ArgumentError("mode must be :eulerian or :lagrangian, got :$mode"))
