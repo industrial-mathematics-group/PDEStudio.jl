@@ -82,7 +82,7 @@ function _handle_plot_trigger!(
             
             mutated_sel_vals = is_compare ? _mutate_compare_vals(sel_vals, i) : sel_vals
             target_c_int = (is_compare && target == :component) ? i : c_sel[]
-            local_methods = is_compare && target == :methods ? [manager.methods[][i]] : manager.methods[]
+            local_methods = _subplot_methods(is_compare && target == :methods, i)
             
             data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
             isempty(valid_methods) && continue
@@ -159,6 +159,14 @@ function _handle_plot_trigger!(
         _enforce_camera_lock!(axes)
     end
     return true
+end
+
+# The methods drawn in subplot `i`: all active methods, or the `i`-th one with "Compare: methods". A configuration bound
+# since the layout was built may have fewer active methods than the layout has subplots (until it is run).
+function _subplot_methods(per_method::Bool, i::Int)
+    methods = manager.methods[]
+    per_method || return methods
+    return i <= length(methods) ? [methods[i]] : Symbol[]
 end
 
 """
@@ -299,7 +307,7 @@ function _handle_data_trigger!(
     for i in 1:num_plots
         mutated_sel_vals = is_compare ? _mutate_compare_vals(sel_vals, i) : sel_vals
         target_c_int = (is_compare && target == :component) ? i : c_sel[]
-        local_methods = is_compare && target == :methods ? [manager.methods[][i]] : manager.methods[]
+        local_methods = _subplot_methods(is_compare && target == :methods, i)
         
         data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
         isempty(valid_methods) && continue

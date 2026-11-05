@@ -1998,6 +1998,48 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         set_mode!(:eulerian)
     end
 
+    # Play Anim / Stop, Lock Camera, menus that follow labels and order, and a configuration with fewer methods
+    ingroup("plots-1") && @testset "Animation, camera, menus and fewer methods" begin
+        reset_plotter!()
+        set_mode!(:eulerian)
+        fig = launch_plotter()
+        display(fig)
+        w() = manager.widgets
+        status() = replace(w()[:status][], '\n' => ' ')
+        shared = create_param_dict(:cfl => 0.5, :N => 20, :sim_func_name => :advection_solver_1d)
+        one = SimulationConfig(shared, create_method_dict(:upwind => create_param_dict(:scheme => "upwind")), [:upwind])
+        set_sim_config!(one)
+        click_button!(:run_button)
+        show_tab!(:plot)
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
+
+        # 4. Two methods and a sweep
+        two = SimulationConfig(shared, create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
+                                                          :upwind2 => create_param_dict(:scheme => "upwind", :N => 30)),
+                               [:upwind, :upwind2]; varied = create_varied_dict(:cfl => [0.4, 0.5]))
+        set_sim_config!(two)
+        click_button!(:run_button)
+
+        # 5. Compare = methods, then a configuration with fewer active methods (not run yet): plot updates still work
+        click_menu!(w()[:compare_target], :methods)
+        click_button!(:layout_apply)
+        @test length(manager.caches) == 2
+        set_sim_config!(one)
+        logger = Test.TestLogger(min_level = Base.CoreLogging.Error)
+        Base.CoreLogging.with_logger(logger) do
+            show_editor_page!(:ui, :x_axis_1d)
+            press_row!(:log_scale)                    # an option that replots
+            press_row!(:log_scale)
+            show_tab!(:plot)
+            set_close_to!(w()[:t], 1.0)
+            yield()
+        end
+        @test isempty(logger.logs)
+        click_menu!(w()[:compare_target], :none)
+        click_button!(:run_button)
+        @test length(manager.caches) == 1 && haskey(manager.caches[1], :upwind)
+    end
 
     # What is drawn: references on the domain and at the times of the data, titles with the drawn time, slider
     # positions restored from a CSV over other data, reference lines, style values
