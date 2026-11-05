@@ -1,0 +1,10 @@
+[abc, 1]               -> "[abc, 1]"  accepted = false
+[0.1, 0.2x]            -> "[0.1, 0.2x]"  accepted = false
+[0.1 0.2]              -> "[0.1 0.2]"  accepted = false
+[0.1, "a"]             -> Any[0.1, "a"]  accepted = true
+Float64[0.1, abc]      -> "Float64[0.1, abc]"  accepted = false
+[0.1, 0.2              -> "[0.1, 0.2"  accepted = false
+[a, b]                 -> "[a, b]"  accepted = false
+[:a, "b"]              -> Any[:a, "b"]  accepted = true
+String[<empty>, "a"]   -> ["", "a"]  accepted = true
+raw text of Any['"', ""]: Any['"', <empty>] -> (false, nothing)

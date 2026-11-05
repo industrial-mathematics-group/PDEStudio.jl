@@ -1,0 +1,17 @@
+conversion cache enabled: false
+nt = 40: file size 20.0 MiB
+  studio load #1: 0.459 s, 216.0 MiB allocated, size (200, 200, 40)
+  studio load #2: 0.022 s, 52.6 MiB allocated, size (200, 200, 40)
+  studio load #3: 0.022 s, 52.6 MiB allocated, size (200, 200, 40)
+  Core :eulerian (200, 200, 50) #1: 0.027 s, 55.7 MiB
+  Core :eulerian (200, 200, 50) #2: 0.027 s, 55.7 MiB
+  alt: Core (200,200,40) cached + select #1: 0.022 s, 52.6 MiB, size (200, 200, 40)
+  alt: Core (200,200,40) cached + select #2: 0.022 s, 52.6 MiB, size (200, 200, 40)
+nt = 401: file size 200.5 MiB
+  studio load #1: 0.148 s, 275.5 MiB allocated, size (200, 200, 50)
+  studio load #2: 0.049 s, 266.1 MiB allocated, size (200, 200, 50)
+  studio load #3: 0.049 s, 266.1 MiB allocated, size (200, 200, 50)
+  Core :eulerian (200, 200, 50) #1: 0.068 s, 416.7 MiB
+  Core :eulerian (200, 200, 50) #2: 0.063 s, 416.7 MiB
+  alt: Core (200,200,401) cached + select #1: 0.26 s, 539.1 MiB, size (200, 200, 50)
+  alt: Core (200,200,401) cached + select #2: 0.251 s, 539.1 MiB, size (200, 200, 50)
