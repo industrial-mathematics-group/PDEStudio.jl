@@ -1716,9 +1716,13 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test manager.ui[:labels][:title] == ""
         @test manager.ui[:plot_style][:line_width] == 2.5
         
+        y1d_padding = manager.ui[:y_axis_1d][:padding]
         set_plot_preset!(:heatmap)
         yield()
         @test manager.layout_cache[:plot_style] == :heatmap_flat
+        # its axis options go to the axes of the heatmap, not to those of the style shown before (1D lines)
+        @test manager.ui[:x_axis_nd][:label_offset] == 10.0 && manager.ui[:y_axis_nd][:padding] == 0.0
+        @test manager.ui[:y_axis_1d][:padding] == y1d_padding
         
         set_plot_preset!(:compact3d)
         yield()

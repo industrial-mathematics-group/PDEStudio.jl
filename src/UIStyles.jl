@@ -403,10 +403,11 @@ function apply_plot_preset!(::Val{:heatmap})
         :compare_link   => :fully_coupled
     ))
     
-    set_ui_opt!(:x_axis, :label_offset, 10.0)
-    set_ui_opt!(:y_axis, :label_offset, 10.0)
-    set_ui_opt!(:x_axis, :padding, 0.0)
-    set_ui_opt!(:y_axis, :padding, 0.0)
+    # the axis variant of the heatmap (`x_axis` would be that of the style shown before, e.g. the 1D lines)
+    set_ui_opt!(:x_axis_nd, :label_offset, 10.0)
+    set_ui_opt!(:y_axis_nd, :label_offset, 10.0)
+    set_ui_opt!(:x_axis_nd, :padding, 0.0)
+    set_ui_opt!(:y_axis_nd, :padding, 0.0)
     set_ui_opt!(:plot_style, :bottom_margin, 20)
 end
 

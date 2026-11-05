@@ -54,6 +54,8 @@ What has changed since the last release. Released versions are described in the
   never recorded in the `Julia` category; they are now.
 - **◀ ▶ in the Files tab:** the pages of a preset file and of a long preset list couldn't be turned (rows after the
   first page of a look preset were out of reach).
+- **The built-in `heatmap` look preset** wrote its axis options into the 1-D axes of the style shown before; it sets
+  the axes of the heatmap now.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
