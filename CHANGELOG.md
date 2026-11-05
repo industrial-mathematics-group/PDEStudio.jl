@@ -65,6 +65,8 @@ What has changed since the last release. Released versions are described in the
 - **Deleted preset files** stayed in the preset lists (and *Edit ›* called them built in); the lists follow the files.
 - **Status line:** messages with multibyte characters (`→`, `ü`, …) were wrapped inside a word and could exceed the
   line.
+- **Menus with a meaningful order** (components, compare targets) were sorted by label (`Component 1, 10, 11, 2, …`);
+  they keep their order.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn

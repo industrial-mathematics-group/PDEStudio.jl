@@ -29,17 +29,19 @@ function menu_option_rank(opt)
 end
 
 """
-    update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false)
+    update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false, sort=true)
 
 Safely updates the options of a Makie `Menu` widget. 
 
-Because rapidly swapping underlying tuples in a GLMakie backend can trigger WebGL buffer crashes or infinite `onany` recursion loops, this function mathematically verifies if an update is strictly necessary. If options do change, it gracefully preserves the user's active selection. If that selection is no longer valid, it attempts to bind to the first available element in the `fallbacks` array before defaulting to index `1`.
+Because rapidly swapping underlying tuples in a GLMakie backend can trigger WebGL buffer crashes or infinite `onany` recursion loops, this function checks whether an update is necessary. If options do change, it gracefully preserves the user's active selection. If that selection is no longer valid, it attempts to bind to the first available element in the `fallbacks` array before defaulting to index `1`.
+The options are sorted with `menu_option_rank` (by label), unless `sort = false`: menus whose order means something
+(the components, the compare targets) keep the order of `new_options`.
 """
-function update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false)
+function update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false, sort::Bool=true)
     curr = menu_widget.selection[]
     
     # Ensure options are properly sorted by priority BEFORE comparing state
-    new_arr = isempty(new_options) ? Any[menu_opt(:none)] : sort(new_options, by=menu_option_rank)
+    new_arr = isempty(new_options) ? Any[menu_opt(:none)] : sort ? Base.sort(new_options, by=menu_option_rank) : collect(Any, new_options)
     
     old_arr = menu_widget.options[]
     options_changed = false
@@ -2474,7 +2476,7 @@ function _setup_chain_A!(::Val{:eulerian})
                 # Use menu_opt instead of string()
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
-            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false)
+            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
 
             ptype = manager.widgets[:plot_style].selection[]
             p_dim = get(PLOT_DIM_MAP, ptype, 1)
@@ -2591,7 +2593,7 @@ function _setup_chain_A!(::Val{:lagrangian})
             for p_key in pd_first.active_param_keys
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
-            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false)
+            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
         end
     end
 end
@@ -2733,7 +2735,7 @@ function _setup_chain_C!(mode::Val{T}) where T
                 
                 push!(c_options, (frontend_key(sym), i))
             end
-            update_menu_safe!(w[:component], c_options; fallbacks=[1])
+            update_menu_safe!(w[:component], c_options; fallbacks=[1], sort=false)   # in component order
         end
     end
 end

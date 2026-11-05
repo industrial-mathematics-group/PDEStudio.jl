@@ -350,6 +350,13 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         lines = split(PDEStudio._wrap_status(msg), '\n')
         @test length(lines[1]) <= n && startswith(msg, lines[1] * " ")
         @test length(first(split(PDEStudio._wrap_status("Geschwindigkeit · Dämpfung → Größe ▲▼ "^4), '\n'))) <= n
+        # menus whose order means something keep it (no sort by label: Component 1, 2, …, 10, 11)
+        fig = Figure()
+        m = Menu(fig[1, 1], options = Any[("Component 1", 1)])
+        PDEStudio.update_menu_safe!(m, Any[("Component $i", i) for i in 1:11]; fallbacks = [1], sort = false)
+        @test [o[2] for o in m.options[]] == 1:11
+        PDEStudio.update_menu_safe!(m, Any[("Density", 1), ("Momentum", 2), ("Energy", 3)]; fallbacks = [1], sort = false)
+        @test [o[2] for o in m.options[]] == 1:3
     end
 
     @testset "Axis limits and style values" begin
@@ -2097,6 +2104,8 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
                                [:upwind, :upwind2]; varied = create_varied_dict(:cfl => [0.4, 0.5]))
         set_sim_config!(two)
         click_button!(:run_button)
+        # the compare targets keep their order (not sorted by label)
+        @test [o[2] for o in w()[:compare_target].options[]] == [:none, :methods, :component, :time, :cfl]
 
         # 5. Compare = methods, then a configuration with fewer active methods (not run yet): plot updates still work
         click_menu!(w()[:compare_target], :methods)
