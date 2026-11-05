@@ -715,8 +715,10 @@ function get_julia_info(git_repo_names::Vector{String})
     end
     info["Main_Project"] = top_deps
 
+    # Repository folders are named like their packages, usually with a `.jl` suffix (`PDEStudio.jl` holds `PDEStudio`)
+    repo_packages = Set(replace(basename(n), r"\.jl$" => "") for n in git_repo_names)
     for (uuid, pkg) in deps
-        if pkg.name in git_repo_names
+        if pkg.name in repo_packages
             sub_deps = Dict{String, Any}()
             for (dep_name, dep_uuid) in pkg.dependencies
                 if haskey(deps, dep_uuid)

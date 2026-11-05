@@ -50,6 +50,8 @@ What has changed since the last release. Released versions are described in the
 - **Style values that can't be drawn** (`colors = []`, empty `markers` / `line_styles`, a `color_range` of one value,
   `levels` below 2) were accepted by the editor and broke every plot update; they are refused now, and filled
   contours draw with at least 2 levels.
+- **Provenance of exports:** the dependencies of local packages (repository `<Name>.jl` of the package `<Name>`) were
+  never recorded in the `Julia` category; they are now.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn

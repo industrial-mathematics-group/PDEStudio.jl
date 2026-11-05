@@ -336,6 +336,12 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
     end
 
+    @testset "Provenance: dependencies of local packages" begin
+        # a repository folder `<Name>.jl` records the dependencies of the package `<Name>`
+        info = PDEStudio.get_julia_info(["PDEStudio.jl"])
+        @test haskey(info, "PDEStudio") && haskey(info["PDEStudio"], "PDEStudioCore")
+    end
+
     @testset "Axis limits and style values" begin
         # 1D axis limits of a field that is constant up to Float32 noise: a usable range instead of the noise
         u = Float64.(1.4f0 .+ Float32.(1e-7 .* sin.(10 .* range(0, 1, length = 50))))
