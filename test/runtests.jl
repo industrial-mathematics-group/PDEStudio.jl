@@ -140,6 +140,15 @@ function exact_advection_factory(params::ParamDict)
     return (x -> exact_advection(x))
 end
 
+# The exact transport solution stored every `every`-th time step (sparse output)
+function exact_sparse_1d(params::ParamDict)
+    N, dt, every = params[:N], params[:dt], params[:every]
+    x = collect(range(0.0, step = 2π / N, length = N))
+    t = collect(0.0:dt*every:2.0)
+    return create_sim_data(x, [SVector(sin(xi - ti) + 2.0) for xi in x, ti in t], t, params; time_dim = :t, dims = :x)
+end
+exact_sparse_factory(params) = (xt -> SVector(sin(xt[1] - xt[2]) + 2.0))
+
 # The exact transport solution up to the final time `T_end` (a swept parameter that changes the domain)
 function exact_transport_1d(params::ParamDict)
     N, cfl, T_end = params[:N], params[:cfl], params[:T_end]
@@ -300,6 +309,40 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         write(path, "Category,Scope,Parameter,Value\nSimulation,Shared,dt,1.5\nSimulation,Shared,v,\"Float64[1.0, 2.0]\"\n")
         old = PDEStudio.csv_to_simulation_config(PDEStudio.parse_csv_to_dict(path))
         @test old.shared[:dt] === 1.5 && old.shared[:v] == [1.0, 2.0] && old.shared[:v] isa Vector{Float64}
+    end
+
+    @testset "Drawn times: stored snapshots and references at the data's times" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        set_stat_preset!("hyperbolic")
+        # exact data stored every `every` steps (201, 51, 11 snapshots; the display shows at most 50): every drawn
+        # time is a stored snapshot, and the reference is evaluated at exactly these times
+        for every in (1, 4, 20)
+            cfg = SimulationConfig(create_param_dict(:N => 200, :dt => 0.01, :every => every, :sim_func_name => :exact_sparse_1d),
+                                   create_method_dict(:num => create_param_dict(), :analytical_solution => create_param_dict()),
+                                   [:num, :analytical_solution]; reference = :exact_sparse_factory)
+            run_all_simulations(cfg; calculate_stats = true)
+            pd = PDEStudio.update_plot_data_collection!(Dict{Symbol, PDEStudio.AbstractPlotData}(), cfg, [:num, :analytical_solution])
+            dn, dr = pd[:num].data[1], pd[:analytical_solution].data[1]
+            stored = load_sim_data(PDEStudioCore.generate_tasks(cfg)[1], Val(:raw)).axes[2]
+            @test length(dn.axes[2]) == min(length(stored), 50) && issubset(dn.axes[2], stored)
+            @test dr.axes[2] == dn.axes[2]
+            exact_error(d) = maximum(k -> maximum(abs.(getindex.(d.u[:, k], 1) .- (sin.(d.axes[1] .- d.axes[2][k]) .+ 2))), axes(d.u, 2))
+            @test exact_error(dn) < 1e-10 && exact_error(dr) < 1e-10
+            @test length(dn.stats[:l2error]) == length(dn.axes[2])          # statistics over time follow the snapshots
+        end
+        # particle data stored at uneven times: the reference at exactly these times, at most 100 of many
+        t = [0.0, 0.1, 0.2, 1.0]
+        x0 = collect(range(0.0, 1.0, length = 5))
+        params = create_param_dict(:N => 5)
+        num = create_sim_data([[SVector(p + ti) for p in x0] for ti in t], [[SVector(1.0) for _ in x0] for _ in t], t, params; time_dim = :t)
+        time_factory(p) = (x -> SVector(x[end]))                    # u(x, t) = t
+        ref = PDEStudio._make_reference(time_factory, params, num.domain, Val(:lagrangian), PDEStudio._time_axis(num))
+        @test ref.t == num.t && all(n -> all(v -> v[1] == t[n], ref.u[n]), eachindex(t))
+        many = collect(range(0.0, 1.0, length = 1001))
+        ref = PDEStudio._make_reference(time_factory, params, num.domain, Val(:lagrangian), many)
+        @test length(ref.t) == 100 && issubset(ref.t, many)
+        reset_manager!()
     end
 
     @testset "Hand-written CSV: spaces after the commas, unknown scopes" begin

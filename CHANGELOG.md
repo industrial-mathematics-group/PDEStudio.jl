@@ -70,14 +70,25 @@ What has changed since the last release. Released versions are described in the
 - **Renaming a variable** (UI → Labels → Variables) now relabels the axis, animation and compare menus right away.
 - **Advanced tab:** an empty text was shown as `<empty>`, which the tab refused as input; it shows `""` and accepts
   `<empty>`.
+- **Numerical curve and reference at the same time (round 2):** grid data was resampled in time (the nearest stored
+  snapshot relabelled with a display time), so the drawn data could be up to half the interval between stored
+  snapshots away from the reference and the title, e.g. for output stored every few steps. Grid data now shows its
+  stored snapshots at their own times (see *Changed*).
+- **References of particle data** were evaluated at evenly spaced times even when the data was stored at other times,
+  and their cost grew with the number of stored times. They are evaluated at the data's times, at most the reference
+  time resolution (default 100) of them.
 - **Exports of a reloaded export** didn't bundle the configuration file again (a file returning the configuration
   doesn't list itself), so function parameters came back as the text `"Closure"` from the second export on; the
   bundled files are now sources of the loaded configuration.
 
 ### Changed
+- **Time axis of grid data:** the display resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the
+  most stored snapshots shown; the data is no longer interpolated in time. All snapshots are shown up to it, otherwise
+  that many, evenly spread (they then come from the stored data directly rather than from PDEStudioCore's cached
+  conversion).
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
-  with (the time entry of *Files → Resolution ›* for references applies only without numerical data); in space the
-  reference resolution is used as before.
+  with, at most the time entry of the reference resolution (*Files → Resolution ›*) of them; in space the reference
+  resolution is used as before.
 - **Lagrangian layout presets and CSV files** store the particle style names (`particles_2d`). Files with the
   `Config, Dimensions, mode` row open their particles as before; older files with a scatter style saved in a
   Lagrangian session open it on a grid (choose the particle style again).

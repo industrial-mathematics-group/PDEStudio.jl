@@ -152,16 +152,61 @@ end
 
 function _load_for_display(params::ParamDict, domain, mode::Val)
     try
-        if mode === Val(:eulerian)
-            return load_sim_data(params, mode, build_res_tuple(domain.dim_keys; is_ref = false))
-        else
-            return load_sim_data(params, mode)
-        end
+        mode === Val(:eulerian) || return load_sim_data(params, mode)
+        res = build_res_tuple(domain.dim_keys; is_ref = false)
+        isnothing(domain.time_dim) && return load_sim_data(params, mode, res)
+        return _load_snapshots(params, res, findfirst(==(domain.time_dim), domain.dim_keys))
     catch e
         # A missing file is normal (the simulation has not run yet); anything else is worth a warning.
         e isa SimFileNotFoundError || @warn "Could not load the data of $(params)" exception = (e, catch_backtrace())
         return nothing
     end
+end
+
+"""
+    _load_snapshots(params, res, D)
+
+Eulerian display data with a time axis (dimension `D`): the space axes at the display resolution `res`, the time axis
+not interpolated but made of stored snapshots, so every time value drawn (and printed in the title) is the time of the
+snapshot shown. With at most `res[D]` stored snapshots all of them are shown (PDEStudioCore keeps a time axis whose
+length doesn't change, and caches the conversion); with more, `res[D]` of them, evenly spread over the stored ones.
+Grid data of particles (converted by PDEStudioCore) keeps PDEStudioCore's resampling.
+"""
+function _load_snapshots(params::ParamDict, res::Tuple, D::Int)
+    path = get_file_name(params)
+    key = string(path, '#', mtime(path))
+    nt = get(manager.stored_time_counts, key, nothing)
+    raw = nothing
+    if isnothing(nt)
+        raw = load_sim_data(params, Val(:raw))
+        nt = raw isa ESimData && ndims(raw.u) == D ? length(raw.axes[D]) : 0   # 0: not a grid with this time axis
+        manager.stored_time_counts[key] = nt
+    end
+    nt == 0 && return load_sim_data(params, Val(:eulerian), res)
+    nt <= res[D] && return load_sim_data(params, Val(:eulerian), Base.setindex(res, nt, D))
+    isnothing(raw) && (raw = load_sim_data(params, Val(:raw)))
+    idx = unique(round.(Int, range(1, nt, length = res[D])))
+    return resample_eulerian(_select_snapshots(raw, idx), Base.setindex(res, length(idx), D))
+end
+
+# The snapshots `idx` of Eulerian data (time is the last dimension): the solution and every statistic that keeps time.
+function _select_snapshots(data::ESimData{D, DS, M, T}, idx::AbstractVector{Int}) where {D, DS, M, T}
+    nt = length(data.axes[D])
+    axes = ntuple(d -> d == D ? data.axes[d][idx] : data.axes[d], Val(D))
+    u = data.u[ntuple(d -> d == D ? idx : Colon(), Val(D))...]
+    stats = Dict{Symbol, Any}()
+    for k in keys(data.stats)
+        k === :Solution && continue
+        v = data.stats[k]
+        kept = get_kept_indices(k, data.domain)
+        pos = findfirst(==(D), kept)
+        if v isa AbstractArray && !(v isa SVector) && !isnothing(pos) && ndims(v) == length(kept) && size(v, pos) == nt
+            stats[k] = v[ntuple(i -> i == pos ? idx : Colon(), ndims(v))...]
+        else
+            stats[k] = v
+        end
+    end
+    return ESimData{D, DS, M, T}(data.params, data.domain, axes, u, stats)
 end
 
 # The time axis of a dataset (`nothing` without time): the axis the studio draws its snapshots at.
@@ -180,28 +225,49 @@ end
 
 _uniform_axis(a, b, n::Int) = n == 1 ? [a] : collect(range(a, b, length = n))
 
+# `domain` with the grid spacing of `axes` (the integration measure of statistics on data with these axes).
+function _with_spacing(domain::DomainInfo{D, T}, axes) where {D, T}
+    spacing = SVector{D, T}(ntuple(d -> length(axes[d]) > 1 ? (last(axes[d]) - first(axes[d])) / (length(axes[d]) - 1) : one(T), D))
+    return DomainInfo{D, T}(domain.dim_keys, domain.mins, domain.maxs, spacing, domain.time_dim, domain.stat_registry)
+end
+
+_ref_elem(::Type{E}, v) where {E} = E(v isa Number ? (v,) : Tuple(v))
+
 # Evaluates `ref_func` on the tensor grid `axes` (Eulerian), for time axes that are not uniform (PDEStudioCore's
 # `generate_reference_simdata` lays every axis out uniformly).
 function _reference_on_axes(ref_func, params::ParamDict, domain::DomainInfo{D, T}, axes::NTuple{D, Vector{T}}) where {D, T}
     point(I) = SVector{D, T}(ntuple(d -> axes[d][I[d]], Val(D)))
     grid = CartesianIndices(map(length, axes))
-    v1 = ref_func(point(first(grid)))
-    E = SVector{length(v1), T}
-    elem(v) = E(v isa Number ? (v,) : Tuple(v))
+    E = SVector{length(ref_func(point(first(grid)))), T}
     u = Array{E, D}(undef, size(grid))
-    for I in grid
-        u[I] = elem(ref_func(point(I)))
+    Threads.@threads for i in eachindex(u)
+        u[i] = _ref_elem(E, ref_func(point(grid[i])))
     end
-    return ESimData(params, domain, axes, u)
+    return ESimData(params, _with_spacing(domain, axes), axes, u)
+end
+
+# Evaluates `ref_func` for particles on the uniform grid `res` (space) at the times `t_vec` (Lagrangian).
+function _reference_particles_at(ref_func, params::ParamDict, domain::DomainInfo{D, T}, res::Tuple, t_vec) where {D, T}
+    DS = D - 1
+    s_axes = ntuple(d -> _uniform_axis(domain.mins[d], domain.maxs[d], res[d]), DS)
+    points = vec([SVector{DS, T}(ntuple(d -> s_axes[d][I[d]], DS)) for I in CartesianIndices(ntuple(d -> res[d], DS))])
+    tv = convert(Vector{T}, t_vec)
+    E = SVector{length(ref_func(SVector{D, T}(points[1]..., tv[1]))), T}
+    u = Vector{Vector{E}}(undef, length(tv))
+    Threads.@threads for n in eachindex(tv)
+        u[n] = [_ref_elem(E, ref_func(SVector{D, T}(p..., tv[n]))) for p in points]
+    end
+    return LSimData{D, DS, length(E), T}(params, _with_spacing(domain, (s_axes..., tv)), tv, fill(points, length(tv)), u)
 end
 
 """
     _make_reference(ref_factory, params, domain, mode, t_axis = nothing)
 
 Evaluates the reference solution for `params` on `domain` (the domain of the numerical data at the same sweep point)
-at the display resolution of the references. With the time axis `t_axis` of that numerical data, the reference is
-evaluated at exactly these times, so at every time slider position the numerical and the reference curve show the same
-time (an independent, finer time grid would put the nearest reference snapshot up to one display step away).
+at the display resolution of the references. With the time axis `t_axis` of that numerical data (its stored snapshot
+times), the reference is evaluated at exactly these times, so at every time slider position the numerical and the
+reference curve show the same time. At most the reference resolution in time (`resolution_ref`, default 100) of them
+are used, evenly spread over `t_axis` (with more stored times, particle data, the reference shows the nearest of those).
 """
 function _make_reference(ref_factory, params::ParamDict, domain, mode::Val, t_axis = nothing)
     try
@@ -209,9 +275,12 @@ function _make_reference(ref_factory, params::ParamDict, domain, mode::Val, t_ax
         res = build_res_tuple(domain.dim_keys; is_ref = true)
         if !isnothing(t_axis) && !isempty(t_axis) && !isnothing(domain.time_dim)
             D = length(domain.dim_keys)
+            cap = res[D]
+            length(t_axis) > cap && (t_axis = t_axis[unique(round.(Int, range(1, length(t_axis), length = cap)))])
             res = Base.setindex(res, length(t_axis), D)
             domain = _with_time_bounds(domain, first(t_axis), last(t_axis))
-            if mode === Val(:eulerian) && t_axis != _uniform_axis(first(t_axis), last(t_axis), length(t_axis))
+            mode === Val(:lagrangian) && return _reference_particles_at(ref_func, params, domain, res, t_axis)
+            if t_axis != _uniform_axis(first(t_axis), last(t_axis), length(t_axis))
                 T = eltype(domain.mins)
                 axes = ntuple(d -> d == D ? convert(Vector{T}, t_axis) : _uniform_axis(domain.mins[d], domain.maxs[d], res[d]), D)
                 return _reference_on_axes(ref_func, params, domain, axes)

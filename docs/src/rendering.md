@@ -43,10 +43,12 @@ With a particle style, *Files → Resolution ›* lists only the references (eva
 **References and the drawn time:** a reference solution (a method recognised as one, e.g. `analytical_solution`) is
 evaluated for every sweep point on the domain of that point's numerical data (a sweep over the final time or the
 domain size moves it) and at the times of that data, so at every position of the time slider the numerical curve and
-the reference show the same snapshot; *Files → Resolution ›* sets the reference's points in space. The title shows
-the time (and other grid values on sliders) of the drawn data, the snapshot nearest to the slider position, not the
-slider position itself. The display data is resampled to the display resolution in time (*Resolution ›*, nearest
-snapshot), so its time values are those of the display grid: at most half a solver step from the snapshot's own time.
+the reference show the same time; *Files → Resolution ›* sets the reference's points in space. Grid data is not
+interpolated in time: it shows its stored snapshots at their own times, all of them up to the time resolution of
+*Resolution ›* (default 50), otherwise that many, evenly spread over the stored ones. The title shows the time (and
+other grid values on sliders) of the drawn data, the snapshot nearest to the slider position, not the slider
+position itself. Particle data shows every stored time; its reference is evaluated at up to the reference time
+resolution (default 100) of them, so with more stored times the reference shows the nearest of those.
 
 ### 📐 Plot Options (Data Projection)
 

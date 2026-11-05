@@ -152,6 +152,7 @@ Base.@kwdef mutable struct PlotManager
     camera_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     slider_cache::Dict{Symbol, Float64} = Dict{Symbol, Float64}()
     pending_sliders::Dict{Symbol, Float64} = Dict{Symbol, Float64}()   # loaded slider positions not yet in range
+    stored_time_counts::Dict{String, Int} = Dict{String, Int}()       # data file#mtime => stored snapshots (0: not a grid)
     layout_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     plot_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     exploration_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
@@ -214,6 +215,9 @@ get_base_variables() = collect(manager.allowed_dims)
     set_resolution!(dim::Symbol, val::Int; is_ref::Bool=false)
 
 Dynamically sets the internal interpolation and rendering resolution for a specific spatial or temporal dimension. Can target either the numerical baseline grid or the highly-resolved analytical reference grid.
+For a time axis it is the most snapshots shown: data is not interpolated in time, but shows its stored snapshots (all of
+them up to `val`, otherwise `val` of them, evenly spread); a reference uses the times of the data it is drawn with (at
+most `val` of them with `is_ref = true`).
 """
 function set_resolution!(dim::Symbol, val::Int; is_ref::Bool=false)
     target = is_ref ? manager.resolution_ref : manager.resolution_base
