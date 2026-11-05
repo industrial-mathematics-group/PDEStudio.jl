@@ -66,7 +66,7 @@ overview has four pages: `Shared` (`config.shared`), `Sweep` (`config.varied`), 
 `reference`, `postprocess`, `sources`) and *Methods ›*, the list of every method of `config.methods`, active or not,
 on full-width rows (long names fit; long lists get ◀ ▶ pages).
 *   **Values are Julia literals with their type**, shown exactly as stored: `20`, `0.5`, `"upwind"` (text is
-    quoted), `:symbol`, `Float64[0.2, 0.5]`, `(500,)`, `nothing`. What you type is parsed the same way and stored
+    quoted, the empty text is `""`; `<empty>` is accepted too), `:symbol`, `Float64[0.2, 0.5]`, `(500,)`, `nothing`. What you type is parsed the same way and stored
     as it is: no text fallback (unquoted text is refused), no single-value sweeps (a sweep must be a vector).
 *   **✕ deletes a key** from `shared`, `varied` or a method (the fields of `Config` can't be deleted).
 *   **Adding a key:** the row below the entries takes the name, the **type** (`auto` reads the literal as typed;

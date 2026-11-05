@@ -350,6 +350,9 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         lines = split(PDEStudio._wrap_status(msg), '\n')
         @test length(lines[1]) <= n && startswith(msg, lines[1] * " ")
         @test length(first(split(PDEStudio._wrap_status("Geschwindigkeit · Dämpfung → Größe ▲▼ "^4), '\n'))) <= n
+        # the Advanced tab: what it shows for an empty text can be applied again, and <empty> is accepted
+        @test PDEStudio._raw_text("") == "\"\"" && PDEStudio._parse_raw(PDEStudio._raw_text("")) == (true, "")
+        @test PDEStudio._parse_raw("<empty>") == (true, "") && PDEStudio._parse_raw("abc")[1] == false
         # menus whose order means something keep it (no sort by label: Component 1, 2, …, 10, 11)
         fig = Figure()
         m = Menu(fig[1, 1], options = Any[("Component 1", 1)])

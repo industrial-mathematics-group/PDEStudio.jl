@@ -1411,11 +1411,13 @@ end
 _raw_value(scope, key) = scope === :config ? getproperty(manager.active_config, key) : _raw_target(scope)[key]
 
 # A value exactly as stored: a Julia literal with its type (`20`, `0.5`, `"text"`, `:sym`, `Float64[0.1, 0.2]`).
-_raw_text(v) = isnothing(v) ? "nothing" : val2str(v; top_level = false)
+_raw_text(v) = isnothing(v) ? "nothing" : (v isa AbstractString && isempty(v)) ? "\"\"" : val2str(v; top_level = false)
 
-# Parses a raw literal; text must be quoted (anything that is no literal is refused).
+# Parses a raw literal; text must be quoted (anything that is no literal is refused). `<empty>` is the empty text, as
+# on the other editor pages.
 function _parse_raw(s::AbstractString)
     txt = strip(s)
+    txt == "<empty>" && return (true, "")
     v = str2val(txt)
     v isa AbstractString && !startswith(txt, '"') && return (false, nothing)
     return (true, v)
