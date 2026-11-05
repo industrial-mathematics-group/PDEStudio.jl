@@ -1462,7 +1462,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         type_into!(:upwind, "Upwind scheme")
         @test manager.labels[:upwind] == "Upwind scheme"
         press_row!(:upwind)                                    # ↺: the built-in name
-        @test manager.labels[:upwind] == PDEStudio.frontend_key(:upwind) || manager.labels[:upwind] == "upwind"
+        @test manager.labels[:upwind] == "Upwind"
         show_editor_page!(:ui, :labels)
         @test w[:editor_title][] == "Plot" && :title in manager.editor_row_keys
         type_into!(:title, "My run")
