@@ -52,7 +52,7 @@ The mode is stored in the file (`Metadata, Preset, mode, …`) and can be overri
 
 ## Writing Presets by Hand
 
-Every row is `Category, Scope, Parameter, Value`; values use Julia literal syntax and are parsed safely (nothing is evaluated). A minimal patch preset, `Presets/Simulation/hires.csv`:
+Every row is `Category, Scope, Parameter, Value` (spaces after the commas are fine); values use Julia literal syntax and are parsed safely (nothing is evaluated). Unknown categories and scopes (typos such as `Scene, plot`) are ignored with a warning. A minimal patch preset, `Presets/Simulation/hires.csv`:
 
 ```csv
 Category,Scope,Parameter,Value

@@ -149,12 +149,19 @@ texts (used where text must stay text, e.g. labels and string-valued UI options)
 function _read_csv(filepath::AbstractString)
     parsed = Dict{String, Dict{String, Dict{String, Any}}}()
     raw = Dict{String, Dict{String, Dict{String, String}}}()
+    cols = nothing
     for row in CSV.Rows(filepath)
+        # Hand-written files may have spaces after the commas (`Category, Scope, Parameter, Value`): the column names
+        # and the key cells are stripped (the value is parsed stripped, its raw text kept as written).
+        if isnothing(cols)
+            names = Dict(strip(string(n)) => i for (i, n) in enumerate(propertynames(row)))
+            cols = map(c -> get(names, c, nothing), ("Category", "Scope", "Parameter", "Value"))
+            any(isnothing, cols) && throw(ArgumentError("$(basename(filepath)) is no studio CSV: its header must be " *
+                                                        "Category, Scope, Parameter, Value"))
+        end
         # CSV.Rows yields lazy string types; plain `String`s are needed by the parser (and as dict keys)
-        cat = String(coalesce(row.Category, ""))
-        scope = String(coalesce(row.Scope, ""))
-        param = String(coalesce(row.Parameter, ""))
-        val_str = String(coalesce(row.Value, ""))
+        cat, scope, param = (String(strip(String(coalesce(row[c], "")))) for c in cols[1:3])
+        val_str = String(coalesce(row[cols[4]], ""))
         (isempty(cat) || isempty(param)) && continue
         get!(Dict{String, Any}, get!(Dict{String, Dict{String, Any}}, parsed, cat), scope)[param] = _parse_csv_value(val_str)
         get!(Dict{String, String}, get!(Dict{String, Dict{String, String}}, raw, cat), scope)[param] = val_str
@@ -453,8 +460,32 @@ configuration (`config` if given, e.g. returned by a bundled source, otherwise b
 the plot style, UI overrides, layout, axes and slider positions, camera, labels and exploration options.
 `raw` holds the raw cell texts (see `_read_csv`); `sources` replaces the configuration's source files.
 """
+# Categories and scopes of the studio CSV format (other categories, e.g. of a newer version, are ignored).
+const _CSV_SCOPES = Dict("Metadata" => ("General", "Preset"), "Git" => nothing, "Julia" => nothing,
+                         "Scene" => ("Plot", "Layout", "Camera", "Labels", "Exploration"), "UI" => nothing,
+                         "Simulation" => nothing, "Config" => ("Dimensions", "Resolution_Base", "Resolution_Ref"))
+
+# Warns about categories and scopes the studio doesn't read (typos in hand-written files, e.g. `Scene, plot`).
+function _warn_unknown_scopes(parsed::Dict)
+    for (cat, scopes) in parsed
+        if !haskey(_CSV_SCOPES, cat)
+            @warn "Unknown CSV category '$cat' ignored (categories: $(join(sort!(collect(keys(_CSV_SCOPES))), ", ")))."
+            continue
+        end
+        known = _CSV_SCOPES[cat]
+        for scope in keys(scopes)
+            ok = cat == "UI" ? haskey(MASTER_UI_DICT, _ui_template_scope(Symbol(scope))) :
+                 isnothing(known) || scope in known
+            ok || @warn "Unknown scope '$scope' of the CSV category '$cat' ignored" *
+                        (isnothing(known) ? "." : " (scopes: $(join(known, ", "))).")
+        end
+    end
+    return nothing
+end
+
 function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sources = String[])
     @info "Applying parsed CSV configuration..."
+    _warn_unknown_scopes(parsed)
     cfg = get(parsed, "Config", Dict())
     for (scope, target) in (("Resolution_Base", manager.resolution_base), ("Resolution_Ref", manager.resolution_ref))
         for (k, v) in get(cfg, scope, Dict())

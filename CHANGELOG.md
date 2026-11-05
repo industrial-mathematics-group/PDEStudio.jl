@@ -41,6 +41,8 @@ What has changed since the last release. Released versions are described in the
 - **Float32, Float16 and `SVector` parameters** came back from a CSV (exports, presets) as `Float64` / `Vector`; they
   keep their type now (`1.5f0`, `Float16(0.1)`, `SA{Float64}[1.0, 2.0]`). The data hash is unchanged and files
   written before read as they did.
+- **Hand-written CSVs with spaces after the commas** (`Category, Scope, Parameter, Value`) failed or put the rows
+  into a wrong scope; header and key cells are stripped, and unknown categories and scopes are warned about.
 - **1-D axis limits of a constant field** (e.g. Float32 noise around a constant state) showed the round-off noise
   with repeated tick labels; they get the relative range of the colour ranges.
 - **Style values that can't be drawn** (`colors = []`, empty `markers` / `line_styles`, a `color_range` of one value,

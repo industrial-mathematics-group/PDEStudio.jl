@@ -198,6 +198,7 @@ function set_sim_preset!(name; mode::Union{Nothing, Symbol} = nothing)
         return nothing
     end
     parsed, raw = _read_csv(path)
+    _warn_unknown_scopes(parsed)
     if !haskey(parsed, "Simulation")
         @warn "The preset '$name' contains no simulation parameters."
         return nothing

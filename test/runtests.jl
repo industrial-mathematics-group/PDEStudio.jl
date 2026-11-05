@@ -302,6 +302,22 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test old.shared[:dt] === 1.5 && old.shared[:v] == [1.0, 2.0] && old.shared[:v] isa Vector{Float64}
     end
 
+    @testset "Hand-written CSV: spaces after the commas, unknown scopes" begin
+        path = joinpath(mktempdir(), "hand.csv")
+        write(path, "Category, Scope, Parameter, Value\nSimulation, Shared, N, 40\nSimulation, Config, defaults, [:upwind]\n" *
+                    "UI, labels, title, \"  padded  \"\n")
+        parsed, raw = PDEStudio._read_csv(path)
+        @test parsed["Simulation"]["Shared"]["N"] == 40 && parsed["Simulation"]["Config"]["defaults"] == [:upwind]
+        @test raw["UI"]["labels"]["title"] == "  padded  "                 # a quoted text keeps its spaces
+        @test PDEStudio.csv_to_simulation_config(parsed).shared[:N] == 40
+        write(path, "Category,Scope,Value\nSimulation,Shared,40\n")
+        @test_throws ArgumentError PDEStudio._read_csv(path)
+        @test_logs (:warn, r"Unknown scope 'plot'") (:warn, r"Unknown CSV category 'Scenes'") match_mode = :any PDEStudio._warn_unknown_scopes(
+            Dict("Scene" => Dict("plot" => Dict()), "Scenes" => Dict(), "UI" => Dict("x_axis" => Dict())))
+        @test_logs PDEStudio._warn_unknown_scopes(Dict("Scene" => Dict("Plot" => Dict()), "Simulation" => Dict("upwind" => Dict()),
+                                                       "UI" => Dict("x_axis" => Dict(), "lines_1d" => Dict())))
+    end
+
     @testset "Axis limits and style values" begin
         # 1D axis limits of a field that is constant up to Float32 noise: a usable range instead of the noise
         u = Float64.(1.4f0 .+ Float32.(1e-7 .* sin.(10 .* range(0, 1, length = 50))))
