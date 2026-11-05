@@ -279,6 +279,15 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test reread.defaults == [:upwind]
         @test reread.varied[:cfl] == [0.2, 0.4]
     end
+
+    @testset "Axis limits and style values" begin
+        # 1D axis limits of a field that is constant up to Float32 noise: a usable range instead of the noise
+        u = Float64.(1.4f0 .+ Float32.(1e-7 .* sin.(10 .* range(0, 1, length = 50))))
+        lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([u]), 0.05, false)
+        @test hi - lo ≥ 2e-3 * 1.4 && lo < minimum(u) && hi > maximum(u)
+        @test PDEStudio.calculate_padded_axis_range((0.0, 1.0), 0.1, false) == (-0.05, 1.05)
+        @test PDEStudio.calculate_padded_axis_range((0.0, 0.0), 0.1, false) == (-0.1, 0.1)
+    end
 end
 
 # ==============================================================================

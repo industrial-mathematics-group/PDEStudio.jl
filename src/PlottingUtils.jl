@@ -519,8 +519,12 @@ function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is
         pad = log_range * padding_factor / 2.0
         return (10^(log_min - pad), 10^(log_max + pad))
     else
-        data_range = max_raw - min_raw
-        pad = data_range ≈ 0 ? 0.1 : (data_range * padding_factor / 2.0)
+        # A (numerically) constant field gets the relative range of the colour ranges (`_pad_degenerate_range`), so
+        # floating-point noise (e.g. a constant Float32 state) doesn't fill the axis; an exact zero keeps ±0.1.
+        min_raw == max_raw == 0 && return (-0.1, 0.1)
+        lo, hi = _pad_degenerate_range(min_raw, max_raw)
+        (lo, hi) == (min_raw, max_raw) || return (lo, hi)
+        pad = (max_raw - min_raw) * padding_factor / 2.0
         return (min_raw - pad, max_raw + pad)
     end
 end
