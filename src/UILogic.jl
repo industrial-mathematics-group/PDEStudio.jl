@@ -1621,7 +1621,9 @@ function _add_method!()
     name = lstrip(_box_text(w[:method_add_name]), ':')
     isempty(name) && return _report(:warn, "Type the name of the new method.")
     m = Symbol(name)
-    (haskey(config.methods, m) || m in _RANK_0) && return _report(:warn, "'$m' exists already (or is a reserved name).")
+    # names starting with `#` are those of the editor's own pages (`#order`, `#methods`)
+    (haskey(config.methods, m) || m in _RANK_0 || startswith(name, '#')) &&
+        return _report(:warn, "'$m' exists already (or is a reserved name: shared, sweep, config, names starting with #).")
     config.methods[m] = create_param_dict()
     Makie.reset!(w[:method_add_name])
     manager.flags[:Simulation][] = true

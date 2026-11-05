@@ -84,6 +84,8 @@ What has changed since the last release. Released versions are described in the
   they keep their order.
 - **Renaming a variable** (UI → Labels → Variables) now relabels the axis, animation and compare menus right away,
   without flagging *Apply Layout* / *Update Plot* (renaming a component doesn't flag *Update Plot* either).
+- **A method named `#order` or `#methods`** opened the editor's drawing-order or method-list page instead of its own;
+  names starting with `#` are refused when adding a method (and warned about in a bound configuration).
 - **Empty texts in the editors:** the Advanced tab showed an empty text as `<empty>`, which it refused as input; it shows
   `""` and accepts `<empty>`. Empty texts inside vectors and tuples (`String[<empty>, "a"]`) can be applied again on
   every page, and `<empty>` on the Labels pages is the empty name (it was stored as the text "<empty>").

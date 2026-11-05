@@ -1803,6 +1803,9 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # 6. The method list: Edit ›, ✕ deletes (also from the active methods), a new method is added (inactive)
         show_editor_page!(:advanced, PDEStudio.ADV_METHODS)
         @test shown_now(:method_add_button)
+        w[:method_add_name].stored_string[] = "#order"                # the name of the drawing-order page: refused
+        @test_logs (:warn, r"reserved name") click_button!(:method_add_button)
+        @test !haskey(config.methods, Symbol("#order"))
         w[:method_add_name].stored_string[] = "new_scheme"
         click_button!(:method_add_button)
         @test haskey(config.methods, :new_scheme) && !(:new_scheme in config.defaults)

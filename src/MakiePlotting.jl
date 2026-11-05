@@ -92,6 +92,8 @@ function set_sim_config!(config::SimulationConfig; snapshot::Bool = true)
     haskey(manager.flags, :Simulation) && (manager.flags[:Simulation][] = true)
 
     for m_sym in keys(config.methods)
+        startswith(string(m_sym), '#') &&
+            @warn "Method '$m_sym' starts with #, like the editor's own pages (#order, #methods); rename it to edit it in the Methods tab."
         if m_sym !== :shared && !haskey(manager.labels, m_sym)
             set_label!(m_sym, is_reference_method(m_sym) ? frontend_key(m_sym) : string(m_sym))
         end
