@@ -701,7 +701,8 @@ end
 function _wrap_status(text::String)
     n = STATUS_LINE_CHARS
     length(text) <= n && return text
-    cut = something(findlast(' ', first(text, n + 1)), n + 1)
+    # a character index (`findlast` on the string gives a byte index, wrong after multibyte characters such as → or ü)
+    cut = something(findlast(==(' '), collect(first(text, n + 1))), n + 1)
     line1, rest = rstrip(first(text, cut - 1)), lstrip(text[nextind(text, 0, cut):end])
     length(rest) > n && (rest = first(rest, n - 1) * "…")
     return line1 * "\n" * rest

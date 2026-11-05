@@ -342,6 +342,16 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test haskey(info, "PDEStudio") && haskey(info["PDEStudio"], "PDEStudioCore")
     end
 
+    @testset "Status line, raw values and menu order" begin
+        n = PDEStudio.STATUS_LINE_CHARS
+        @test length(first(split(PDEStudio._wrap_status(repeat("word ", 30)), '\n'))) <= n
+        # multibyte characters (→, ü, ·) before the cut: the line ends at a space, within n characters
+        msg = "Shared → description = Größere Auflösung für die Dämpfungsstudie mit Überschall-Strömungen und Rändern"
+        lines = split(PDEStudio._wrap_status(msg), '\n')
+        @test length(lines[1]) <= n && startswith(msg, lines[1] * " ")
+        @test length(first(split(PDEStudio._wrap_status("Geschwindigkeit · Dämpfung → Größe ▲▼ "^4), '\n'))) <= n
+    end
+
     @testset "Axis limits and style values" begin
         # 1D axis limits of a field that is constant up to Float32 noise: a usable range instead of the noise
         u = Float64.(1.4f0 .+ Float32.(1e-7 .* sin.(10 .* range(0, 1, length = 50))))
