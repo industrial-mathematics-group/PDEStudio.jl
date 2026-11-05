@@ -2269,6 +2269,26 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         manager.ui[:plot_style][:levels] = 15
         click_menu!(w()[:plot_style], :lines_1d)
         set_axes_for_dim!(1)
+        # ... the same values from a file (CSV, look preset) are ignored with a warning, the current values stay
+        bad = joinpath(mktempdir(), "bad_style.csv")
+        write(bad, "Category,Scope,Parameter,Value\nUI,plot_style,color_range,\"[1.0]\"\nUI,plot_style,colors,Any[]\n" *
+                   "UI,plot_style,line_styles,Any[]\nUI,plot_style,line_width,4.0\n")
+        before = deepcopy(manager.ui[:plot_style])
+        @test_logs (:warn, r"color_range") (:warn, r"colors") (:warn, r"line_styles") match_mode = :any PDEStudio.load_and_apply_csv!(bad)
+        @test manager.ui[:plot_style][:color_range] == before[:color_range] && manager.ui[:plot_style][:colors] == before[:colors]
+        @test manager.ui[:plot_style][:line_styles] == before[:line_styles] && manager.ui[:plot_style][:line_width] == 4.0
+        # ... and a value that gets in anyway (set from code) doesn't throw out of the UI step
+        manager.ui[:plot_style][:color_range] = Any[1.0]
+        logger = Test.TestLogger(min_level = Base.CoreLogging.Error)
+        Base.CoreLogging.with_logger(logger) do
+            click_menu!(w()[:plot_style], :heatmap_flat)
+            set_axes_for_dim!(2)
+        end
+        @test isempty(logger.logs) && manager.active_plot_type === :heatmap_flat
+        manager.ui[:plot_style][:color_range] = Any[]
+        manager.ui[:plot_style][:line_width] = before[:line_width]
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
 
         # 4. A CSV loaded while other data is shown restores its slider positions after Run Simulation
         set_close_to!(cfl_slider(), 0.4)

@@ -570,7 +570,13 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
 
     manager.listeners[:UI] = on(manager.triggers[:UI]) do _
         @with_lock :UI begin
-            _handle_ui_trigger!(Val(T), master_fig, plot_layout, axes, has_colorbar, u_sel)
+            try
+                _handle_ui_trigger!(Val(T), master_fig, plot_layout, axes, has_colorbar, u_sel)
+            catch e
+                # (like the plot step: an exception must not escape into the click handler or the renderloop)
+                @error "Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour " *
+                       "range, levels) and click 'Update Plot' again." exception = (e, catch_backtrace())
+            end
         end
     end
     

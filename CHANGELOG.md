@@ -50,6 +50,9 @@ What has changed since the last release. Released versions are described in the
 - **Style values that can't be drawn** (`colors = []`, empty `markers` / `line_styles`, a `color_range` of one value,
   `levels` below 2) were accepted by the editor and broke every plot update; they are refused now, and filled
   contours draw with at least 2 levels.
+- **Style values from files:** the same values in a CSV or a look preset were stored and broke the plot (a one-value
+  `color_range` even threw out of the update). They are ignored with a warning now, a `color_range` that isn't
+  `[lo, hi]` is automatic, and an error in the style step is logged instead of escaping.
 - **Provenance of exports:** the dependencies of local packages (repository `<Name>.jl` of the package `<Name>`) were
   never recorded in the `Julia` category; they are now.
 - **◀ ▶ in the Files tab:** the pages of a preset file and of a long preset list couldn't be turned (rows after the

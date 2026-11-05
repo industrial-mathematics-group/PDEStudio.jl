@@ -192,7 +192,7 @@ end
 function get_colorrange(ui_app::Dict, u_data::AbstractArray)
     cr_val = ui_app[:color_range] 
     
-    if isempty(cr_val)
+    if length(cr_val) != 2 || !all(v -> v isa Real, cr_val)   # automatic (also for a value that isn't [lo, hi])
         valid_u = filter(isfinite, vec(u_data))
         l_u, h_u = isempty(valid_u) ? (0.0, 1.0) : (minimum(valid_u), maximum(valid_u))
         l_u, h_u = _pad_degenerate_range(l_u, h_u)

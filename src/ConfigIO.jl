@@ -536,7 +536,14 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
         scope = Symbol(scope_str)
         for (k_str, v) in dict
             key = Symbol(k_str)
-            set_ui_opt!(scope, key, _coerce_ui_value(scope, key, v, _raw_value(raw, "UI", scope_str, k_str)))
+            val = _coerce_ui_value(scope, key, v, _raw_value(raw, "UI", scope_str, k_str))
+            # values the plot can't be drawn with are refused, as in the editor (the current value stays)
+            reason = _invalid_ui_reason(key, val)
+            if !isnothing(reason)
+                @warn "Ignoring UI, $scope_str, $k_str = $(repr(val)) from the file: not a valid $reason."
+                continue
+            end
+            set_ui_opt!(scope, key, val)
         end
     end
 
