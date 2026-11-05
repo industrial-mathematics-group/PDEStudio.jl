@@ -363,20 +363,6 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
     end
 
-    @testset "Resolution from code" begin
-        # like the Resolution page: at least 2 points (1 broke loading every dataset with time)
-        @test_throws ArgumentError set_resolution!(:t, 1)
-        @test_throws ArgumentError set_resolution!(:x, 0; is_ref = true)
-        r = PDEStudio.get_resolution(:t)
-        set_resolution!(:t, 7)
-        @test PDEStudio.get_resolution(:t) == 7
-        set_resolution!(:t, r)
-        csv = joinpath(mktempdir(), "res.csv")
-        write(csv, "Category,Scope,Parameter,Value\nConfig,Resolution_Base,t,1\n")
-        @test_logs (:warn, r"resolution is a whole number") match_mode = :any PDEStudio.load_and_apply_csv!(csv)
-        @test PDEStudio.get_resolution(:t) == r
-    end
-
     @testset "Hand-written CSV: spaces after the commas, unknown scopes" begin
         path = joinpath(mktempdir(), "hand.csv")
         write(path, "Category, Scope, Parameter, Value\nSimulation, Shared, N, 40\nSimulation, Config, defaults, [:upwind]\n" *

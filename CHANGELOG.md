@@ -106,8 +106,6 @@ What has changed since the last release. Released versions are described in the
   bundled files are now sources of the loaded configuration.
 
 ### Changed
-- **`set_resolution!`** refuses resolutions outside 2–100000 (an `ArgumentError`), like the Resolution page; a time
-  resolution of 1 made every dataset with time fail to load.
 - **Time axis of data drawn with a grid style** (grid data, particle data scattered to the grid): the display
   resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the most stored snapshots shown; the data is
   no longer interpolated in time. All snapshots are shown up to it, otherwise that many, evenly spread. Cost: the

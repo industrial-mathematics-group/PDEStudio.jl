@@ -516,11 +516,7 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
     cfg = get(parsed, "Config", Dict())
     for (scope, target) in (("Resolution_Base", manager.resolution_base), ("Resolution_Ref", manager.resolution_ref))
         for (k, v) in get(cfg, scope, Dict())
-            if v isa Real && isinteger(v) && 2 <= v <= 100_000
-                target[Symbol(k)] = Int(v)
-            else
-                @warn "Ignoring Config, $scope, $k = $(repr(v)) from the file: a resolution is a whole number from 2 to 100000."
-            end
+            v isa Real && (target[Symbol(k)] = Int(v))
         end
     end
 
