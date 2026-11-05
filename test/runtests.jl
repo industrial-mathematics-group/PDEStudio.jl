@@ -939,6 +939,22 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         press_preset!(:api_look, :b)
         @test startswith(w[:editor_title][], "Preset: api_look  (1/")   # a look preset has many rows: ◀ ▶ pages
         @test any(r -> r[1] == "UI", manager.preset_file_rows)
+        # ◀ ▶ turn the pages of a preset file ...
+        keys1 = copy(manager.editor_row_keys)
+        click_button!(:editor_next)
+        @test startswith(w[:editor_title][], "Preset: api_look  (2/") && manager.editor_row_keys != keys1
+        click_button!(:editor_prev)
+        @test startswith(w[:editor_title][], "Preset: api_look  (1/") && manager.editor_row_keys == keys1
+
+        # ... and of a list with more presets than rows
+        for k in 1:PDEStudio.EDITOR_ROWS
+            save_sim_preset("many_$(lpad(k, 2, '0'))")
+        end
+        open_presets!(:simulation)
+        @test w[:editor_title][] == "Simulation presets  (1/2)"
+        keys1 = copy(manager.editor_row_keys)
+        click_button!(:editor_next)
+        @test w[:editor_title][] == "Simulation presets  (2/2)" && isdisjoint(manager.editor_row_keys, keys1)
     end
 
     # =========================================================================

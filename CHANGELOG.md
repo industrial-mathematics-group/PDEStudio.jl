@@ -52,6 +52,8 @@ What has changed since the last release. Released versions are described in the
   contours draw with at least 2 levels.
 - **Provenance of exports:** the dependencies of local packages (repository `<Name>.jl` of the package `<Name>`) were
   never recorded in the `Julia` category; they are now.
+- **◀ ▶ in the Files tab:** the pages of a preset file and of a long preset list couldn't be turned (rows after the
+  first page of a look preset were out of reach).
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn

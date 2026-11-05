@@ -2040,8 +2040,8 @@ function _setup_editor_interactions!()
     for (name, step) in ((:editor_prev, -1), (:editor_next, 1))
         manager.listeners[Symbol("Editor_Page_Turn_", step)] = on(w[name].clicks) do _
             cat = manager.active_tab[]
-            cat in EDITOR_TABS || return
-            scope, page = get(manager.editor_view, cat, (nothing, 1))
+            _editor_tab(cat) || return   # also the pages of the Files tab (preset lists and files)
+            scope, page = _view(cat)
             manager.editor_view[cat] = (scope, page + step)
             _render_editor!()
         end
