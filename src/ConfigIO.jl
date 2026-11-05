@@ -690,8 +690,8 @@ end
     get_all_git_infos(start_path::String = "."; max_depth = 3)
 
 Searches the filesystem below `start_path` (at most `max_depth` levels, skipping hidden, `build`, `node_modules` and
-`docs` folders) for local Git repositories. Returns the commit hash, summary, and total commit count of each for
-research reproducibility tracking.
+`docs` folders) for local Git repositories. Returns the commit hash, summary, total commit count and whether the
+working tree has uncommitted changes (`git_dirty`) of each for research reproducibility tracking.
 """
 function get_all_git_infos(start_path::String = "."; max_depth::Int = 3)
     git_infos = Dict{String, Dict{String, Any}}()
@@ -702,7 +702,9 @@ function get_all_git_infos(start_path::String = "."; max_depth::Int = 3)
             git_infos[basename(root)] = Dict{String, Any}(
                 "git_commit_hash" => string(LibGit2.GitHash(commit)),
                 "git_commit_summary" => LibGit2.summary(commit),
-                "git_commit_count" => try parse(Int, readchomp(`git -C $root rev-list --count HEAD`)) catch; -1 end
+                "git_commit_count" => try parse(Int, readchomp(`git -C $root rev-list --count HEAD`)) catch; -1 end,
+                # uncommitted changes: the commit alone doesn't reproduce the state
+                "git_dirty" => LibGit2.isdirty(repo)
             )
         catch
             # Not a valid repository (or no commits yet): skipped.

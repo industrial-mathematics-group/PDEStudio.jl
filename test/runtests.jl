@@ -406,6 +406,16 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         # a repository folder `<Name>.jl` records the dependencies of the package `<Name>`
         info = PDEStudio.get_julia_info(["PDEStudio.jl"])
         @test haskey(info, "PDEStudio") && haskey(info["PDEStudio"], "PDEStudioCore")
+        # the Git rows say whether a repository had uncommitted changes
+        root = mktempdir()
+        repo_dir = joinpath(root, "Demo.jl")
+        mkpath(repo_dir)
+        write(joinpath(repo_dir, "a.txt"), "1")
+        git(args...) = run(`git -C $repo_dir -c user.name=test -c user.email=test@example.com -c commit.gpgsign=false $args`)
+        git("init", "-q"); git("add", "a.txt"); git("commit", "-q", "-m", "first")
+        @test PDEStudio.get_all_git_infos(root)["Demo.jl"]["git_dirty"] == false
+        write(joinpath(repo_dir, "a.txt"), "2")
+        @test PDEStudio.get_all_git_infos(root)["Demo.jl"]["git_dirty"] == true
     end
 
     @testset "Status line, raw values and menu order" begin
