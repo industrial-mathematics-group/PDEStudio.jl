@@ -67,7 +67,8 @@ What has changed since the last release. Released versions are described in the
 - **Fewer active methods with Compare = methods:** binding a configuration with fewer methods than subplots broke
   every plot update until the next run.
 - **"Click Load again"** confirmed a file by its path only: a second upload with the same name, or a file changed on
-  disk in between, ran without the warning. The confirmation is for the content now.
+  disk in between, ran without the warning. The confirmation is for the content now: of the file and the bundled
+  copies a CSV names, not of files the code includes (see *File Operations*).
 - **Play Anim with `animation_FPS` or `animation_time` ≤ 0** threw and left the button on *Stop Anim*; it warns
   instead.
 - **Exports:** a failed export left the render listeners of its export figure attached (every later update also
