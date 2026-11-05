@@ -179,12 +179,14 @@ Extracts the exact color range bounds from the UI dictionary or dynamically calc
 
 Always returns a `Makie.Vec2f` wrapped in an Observable to prevent ComputePipeline strict typing crashes during contourf level recalculations.
 """
-# Widens a (numerically) constant range `[lo, hi]` to a relative width of 1e-3 (absolute 1e-6 around zero).
-# A field that is constant up to floating-point noise (e.g. the initial state of a Riemann problem in `Float32`)
-# would otherwise get contour levels spaced below the data's precision, which makes Makie's `contourf` fail.
-function _pad_degenerate_range(lo::Real, hi::Real)
+# Widens a (numerically) constant range `[lo, hi]` (relative width up to `rtol`) to a relative width of 1e-3 (absolute
+# 1e-6 around zero). A field that is constant up to floating-point noise (e.g. the initial state of a Riemann problem in
+# `Float32`) would otherwise get contour levels spaced below the data's precision, which makes Makie's `contourf` fail.
+# (Colours are `Float32`, so colour ranges use the default; axis limits the precision of the data, see
+# `calculate_padded_axis_range`.)
+function _pad_degenerate_range(lo::Real, hi::Real; rtol::Real = 1e-5)
     scale = max(abs(lo), abs(hi))
-    hi - lo > 1e-5 * scale && return (lo, hi)
+    hi - lo > rtol * scale && return (lo, hi)
     pad = max(1e-3 * scale, 1e-6)
     return (lo - pad, hi + pad)
 end
@@ -260,13 +262,13 @@ function delete_plots_by_label!(ax::Axis, label_to_delete::String)
 end
 
 """
-    set_axis_limits_manager!(ax::Axis, xs, us)
+    set_axis_limits_manager!(ax::Axis, xs, us; precision = Float64)
 
 Safely computes and applies the optimal bounding box for a 2D axis. 
 
 Handles extreme edge cases (like purely horizontal/vertical lines) by applying dynamic padding factors. It also proactively catches negative values before activating `log10` scales to prevent the Makie rendering engine from fatally crashing on domain errors.
 """
-function set_axis_limits_manager!(ax::Axis, xs, us)
+function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFloat} = Float64)
     
     ui_x = _axis_ui(:x_axis)
     ui_y = _axis_ui(:y_axis)
@@ -293,16 +295,16 @@ function set_axis_limits_manager!(ax::Axis, xs, us)
     is_locked = manager.camera_locked[]
     
     if !is_locked
-        final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x) 
-        final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y) 
+        final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision) 
+        final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision) 
         try limits!(ax, final_xlims..., final_ylims...) catch; end
     else
         # Safety net: If camera is locked but the current limits are invalid for a log scale, 
         # force an override to prevent a hard Makie crash.
         curr_lims = ax.finallimits[]
         if (use_log_x && curr_lims.origin[1] <= 0) || (use_log_y && curr_lims.origin[2] <= 0)
-            final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x) 
-            final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y) 
+            final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision) 
+            final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision) 
             try limits!(ax, final_xlims..., final_ylims...) catch; end
         end
     end
@@ -503,11 +505,14 @@ function create_or_update_colorbar!(plot_layout::GridLayout, plot_object, color_
 end
 
 """
-    calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool)
+    calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool; precision = Float64)
 
-Computes the mathematically perfect padding around raw data limits, safely handling both linear and logarithmic coordinate spaces.
+Computes the padding around raw data limits, safely handling both linear and logarithmic coordinate spaces. A range
+that is constant up to the round-off of the data's floating-point type `precision` (relative width up to
+`100 eps(precision)`) gets a relative width of 1e-3 instead, so the noise doesn't fill the axis.
 """
-function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool)
+function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool;
+                                     precision::Type{<:AbstractFloat} = Float64)
     min_raw, max_raw = raw_limits
     if isnothing(min_raw) || isnothing(max_raw) || !isfinite(min_raw) || !isfinite(max_raw)
         return is_log_scale ? (0.1, 1.0) : (0.0, 1.0)
@@ -519,10 +524,10 @@ function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is
         pad = log_range * padding_factor / 2.0
         return (10^(log_min - pad), 10^(log_max + pad))
     else
-        # A (numerically) constant field gets the relative range of the colour ranges (`_pad_degenerate_range`), so
-        # floating-point noise (e.g. a constant Float32 state) doesn't fill the axis; an exact zero keeps ±0.1.
+        # A field constant up to the round-off of its type (e.g. a constant Float32 state) gets the relative range of
+        # the colour ranges, so the noise doesn't fill the axis; real small variations stay; an exact zero keeps ±0.1.
         min_raw == max_raw == 0 && return (-0.1, 0.1)
-        lo, hi = _pad_degenerate_range(min_raw, max_raw)
+        lo, hi = _pad_degenerate_range(min_raw, max_raw; rtol = 100 * eps(precision))
         (lo, hi) == (min_raw, max_raw) || return (lo, hi)
         pad = (max_raw - min_raw) * padding_factor / 2.0
         return (min_raw - pad, max_raw + pad)

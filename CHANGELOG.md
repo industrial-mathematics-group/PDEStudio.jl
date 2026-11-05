@@ -46,7 +46,8 @@ What has changed since the last release. Released versions are described in the
 - **A bundled `.jl` configuration that ends with a function** (as `load_config_file!` accepts) wasn't called when the
   export was loaded again, so function parameters came back as the text `"Closure"`.
 - **1-D axis limits of a constant field** (e.g. Float32 noise around a constant state) showed the round-off noise
-  with repeated tick labels; they get the relative range of the colour ranges.
+  with repeated tick labels; they get the relative range of the colour ranges. Only variations within the round-off
+  of the data's type (100 `eps`) count as constant, so small real variations of Float64 data stay visible.
 - **Style values that can't be drawn** (`colors = []`, empty `markers` / `line_styles`, a `color_range` of one value,
   `levels` below 2) were accepted by the editor and broke every plot update; they are refused now, and filled
   contours draw with at least 2 levels.

@@ -153,12 +153,19 @@ function _handle_plot_trigger!(
                 if axes[i].xscale[] == log10 && min_x <= 0; axes[i].xscale[] = identity; end
                 if axes[i].yscale[] == log10 && min_y <= 0; axes[i].yscale[] = identity; end
                 
-                set_axis_limits_manager!(axes[i], use_x, use_y)
+                set_axis_limits_manager!(axes[i], use_x, use_y; precision = _data_precision(data))
             end
         end
         _enforce_camera_lock!(axes)
     end
     return true
+end
+
+# The floating-point type of the loaded data (its round-off decides when a range counts as constant).
+function _data_precision(data)
+    d = isempty(data) ? nothing : _get_first_valid(first(values(data)))
+    T = isnothing(d) ? Float64 : eltype(d.domain.mins)
+    return T <: AbstractFloat ? T : Float64
 end
 
 # The methods drawn in subplot `i`: all active methods, or the `i`-th one with "Compare: methods". A configuration bound
@@ -372,7 +379,7 @@ function _handle_data_trigger!(
             if axes[i].xscale[] == log10 && min_x <= 0; axes[i].xscale[] = identity; end
             if axes[i].yscale[] == log10 && min_y <= 0; axes[i].yscale[] = identity; end
             
-            set_axis_limits_manager!(axes[i], use_x, use_y)
+            set_axis_limits_manager!(axes[i], use_x, use_y; precision = _data_precision(data))
         end
     end
     

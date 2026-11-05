@@ -430,8 +430,12 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
     @testset "Axis limits and style values" begin
         # 1D axis limits of a field that is constant up to Float32 noise: a usable range instead of the noise
         u = Float64.(1.4f0 .+ Float32.(1e-7 .* sin.(10 .* range(0, 1, length = 50))))
-        lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([u]), 0.05, false)
+        lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([u]), 0.05, false; precision = Float32)
         @test hi - lo ≥ 2e-3 * 1.4 && lo < minimum(u) && hi > maximum(u)
+        # ... while a real small variation of Float64 data fills the axis (the threshold follows the data's eps)
+        v = 1 .+ 1e-6 .* sin.(range(0, 2π, length = 50))
+        lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64)
+        @test (maximum(v) - minimum(v)) / (hi - lo) > 0.9
         @test PDEStudio.calculate_padded_axis_range((0.0, 1.0), 0.1, false) == (-0.05, 1.05)
         @test PDEStudio.calculate_padded_axis_range((0.0, 0.0), 0.1, false) == (-0.1, 0.1)
         # style values the renderer can't draw are refused by the editor
