@@ -1,0 +1,92 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Module save root path set to: /tmp/jl_BqFaF4
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+Running simulations...  33%|█████████▍                  |  ETA: 0:00:00[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 6 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+Calculating stats...  33%|██████████                    |  ETA: 0:00:07[KCalculating stats... 100%|██████████████████████████████| Time: 0:00:03[K
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 65) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 27) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 65) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 27) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 65) to (200, 50) (linear in space, nearest in time)...
+ERROR: LoadError: Some tests did not pass: 5 passed, 2 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:53
+lines_1d max diff vs. direct load: 0.0 (t slider 0.9900776847676924, data t 0.984793125696719)
+finallimits listeners: before 6, after 20 UI updates 26; reference line plots on the axis: 1
+
+Reference lines: listeners on finallimits per UI update: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:82
+  Expression: n1 - n0 < 5
+   Evaluated: 20 < 5
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:54
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:73 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:82 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+contour_3d color attribute after UI step: RGBA{Float32}(0.0, 0.0, 0.0, 0.8) (method upwind)
+
+contour_3d keeps its colormap after the UI step: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:94
+  Expression: isnothing(col) || col isa AbstractVector
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:54
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:87 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_gui.jl:94 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+heatmap method drawn: upwind; size u (200, 50), x 200, t 50
+after cfl 0.2: size u (200, 50), x 200, t 50 (before 50)
+x axis options (1D): [:cfl, :x, :t, Symbol("l1error|t"), Symbol("l1norm|t"), Symbol("l2error|t"), Symbol("l2norm|t"), Symbol("mass|t"), Symbol("mass_error|t"), Symbol("mass_signed_error|t"), Symbol("relative_l1error|t"), Symbol("relative_l2error|t"), Symbol("relative_mass|t"), Symbol("spacetime_relative_mass|cfl"), Symbol("wave_height|t")]
+l2error over t: drawn 50 values, data 50; max diff 0.0
+Test Summary:                                             | Pass  Fail  Total   Time
+GUI probes                                                |    5     2      7  14.1s
+  lines_1d shows the data of the selected slider values   |    2            2   1.5s
+  Reference lines: listeners on finallimits per UI update |          1      1   2.0s
+  contour_3d keeps its colormap after the UI step         |          1      1   8.6s
+  heatmap: u matrix matches the axes                      |    2            2   1.7s
+  Stat over parameter (substitute axis)                   |    1            1   0.3s
+RNG of the outermost testset: Random.Xoshiro(0xa5e65d2ddbcde08f, 0x1c318177ed168c7f, 0xf4c17ff89782ed5e, 0x5348194e43612dd4, 0x093b1294704869ae)

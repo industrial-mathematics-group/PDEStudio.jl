@@ -1,0 +1,63 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Module save root path set to: /tmp/jl_IEPW8C
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+Running simulations...  33%|█████████▍                  |  ETA: 0:00:00[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 6 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+Calculating stats...  33%|██████████                    |  ETA: 0:00:07[KCalculating stats... 100%|██████████████████████████████| Time: 0:00:03[K
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 65) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 27) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 65) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 27) to (200, 50) (linear in space, nearest in time)...
+ERROR: LoadError: Some tests did not pass: 0 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_time_mismatch.jl:4
+numeric display t-grid: 50 pts, reference t-grid: 100 pts, slider: 100 pts
+original upwind dt = 0.031415926535897934, Nt = 65
+max |t(numeric snapshot) - t(reference)| over slider positions: 0.03934924131769024 (at slider t = 0.5981719345471475)
+=> apparent error from the offset alone (c = 1, amplitude 1): ~0.0393
+t slider 0.5981719345471475: upwind snapshot t = 0.6283185307179586, reference drawn at t = 0.5889692894002684
+max |upwind - exact| as drawn (exact at the reference time) = 0.05584462256976064; true error at the snapshot time = 0.0416367040286687
+title: Cfl = 0.200 | Position (X) = [Axis] | Time (T) = 0.598
+
+Numerical and reference curves are drawn at the same time: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_time_mismatch.jl:42
+  Expression: worst < 1.0e-8
+   Evaluated: 0.03934924131769024 < 1.0e-8
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_time_mismatch.jl:5
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_time_mismatch.jl:42 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                             | Fail  Total  Time
+Numerical and reference curves are drawn at the same time |    1      1  1.8s
+RNG of the outermost testset: Random.Xoshiro(0x290899b6e1547ca9, 0x2c2e2a16851284ce, 0xda0bece156b71a4f, 0x5145535e46c21446, 0x28b3fff5116e1c88)

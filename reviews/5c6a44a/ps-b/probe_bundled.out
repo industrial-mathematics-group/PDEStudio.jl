@@ -1,0 +1,31 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_mPewdB
+┌ Warning: Executing myconfig.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/ConfigIO.jl:325
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_kNsEBR/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_kNsEBR/exp.csv
+[ Info: Executing bundled source: myconfig.jl (as /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/cfgsrc/myconfig.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+ERROR: LoadError: Some tests did not pass: 2 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_bundled.jl:7
+after CSV reload: shared[:ic] = "Closure" :: String
+source failures: String[]; sources: ["/tmp/jl_kNsEBR/exp_sources/myconfig.jl"]
+
+bundled config file ending with a function: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_bundled.jl:17
+  Expression: ic isa Function
+   Evaluated: "Closure" isa Function
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_bundled.jl:8
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_bundled.jl:17 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                              | Pass  Fail  Total  Time
+bundled config file ending with a function |    2     1      3  1.8s
+RNG of the outermost testset: Random.Xoshiro(0x659e848e42a1b462, 0x9925539a1381e095, 0x104b2f467ae08d0c, 0x06a1b74650116584, 0xb0f26ea91403ddf9)
