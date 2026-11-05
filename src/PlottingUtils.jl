@@ -165,6 +165,9 @@ function plot_reference_lines!(
         end
         
         l = lines!(ax, pts; color=color, linestyle=line_style, label=label, kwargs...)
+        # Deleting the line (`delete_plots_by_label!` on every UI step) also detaches its listeners from the axis
+        # limits; they would otherwise pile up (one per UI step and exponent).
+        append!(getfield(l, :deregister_callbacks), pts.inputs)
         push!(plotted_lines, l)
     end
     return plotted_lines

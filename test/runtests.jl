@@ -1939,6 +1939,20 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
             @test maximum(abs.(ca.obs_u[] .- (sin.(ca.obs_x[] .- t_drawn) .+ 2))) < 1e-5
         end
 
+        # 2. Reference lines don't stack listeners on the axis limits (one UI step per slider drag frame)
+        ax = first(c for c in fig.content if c isa Axis)
+        manager.ui[:plot_style][:reference] = Any[-1.0]
+        manager.triggers[:UI][] += 1
+        yield()
+        n0 = length(ax.finallimits.listeners)
+        for _ in 1:20
+            manager.triggers[:UI][] += 1
+            yield()
+        end
+        @test length(ax.finallimits.listeners) - n0 < 3
+        @test count(p -> haskey(p, :label) && p.label[] == "Reference Lines", ax.scene.plots) == 1
+        manager.ui[:plot_style][:reference] = Any[]
+
         # 4. A CSV loaded while other data is shown restores its slider positions after Run Simulation
         set_close_to!(cfl_slider(), 0.4)
         yield()

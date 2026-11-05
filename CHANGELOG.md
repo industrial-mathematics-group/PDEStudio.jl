@@ -36,6 +36,8 @@ What has changed since the last release. Released versions are described in the
   reference is now evaluated at the times of the numerical data, and the title shows the time of the drawn data.
 - **Slider positions of a CSV loaded while other data is shown** were lost (the slider came back at the value
   clamped into the old range); they are applied once the new data is there.
+- **Reference lines** (`reference` exponents) added a listener to the axis limits on every UI update (every slider
+  drag frame, every animation frame); they are removed with the lines now.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
