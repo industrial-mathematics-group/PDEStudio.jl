@@ -504,12 +504,17 @@ function create_or_update_colorbar!(plot_layout::GridLayout, plot_object, color_
     end
 end
 
+# The smallest relative width of an axis range that Makie's tick labels resolve (below it every label reads the same):
+# narrower ranges are drawn as constant.
+const _AXIS_MIN_RTOL = 1e-6
+
 """
     calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool; precision = Float64)
 
 Computes the padding around raw data limits, safely handling both linear and logarithmic coordinate spaces. A range
 that is constant up to the round-off of the data's floating-point type `precision` (relative width up to
-`100 eps(precision)`) gets a relative width of 1e-3 instead, so the noise doesn't fill the axis.
+`100 eps(precision)`), or narrower than the tick labels can resolve (relative width 1e-6), gets a relative width of
+1e-3 instead, so the noise doesn't fill the axis with repeated tick labels.
 """
 function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool;
                                      precision::Type{<:AbstractFloat} = Float64)
@@ -524,10 +529,11 @@ function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is
         pad = log_range * padding_factor / 2.0
         return (10^(log_min - pad), 10^(log_max + pad))
     else
-        # A field constant up to the round-off of its type (e.g. a constant Float32 state) gets the relative range of
-        # the colour ranges, so the noise doesn't fill the axis; real small variations stay; an exact zero keeps ±0.1.
+        # A field constant up to the round-off of its type (e.g. a constant Float32 state), or varying by less than the
+        # tick labels can show (`_AXIS_MIN_RTOL`), gets the relative range of the colour ranges, so noise doesn't fill
+        # the axis with repeated tick labels; larger small variations stay visible; an exact zero keeps ±0.1.
         min_raw == max_raw == 0 && return (-0.1, 0.1)
-        lo, hi = _pad_degenerate_range(min_raw, max_raw; rtol = 100 * eps(precision))
+        lo, hi = _pad_degenerate_range(min_raw, max_raw; rtol = max(100 * eps(precision), _AXIS_MIN_RTOL))
         (lo, hi) == (min_raw, max_raw) || return (lo, hi)
         pad = (max_raw - min_raw) * padding_factor / 2.0
         return (min_raw - pad, max_raw + pad)

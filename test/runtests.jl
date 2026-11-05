@@ -498,6 +498,13 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         v = 1 .+ 1e-6 .* sin.(range(0, 2π, length = 50))
         lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64)
         @test (maximum(v) - minimum(v)) / (hi - lo) > 0.9
+        # ... but a variation the tick labels can't show (below 1e-6 relative, e.g. round-off of a conserved mass)
+        # is drawn as constant instead of under repeated tick labels
+        for a in (1e-7, 1e-12)
+            v = 1 .+ a .* sin.(range(0, 2π, length = 50))
+            lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64)
+            @test hi - lo ≥ 2e-3 && lo < minimum(v) && hi > maximum(v)
+        end
         @test PDEStudio.calculate_padded_axis_range((0.0, 1.0), 0.1, false) == (-0.05, 1.05)
         @test PDEStudio.calculate_padded_axis_range((0.0, 0.0), 0.1, false) == (-0.1, 0.1)
         # style values the renderer can't draw are refused by the editor
