@@ -60,6 +60,8 @@ What has changed since the last release. Released versions are described in the
   every plot update until the next run.
 - **"Click Load again"** confirmed a file by its path only: a second upload with the same name, or a file changed on
   disk in between, ran without the warning. The confirmation is for the content now.
+- **Play Anim with `animation_FPS` or `animation_time` ≤ 0** threw and left the button on *Stop Anim*; it warns
+  instead.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn

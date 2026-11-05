@@ -2035,6 +2035,41 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         click_menu!(w()[:plot_style], :lines_1d)
         set_axes_for_dim!(1)
 
+        # 1. Play Anim drives the slider of the animation target, Stop stops it; a plot axis can't be animated
+        at = w()[:anim_target]
+        at.i_selected[] = findfirst(o -> o[2] === :t, at.options[])
+        t_slider = w()[get(manager.reverse_map, :t, :t)]
+        v0 = t_slider.value[]
+        manager.ui[:export][:animation_time] = 1.0
+        click_button!(:play_anim_button)
+        @test manager.is_animating[] && w()[:play_anim_button].label[] == "Stop Anim"
+        sleep(0.6)
+        @test t_slider.value[] != v0
+        click_button!(:play_anim_button)
+        @test !manager.is_animating[] && isnothing(manager.animation_timer[]) && w()[:play_anim_button].label[] == "Play Anim"
+        v1 = t_slider.value[]
+        sleep(0.3)
+        @test t_slider.value[] == v1
+        at.i_selected[] = something(findfirst(o -> o[2] === :x, at.options[]), 1)
+        click_button!(:play_anim_button)
+        @test !manager.is_animating[]
+        # ... and it needs a positive frame rate and duration (warned, the button stays "Play Anim")
+        at.i_selected[] = findfirst(o -> o[2] === :t, at.options[])
+        for (key, bad) in ((:animation_FPS, 0), (:animation_time, 0.0))
+            good = manager.ui[:export][key]
+            manager.ui[:export][key] = bad
+            @test_logs (:warn, r"Can't animate") click_button!(:play_anim_button)
+            @test !manager.is_animating[] && isnothing(manager.animation_timer[]) && occursin("positive numbers", status())
+            @test w()[:play_anim_button].label[] == "Play Anim"
+            manager.ui[:export][key] = good
+        end
+
+        # 2. Lock Camera
+        click_button!(:lock_camera_button)
+        @test manager.camera_locked[] && w()[:lock_camera_button].label[] == "Camera: Locked"
+        click_button!(:lock_camera_button)
+        @test !manager.camera_locked[] && isempty(manager.camera_cache) && w()[:lock_camera_button].label[] == "Lock Camera"
+
         # 4. Two methods and a sweep
         two = SimulationConfig(shared, create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
                                                           :upwind2 => create_param_dict(:scheme => "upwind", :N => 30)),

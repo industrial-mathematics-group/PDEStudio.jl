@@ -2358,10 +2358,14 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
             !check_selection_validity(target_name) && return
             
             target_widget = get_target_widget(target_name)
-            is_animating[] = true
-            
             duration = manager.ui[:export][:animation_time]
             fps = manager.ui[:export][:animation_FPS]
+            if !(fps isa Real && isfinite(fps) && fps > 0 && duration isa Real && isfinite(duration) && duration > 0)
+                _report(:warn, "Can't animate with animation_FPS = $(repr(fps)) and animation_time = $(repr(duration)): " *
+                               "set both to positive numbers (Files → Settings ›).")
+                return
+            end
+            is_animating[] = true
             rng = target_widget.range[]
             start_time = time()
             
