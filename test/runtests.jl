@@ -348,10 +348,11 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
     @testset "Hand-written CSV: spaces after the commas, unknown scopes" begin
         path = joinpath(mktempdir(), "hand.csv")
         write(path, "Category, Scope, Parameter, Value\nSimulation, Shared, N, 40\nSimulation, Config, defaults, [:upwind]\n" *
-                    "UI, labels, title, \"  padded  \"\n")
+                    "UI, labels, title, \"  padded  \"\nScene, Labels, upwind, Upwind scheme \n")
         parsed, raw = PDEStudio._read_csv(path)
         @test parsed["Simulation"]["Shared"]["N"] == 40 && parsed["Simulation"]["Config"]["defaults"] == [:upwind]
         @test raw["UI"]["labels"]["title"] == "  padded  "                 # a quoted text keeps its spaces
+        @test raw["Scene"]["Labels"]["upwind"] == "Upwind scheme"          # an unquoted one is stripped
         @test PDEStudio.csv_to_simulation_config(parsed).shared[:N] == 40
         write(path, "Category,Scope,Value\nSimulation,Shared,40\n")
         @test_throws ArgumentError PDEStudio._read_csv(path)

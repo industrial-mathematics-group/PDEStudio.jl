@@ -150,9 +150,10 @@ function _read_csv(filepath::AbstractString)
     parsed = Dict{String, Dict{String, Dict{String, Any}}}()
     raw = Dict{String, Dict{String, Dict{String, String}}}()
     cols = nothing
+    text = nothing   # the file's text, read only to tell quoted from unquoted values with surrounding spaces
     for row in CSV.Rows(filepath)
         # Hand-written files may have spaces after the commas (`Category, Scope, Parameter, Value`): the column names
-        # and the key cells are stripped (the value is parsed stripped, its raw text kept as written).
+        # and the key cells are stripped.
         if isnothing(cols)
             names = Dict(strip(string(n)) => i for (i, n) in enumerate(propertynames(row)))
             cols = map(c -> get(names, c, nothing), ("Category", "Scope", "Parameter", "Value"))
@@ -162,6 +163,11 @@ function _read_csv(filepath::AbstractString)
         # CSV.Rows yields lazy string types; plain `String`s are needed by the parser (and as dict keys)
         cat, scope, param = (String(strip(String(coalesce(row[c], "")))) for c in cols[1:3])
         val_str = String(coalesce(row[cols[4]], ""))
+        # an unquoted value is stripped too (`…, Upwind scheme` written by hand); a quoted one keeps its spaces
+        if val_str != strip(val_str)
+            isnothing(text) && (text = read(filepath, String))
+            occursin('"' * replace(val_str, '"' => "\"\"") * '"', text) || (val_str = String(strip(val_str)))
+        end
         (isempty(cat) || isempty(param)) && continue
         get!(Dict{String, Any}, get!(Dict{String, Dict{String, Any}}, parsed, cat), scope)[param] = _parse_csv_value(val_str)
         get!(Dict{String, String}, get!(Dict{String, Dict{String, String}}, raw, cat), scope)[param] = val_str
