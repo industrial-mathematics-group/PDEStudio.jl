@@ -1,0 +1,237 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Module save root path set to: /tmp/jl_npTYDP
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 2 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (200, 50) (linear in space, nearest in time)...
+┌ Info: listeners before
+│   base =
+│    Dict{Symbol, Int64} with 4 entries:
+│      :PlotData => 1
+│      :Plot     => 1
+│      :UI       => 1
+└      :Slider   => 1
+[ Info: Pristine Image (png) saved to /tmp/jl_uNAW0Q/ok_export.png
+[ Info: Metadata and Parameters saved to /tmp/jl_uNAW0Q/ok_export.csv
+[ Info: Restoring main UI...
+┌ Info: after a good export
+│   good =
+│    Dict{Symbol, Int64} with 4 entries:
+│      :PlotData => 1
+│      :Plot     => 1
+│      :UI       => 1
+│      :Slider   => 1
+└   status() = "Exported ok_export (png) to /tmp/jl_uNAW0Q"
+┌ Error: Export Failed
+│   exception =
+│    InexactError: Int64(NaN)
+│    Stacktrace:
+│      [1] Int64
+│        @ ./float.jl:925 [inlined]
+│      [2] convert
+│        @ ./number.jl:7 [inlined]
+│      [3] _round_convert
+│        @ ./rounding.jl:489 [inlined]
+│      [4] round
+│        @ ./rounding.jl:488 [inlined]
+│      [5] round(::Type{Int64}, x::Float64)
+│        @ Base ./rounding.jl:486
+│      [6] (::PDEStudio.var"#_setup_export_interactions!##15#_setup_export_interactions!##16"{Figure, GridLayout, PDEStudio.var"#build_pristine_export_figure#_setup_export_interactions!##6"{GridLayout}, PDEStudio.var"#check_selection_validity#_setup_export_interactions!##5"{PDEStudio.var"#get_target_widget#_setup_export_interactions!##4"}, PDEStudio.var"#get_target_widget#_setup_export_interactions!##4", Observable{Any}, Textbox})(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/UILogic.jl:2278
+│      [7] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│      [8] setindex!(observable::Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│      [9] click_button!(k::Symbol)
+│        @ Main ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/common.jl:22
+│     [10] top-level scope
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+│     [11] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [12] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:10 [inlined]
+│     [13] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [14] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:24 [inlined]
+│     [15] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [16] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [17] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/UILogic.jl:2326
+[ Info: Restoring main UI...
+┌ Info: after a failed export
+│   bad =
+│    Dict{Symbol, Int64} with 4 entries:
+│      :PlotData => 2
+│      :Plot     => 2
+│      :UI       => 2
+│      :Slider   => 2
+└   status() = "Export failed: InexactError: Int64(NaN)"
+┌ Info: animation_FPS after typing NaN
+│   (manager.ui[:export])[:animation_FPS] = NaN
+└   status() = "Export settings → animation_FPS = NaN"
+┌ Info: after renaming :cfl
+│   (manager.flags[:Layout])[] = true
+│   (manager.flags[:Plot])[] = true
+│   [o[1] for o = (w[:compare_target]).options[]] = 5-element Vector{String}: …
+└   [o[1] for o = (w[:anim_target]).options[]] = 4-element Vector{String}: …
+┌ Info: after renaming component_1
+│   (manager.flags[:Layout])[] = false
+│   (manager.flags[:Plot])[] = true
+│   (w[:component]).options[] =
+│    1-element Vector{Any}:
+└     ("Density", 1)
+[ Info: Applied hardcoded preset: compact3d
+┌ Info: label offsets
+│   (manager.ui[:x_axis_1d])[:label_offset] = 5.0
+│   (manager.ui[:x_axis_nd])[:label_offset] = 40.0
+└   (manager.ui[:z_axis_3d])[:label_offset] = 15.0
+ERROR: LoadError: Some tests did not pass: 7 passed, 7 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:5
+
+N1: a failed export leaves the export figure's render listeners attached: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:28
+  Expression: bad == base
+   Evaluated: Dict(:PlotData => 2, :Plot => 2, :UI => 2, :Slider => 2) == Dict(:PlotData => 1, :Plot => 1, :UI => 1, :Slider => 1)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:10 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:28 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+N1b: can NaN be typed into animation_FPS through the editor?: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:41
+  Expression: !((manager.ui[:export])[:animation_FPS] isa Float64 && isnan((manager.ui[:export])[:animation_FPS]))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:37 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:41 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+N2: renaming a variable or component flags Apply Layout / Update Plot: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:55
+  Expression: !((manager.flags[:Layout])[])
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:47 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:55 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+N2: renaming a variable or component flags Apply Layout / Update Plot: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:56
+  Expression: !((manager.flags[:Plot])[])
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:47 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:56 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+N2: renaming a variable or component flags Apply Layout / Update Plot: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:61
+  Expression: !((manager.flags[:Plot])[])
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:47 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:61 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+N3: compact3d writes the 3D label offsets into the 1D axis variants while a 1D plot is shown: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:70
+  Expression: (manager.ui[:x_axis_nd])[:label_offset] == 5.0
+   Evaluated: 40.0 == 5.0
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:65 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:70 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+N3: compact3d writes the 3D label offsets into the 1D axis variants while a 1D plot is shown: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:71
+  Expression: (manager.ui[:x_axis_1d])[:label_offset] == x1d
+   Evaluated: 5.0 == 15.0
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:6
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:65 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a1.jl:71 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                                                                  | Pass  Fail  Total   Time
+ps-a probe 1                                                                                   |    7     7     14  16.7s
+  N1: a failed export leaves the export figure's render listeners attached                     |    3     1      4   4.3s
+  N1b: can NaN be typed into animation_FPS through the editor?                                 |          1      1   0.5s
+  N2: renaming a variable or component flags Apply Layout / Update Plot                        |    2     3      5   1.3s
+  N3: compact3d writes the 3D label offsets into the 1D axis variants while a 1D plot is shown |    2     2      4   0.3s
+RNG of the outermost testset: Random.Xoshiro(0x4aabded19946b2d7, 0x1c8c0f4a74dade5b, 0xf586ed022248dba5, 0xf28a725fd17e8470, 0x0dbbce5a5db93731)
