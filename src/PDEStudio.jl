@@ -219,9 +219,11 @@ get_base_variables() = collect(manager.allowed_dims)
 Dynamically sets the internal interpolation and rendering resolution for a specific spatial or temporal dimension. Can target either the numerical baseline grid or the highly-resolved analytical reference grid.
 For a time axis it is the most snapshots shown: data is not interpolated in time, but shows its stored snapshots (all of
 them up to `val`, otherwise `val` of them, evenly spread); a reference uses the times of the data it is drawn with (at
-most `val` of them with `is_ref = true`).
+most `val` of them with `is_ref = true`). `val` must be from 2 to 100000 (as on the Resolution page).
 """
 function set_resolution!(dim::Symbol, val::Int; is_ref::Bool=false)
+    # (as on the Resolution page: a grid, and a time axis, needs at least two points)
+    2 <= val <= 100_000 || throw(ArgumentError("the resolution of :$dim must be a whole number of points from 2 to 100000, got $val"))
     target = is_ref ? manager.resolution_ref : manager.resolution_base
     target[dim] = val
 end
