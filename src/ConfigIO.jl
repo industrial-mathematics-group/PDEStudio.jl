@@ -706,7 +706,7 @@ end
 
 Searches the filesystem below `start_path` (at most `max_depth` levels, skipping hidden, `build`, `node_modules` and
 `docs` folders) for local Git repositories. Returns the commit hash, summary, total commit count and whether the
-working tree has uncommitted changes (`git_dirty`) of each for research reproducibility tracking.
+working tree has uncommitted changes to tracked files (`git_dirty`; untracked files don't count) of each for research reproducibility tracking.
 """
 function get_all_git_infos(start_path::String = "."; max_depth::Int = 3)
     git_infos = Dict{String, Dict{String, Any}}()

@@ -288,7 +288,8 @@ Evaluates the reference solution for `params` on `domain` (the domain of the num
 at the display resolution of the references. With the time axis `t_axis` of that numerical data (its stored snapshot
 times), the reference is evaluated at exactly these times, so at every time slider position the numerical and the
 reference curve show the same time. At most the reference resolution in time (`resolution_ref`, default 100) of them
-are used, evenly spread over `t_axis` (with more stored times, particle data, the reference shows the nearest of those).
+are used, evenly spread over `t_axis` (with more drawn times, e.g. particle styles or a reference time resolution below
+the data's, the reference shows the nearest of those).
 """
 function _make_reference(ref_factory, params::ParamDict, domain, mode::Val, t_axis = nothing)
     try

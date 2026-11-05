@@ -59,7 +59,8 @@ What has changed since the last release. Released versions are described in the
   `color_range` even threw out of the update). They are ignored with a warning now, a `color_range` that isn't
   `[lo, hi]` is automatic, and an error in the style step is logged instead of escaping.
 - **Provenance of exports:** the dependencies of local packages (repository `<Name>.jl` of the package `<Name>`) were
-  never recorded in the `Julia` category; they are now. The `Git` rows also record whether a repository had uncommitted changes (`git_dirty`).
+  never recorded in the `Julia` category; they are now. The `Git` rows also record whether a repository had uncommitted changes to tracked files (`git_dirty`; new,
+  untracked files don't count).
 - **◀ ▶ in the Files tab:** the pages of a preset file and of a long preset list couldn't be turned (rows after the
   first page of a look preset were out of reach).
 - **The built-in `heatmap` and `compact3d` look presets** wrote their axis options into the axes of the style shown
@@ -108,10 +109,15 @@ What has changed since the last release. Released versions are described in the
 ### Changed
 - **`set_resolution!`** refuses resolutions outside 2–100000 (an `ArgumentError`), like the Resolution page; a time
   resolution of 1 made every dataset with time fail to load.
-- **Time axis of data drawn with a grid style** (grid data, particle data scattered to the grid): the display resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the
-  most stored snapshots shown; the data is no longer interpolated in time. All snapshots are shown up to it, otherwise
-  that many, evenly spread (they then come from the stored data directly rather than from PDEStudioCore's cached
-  conversion).
+- **Time axis of data drawn with a grid style** (grid data, particle data scattered to the grid): the display
+  resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the most stored snapshots shown; the data is
+  no longer interpolated in time. All snapshots are shown up to it, otherwise that many, evenly spread. Cost: the
+  first display of a data file reads its stored data once to count the snapshots (twice when PDEStudioCore's
+  conversion cache, `enable_cache!(true)`, writes to the file then). Data with more snapshots than the time resolution
+  is read in full and converted on every reload (each *Run*, each sweep point) instead of coming from the cached
+  conversion, so with the cache on, large data with many snapshots reloads slower (for a 256² × 401 grid: 266 MiB and
+  ~50 ms per dataset instead of 16 MiB and 2 ms); raising the time resolution to the number of snapshots uses the
+  cache again. With the cache off (the default) loading costs less than before.
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
   with, at most the time entry of the reference resolution (*Files → Resolution ›*) of them; in space the reference
   resolution is used as before.
