@@ -38,6 +38,9 @@ What has changed since the last release. Released versions are described in the
   clamped into the old range); they are applied once the new data is there.
 - **Reference lines** (`reference` exponents) added a listener to the axis limits on every UI update (every slider
   drag frame, every animation frame); they are removed with the lines now.
+- **Float32, Float16 and `SVector` parameters** came back from a CSV (exports, presets) as `Float64` / `Vector`; they
+  keep their type now (`1.5f0`, `Float16(0.1)`, `SA{Float64}[1.0, 2.0]`). The data hash is unchanged and files
+  written before read as they did.
 - **1-D axis limits of a constant field** (e.g. Float32 noise around a constant state) showed the round-off noise
   with repeated tick labels; they get the relative range of the colour ranges.
 - **Style values that can't be drawn** (`colors = []`, empty `markers` / `line_styles`, a `color_range` of one value,

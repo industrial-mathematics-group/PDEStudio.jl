@@ -278,6 +278,28 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test reread.methods[:upwind][:scheme] == "upwind"
         @test reread.defaults == [:upwind]
         @test reread.varied[:cfl] == [0.2, 0.4]
+
+        # Float32 / Float16 numbers and static vectors keep their type (and the hash stays the same)
+        typed = Dict{Symbol, Any}(:f32 => 1.5f0, :f16 => Float16(0.1), :inf32 => Inf32, :svec => SVector(1.0, 2.0),
+                                  :sv32 => SVector(0.1f0, 2.0f0), :tup => (1.5f0, 2), :anyv => Any[1.5f0, "a"],
+                                  :vec_sv => [SVector(1.0, 2.0)], :f64 => 0.1, :text => "SA{Float64}[1.0]")
+        cfg = SimulationConfig(ParamDict(typed...), create_method_dict(:m => create_param_dict(:dt => 0.5f0)), [:m];
+                               varied = create_varied_dict(:cfl => Any[0.2f0, 0.4f0]))
+        rows = PDEStudio._CSVRows()
+        PDEStudio._add_simulation_rows!(rows, cfg)
+        PDEStudio._write_rows(path, rows)
+        back = PDEStudio.csv_to_simulation_config(PDEStudio.parse_csv_to_dict(path))
+        for (k, v) in typed
+            @test isequal(back.shared[k], v) && typeof(back.shared[k]) == typeof(v)
+        end
+        @test back.methods[:m][:dt] === 0.5f0 && isequal(back.varied[:cfl], Any[0.2f0, 0.4f0])
+        @test all(v -> v isa Float32, back.varied[:cfl])
+        data_hash(c) = calculate_hash(get_clean_params(assemble_params(c.shared, c.methods, :m)))
+        @test data_hash(back) == data_hash(cfg)
+        # files written before keep reading as they did
+        write(path, "Category,Scope,Parameter,Value\nSimulation,Shared,dt,1.5\nSimulation,Shared,v,\"Float64[1.0, 2.0]\"\n")
+        old = PDEStudio.csv_to_simulation_config(PDEStudio.parse_csv_to_dict(path))
+        @test old.shared[:dt] === 1.5 && old.shared[:v] == [1.0, 2.0] && old.shared[:v] isa Vector{Float64}
     end
 
     @testset "Axis limits and style values" begin

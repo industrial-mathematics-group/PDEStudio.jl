@@ -75,9 +75,29 @@ end
 
 const _RESERVED_SIM_SCOPES = ("Shared", "Sweep", "Config")
 
-# Text parameters that would read back as something else ("1e3", "Float64", "Nothing") are written quoted, so a
-# simulation parameter keeps its type (and its data-file hash) through a CSV round trip.
-_csv_text(v) = (v isa AbstractString && !isempty(v) && !isequal(_parse_csv_value(v), v)) ? repr(String(v)) : v
+# Text parameters that would read back as something else ("1e3", "Float64", "Nothing") are written quoted, and numbers
+# and static vectors whose type `val2str` doesn't write are written with it (see `_typed_text`), so a simulation
+# parameter keeps its type (and its data-file hash, which is computed from `val2str`) through a CSV round trip.
+function _csv_text(v)
+    v isa AbstractString && return (!isempty(v) && !isequal(_parse_csv_value(v), v)) ? repr(String(v)) : v
+    return _needs_type(v) ? _typed_text(v) : v
+end
+
+# Values `val2str` writes without their type: `Float32`/`Float16` numbers (as `1.5`, read back as `Float64`) and
+# static vectors (as `Float64[…]`, read back as `Vector`), also inside tuples and untyped vectors.
+_needs_type(v) = v isa Union{Float32, Float16} || v isa SVector || (v isa Tuple && any(_needs_type, v)) ||
+                 (v isa AbstractVector && !isconcretetype(eltype(v)) && any(_needs_type, v))
+
+# The literal of `v` with these types (`1.5f0`, `Float16(1.5)`, `SA{Float64}[1.0, 2.0]`), which `str2val` reads back;
+# everything else as `val2str` writes it.
+function _typed_text(v)
+    _needs_type(v) || return val2str(v; top_level = false)
+    v isa Union{Float32, Float16} && return repr(v)
+    elements = join(map(_typed_text, collect(v)), ", ")
+    v isa SVector && return "SA{$(eltype(v))}[$elements]"
+    v isa Tuple && return length(v) == 1 ? "($elements,)" : "($elements)"
+    return (eltype(v) === Any ? "Any" : string(eltype(v))) * "[$elements]"
+end
 
 """
     _add_simulation_rows!(rows, config::SimulationConfig)
@@ -105,7 +125,7 @@ function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
     add_row!(rows, "Simulation", "Config", "reference", isnothing(config.reference) ? "none" : string(config.reference))
     add_row!(rows, "Simulation", "Config", "postprocess", isnothing(config.postprocess) ? "none" : string(config.postprocess))
     for (k, v) in _sorted_pairs(config.varied)
-        add_row!(rows, "Simulation", "Sweep", k, v)
+        add_row!(rows, "Simulation", "Sweep", k, _needs_type(v) ? _typed_text(v) : v)
     end
     return rows
 end
