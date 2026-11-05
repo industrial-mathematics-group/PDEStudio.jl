@@ -546,6 +546,13 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
                 # Disabled sliders (range [0.0]: axis or compare target) keep their last real position
                 if widget isa Makie.Slider && length(widget.range[]) > 1
                     val = widget.value[]
+                    pending = get(manager.pending_sliders, w_key, nothing)
+                    if !isnothing(pending)
+                        rng = widget.range[]
+                        # moved away from the clamped loaded position: the user's choice replaces the loaded one
+                        val == rng[findmin(x -> abs(x - first(pending)), rng)[2]] && continue
+                        delete!(manager.pending_sliders, w_key)
+                    end
                     manager.slider_cache[w_key] = Float64(val)
                     manager.plot_cache[k] = val
                 end

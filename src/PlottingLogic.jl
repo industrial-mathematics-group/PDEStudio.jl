@@ -212,7 +212,8 @@ function _handle_slider_trigger!(u_sel)
             ctrl = w[widget_key]
 
             # A loaded position (CSV) waiting for a range that contains it takes precedence over the current one.
-            pending = get(manager.pending_sliders, widget_key, nothing)
+            pending_entry = get(manager.pending_sliders, widget_key, nothing)
+            pending = isnothing(pending_entry) ? nothing : first(pending_entry)
             if length(ctrl.range[]) > 1 && isnothing(pending)
                 slider_cache[widget_key] = Float64(ctrl.value[])
             end
@@ -234,8 +235,10 @@ function _handle_slider_trigger!(u_sel)
                 ctrl.range[] = new_range
                 set_close_to!(ctrl, old_val)
             end
-            # consumed once: by new data, or by a range that contains it
-            if !isnothing(pending) && (changed || first(new_range) <= pending <= last(new_range))
+            # consumed once: by a new range, by a range that contains it, or by data run after the file was loaded (then
+            # clamped: a position outside the range of the file's own data must not stay pending)
+            if !isnothing(pending) && (changed || first(new_range) <= pending <= last(new_range) ||
+                                       manager.data_generation > last(pending_entry))
                 changed || set_close_to!(ctrl, pending)
                 slider_cache[widget_key] = pending
                 delete!(manager.pending_sliders, widget_key)

@@ -35,7 +35,8 @@ What has changed since the last release. Released versions are described in the
   reference (on a finer time grid) and the title (the slider value) showed up to one display step apart. The
   reference is now evaluated at the times of the numerical data, and the title shows the time of the drawn data.
 - **Slider positions of a CSV loaded while other data is shown** were lost (the slider came back at the value
-  clamped into the old range); they are applied once the new data is there.
+  clamped into the old range); they are applied once the new data is there. A saved position outside the range of the file's own data
+  doesn't stay pending: moving the slider drops it, otherwise the next run applies it (clamped).
 - **Reference lines** (`reference` exponents) added a listener to the axis limits on every UI update (every slider
   drag frame, every animation frame); they are removed with the lines now.
 - **Float32, Float16 and `SVector` parameters** came back from a CSV (exports, presets) as `Float64` / `Vector`; they

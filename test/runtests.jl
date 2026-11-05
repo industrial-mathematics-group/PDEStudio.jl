@@ -2309,6 +2309,21 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         click_button!(:run_button)
         @test cfl_slider().range[] == [0.2, 0.4, 0.5] && cfl_slider().value[] == 0.4
         @test isempty(manager.pending_sliders)
+        # ... a position outside the range of the file's own data doesn't stay pending: moving the slider drops it,
+        # and without a move the next run applies it (clamped)
+        beyond = joinpath(dir, "beyond.csv")
+        write(beyond, "Category,Scope,Parameter,Value\nScene,Plot,t,5.0\n")
+        PDEStudio.load_and_apply_csv!(beyond)
+        @test haskey(manager.pending_sliders, :t) && w()[:t].value[] == last(w()[:t].range[])
+        set_close_to!(w()[:t], 0.5)
+        yield()
+        @test !haskey(manager.pending_sliders, :t)
+        set_sim_config!(other)
+        click_button!(:run_button)
+        @test abs(w()[:t].value[] - 0.5) < 0.05
+        PDEStudio.load_and_apply_csv!(beyond)
+        click_button!(:run_button)
+        @test isempty(manager.pending_sliders) && w()[:t].value[] == last(w()[:t].range[])
 
         # 5. A sweep that changes the domain (final time): each reference covers the domain of its own sweep point
         tcfg = SimulationConfig(create_param_dict(:cfl => 0.5, :N => 40, :T_end => 1.0, :sim_func_name => :exact_transport_1d),

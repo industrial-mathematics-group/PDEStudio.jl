@@ -151,7 +151,9 @@ Base.@kwdef mutable struct PlotManager
     # --- persistent caches (they outlive a closed window) ---
     camera_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     slider_cache::Dict{Symbol, Float64} = Dict{Symbol, Float64}()
-    pending_sliders::Dict{Symbol, Float64} = Dict{Symbol, Float64}()   # loaded slider positions not yet in range
+    pending_sliders::Dict{Symbol, Tuple{Float64, Int}} =               # loaded slider positions not yet in range
+        Dict{Symbol, Tuple{Float64, Int}}()                              #   (value, data_generation when loaded)
+    data_generation::Int = 0                                             # counts the data loads of "Run Simulation"
     stored_time_counts::Dict{String, Int} = Dict{String, Int}()       # data file#mtime => stored snapshots (0: not a grid)
     layout_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     plot_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
@@ -390,6 +392,7 @@ function simulation_trigger()
         manager.locks[:Layout] = true
         try
             update_plot_data_collection!(manager.plot_data[], curr_config, manager.methods[]; force_reload = true)
+            manager.data_generation += 1
             notify(manager.plot_data)
         finally
             manager.locks[:Layout] = false
