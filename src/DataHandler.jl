@@ -164,26 +164,91 @@ function _load_for_display(params::ParamDict, domain, mode::Val)
     end
 end
 
-function _make_reference(ref_factory, params::ParamDict, domain, mode::Val)
+# The time axis of a dataset (`nothing` without time): the axis the studio draws its snapshots at.
+function _time_axis(data::AbstractSimData)
+    t = data.domain.time_dim
+    isnothing(t) && return nothing
+    data isa LSimData && return data.t
+    return data.axes[findfirst(==(t), data.domain.dim_keys)]
+end
+
+# `domain` with the bounds of its (last, time) dimension set to `[t0, t1]`.
+function _with_time_bounds(domain::DomainInfo{D, T}, t0, t1) where {D, T}
+    return DomainInfo{D, T}(domain.dim_keys, Base.setindex(domain.mins, T(t0), D), Base.setindex(domain.maxs, T(t1), D),
+                            domain.spacing, domain.time_dim, domain.stat_registry)
+end
+
+_uniform_axis(a, b, n::Int) = n == 1 ? [a] : collect(range(a, b, length = n))
+
+# Evaluates `ref_func` on the tensor grid `axes` (Eulerian), for time axes that are not uniform (PDEStudioCore's
+# `generate_reference_simdata` lays every axis out uniformly).
+function _reference_on_axes(ref_func, params::ParamDict, domain::DomainInfo{D, T}, axes::NTuple{D, Vector{T}}) where {D, T}
+    point(I) = SVector{D, T}(ntuple(d -> axes[d][I[d]], Val(D)))
+    grid = CartesianIndices(map(length, axes))
+    v1 = ref_func(point(first(grid)))
+    E = SVector{length(v1), T}
+    elem(v) = E(v isa Number ? (v,) : Tuple(v))
+    u = Array{E, D}(undef, size(grid))
+    for I in grid
+        u[I] = elem(ref_func(point(I)))
+    end
+    return ESimData(params, domain, axes, u)
+end
+
+"""
+    _make_reference(ref_factory, params, domain, mode, t_axis = nothing)
+
+Evaluates the reference solution for `params` on `domain` (the domain of the numerical data at the same sweep point)
+at the display resolution of the references. With the time axis `t_axis` of that numerical data, the reference is
+evaluated at exactly these times, so at every time slider position the numerical and the reference curve show the same
+time (an independent, finer time grid would put the nearest reference snapshot up to one display step away).
+"""
+function _make_reference(ref_factory, params::ParamDict, domain, mode::Val, t_axis = nothing)
     try
         ref_func = ref_factory(params)
-        return generate_reference_simdata(ref_func, params, domain, build_res_tuple(domain.dim_keys; is_ref = true), mode)
+        res = build_res_tuple(domain.dim_keys; is_ref = true)
+        if !isnothing(t_axis) && !isempty(t_axis) && !isnothing(domain.time_dim)
+            D = length(domain.dim_keys)
+            res = Base.setindex(res, length(t_axis), D)
+            domain = _with_time_bounds(domain, first(t_axis), last(t_axis))
+            if mode === Val(:eulerian) && t_axis != _uniform_axis(first(t_axis), last(t_axis), length(t_axis))
+                T = eltype(domain.mins)
+                axes = ntuple(d -> d == D ? convert(Vector{T}, t_axis) : _uniform_axis(domain.mins[d], domain.maxs[d], res[d]), D)
+                return _reference_on_axes(ref_func, params, domain, axes)
+            end
+        end
+        return generate_reference_simdata(ref_func, params, domain, res, mode)
     catch e
         @warn "Could not evaluate the reference solution for $(params)" exception = (e, catch_backtrace())
         return nothing
     end
 end
 
+# The dataset of a numerical method at the sweep point `idx` (the first of `numeric` that has one), or `nothing`.
+function _numeric_at(numeric, idx::Tuple)
+    for pd in numeric
+        checkbounds(Bool, pd.data, idx...) || continue
+        d = pd.data[idx...]
+        isnothing(d) || return d
+    end
+    return nothing
+end
+
 """
-    create_plot_data(method_name::Symbol, base_params::ParamDict, sim_config::SimulationConfig, domain = _get_template_domain(sim_config))
+    create_plot_data(method_name::Symbol, base_params::ParamDict, sim_config::SimulationConfig,
+                     domain = _get_template_domain(sim_config); numeric = ())
 
 The primary tensor assembly routine.
 Calculates the full Cartesian sweep grid (exactly as `run_all_simulations` does), loads the Eulerian or Lagrangian
 representation of every task (identical tasks share one dataset), evaluates analytical references for reference methods,
 and packages the result into a `PlotSweepData` cache.
+
+A reference is evaluated per sweep point on the domain and at the times of the numerical data of that point (the
+`PlotSweepData` of the numerical methods in `numeric`), since a swept parameter may change the domain (final time,
+domain length, grid); without numerical data at a point it falls back to the template `domain`.
 """
 function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_config::SimulationConfig,
-                          domain = _get_template_domain(sim_config))
+                          domain = _get_template_domain(sim_config); numeric = ())
     active_keys, active_values = analyze_configuration(sim_config)
     ignore_keys = get_ignore_keys(sim_config.methods, method_name)
 
@@ -204,17 +269,24 @@ function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_confi
         return result
     end
 
-    loaded = Dict{String, Union{Nothing, AbstractSimData}}()
+    # Numerical data of the same sweep grid (data of an earlier configuration is not used)
+    numeric = [pd for pd in numeric if size(pd.data) == grid_dims && pd.active_param_keys == active_keys]
+    loaded = Dict{Any, Union{Nothing, AbstractSimData}}()   # identical tasks (and domains) share one dataset
     for (k, params) in enumerate(tasks)
+        dest_prefix = isempty(grid_indices[k]) ? (1,) : grid_indices[k]
         key = calculate_hash(get_clean_params(params))
+        if is_reference
+            src = _numeric_at(numeric, Tuple(dest_prefix))
+            ref_domain, t_axis = isnothing(src) ? (domain, nothing) : (src.domain, _time_axis(src))
+            key = (key, ref_domain.dim_keys, ref_domain.mins, ref_domain.maxs, t_axis)
+        end
         sim_data = get!(loaded, key) do
             # invokelatest: the factory may come from source files included by the run that just finished
-            is_reference ? Base.invokelatest(_make_reference, ref_factory, params, domain, mode) :
+            is_reference ? Base.invokelatest(_make_reference, ref_factory, params, ref_domain, mode, t_axis) :
                            _load_for_display(params, domain, mode)
         end
 
         if !isnothing(sim_data) && validate_plot_dimensions(sim_data)
-            dest_prefix = isempty(grid_indices[k]) ? (1,) : grid_indices[k]
             data_store[dest_prefix...] = sim_data
         end
     end
@@ -422,9 +494,11 @@ function update_plot_data_collection!(plot_data_dict, sim_config, active_methods
     missing_methods = filter(m -> !haskey(plot_data_dict, m), active_methods)
     if !isempty(missing_methods)
         domain = _get_template_domain(sim_config)  # loaded once for all methods
-        for m_name in missing_methods
+        # The numerical methods first: the references are laid out on their domains and times (per sweep point).
+        for m_name in sort(missing_methods, by = is_reference_method)
             base_params = assemble_params(sim_config.shared, sim_config.methods, m_name)
-            new_data = create_plot_data(m_name, base_params, sim_config, domain)
+            numeric = [plot_data_dict[m] for m in active_methods if !is_reference_method(m) && haskey(plot_data_dict, m)]
+            new_data = create_plot_data(m_name, base_params, sim_config, domain; numeric = numeric)
             isnothing(new_data) || (plot_data_dict[m_name] = new_data)
         end
     end

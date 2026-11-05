@@ -93,7 +93,8 @@ function _handle_plot_trigger!(
             sim_data = _get_first_valid(first(values(data)))
             active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
             
-            ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals, sim_data)
+            ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+                                        something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
             
             manager.plot_titles[i] = ts
             
@@ -317,7 +318,8 @@ function _handle_data_trigger!(
         
         active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
         
-        ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals, sim_data)
+        ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+                                    something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
         
         manager.plot_titles[i] = ts
             
@@ -476,6 +478,19 @@ function _mutate_compare_vals(current_sels, idx)
         mutated[t_idx] = c_vals[idx]
     end
     return mutated
+end
+
+# The dataset drawn for `methods` at the slider values `vals` (a numerical method's, if one is drawn), whose time and
+# grid values the title shows; `nothing` if none is loaded.
+function _drawn_dataset(data, methods, vals)
+    for numeric_only in (true, false), m in methods
+        (numeric_only && is_reference_method(m)) && continue
+        pd = get(data, m, nothing)
+        isnothing(pd) && continue
+        d = pd.data[_build_param_indices(pd, vals)...]
+        isnothing(d) || return d
+    end
+    return nothing
 end
 
 """

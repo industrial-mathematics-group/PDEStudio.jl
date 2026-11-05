@@ -28,8 +28,17 @@ What has changed since the last release. Released versions are described in the
   names the missing axes, the old data is cleared and *Run Simulation* rebuilds the window with them.
 - **Export message:** an image exported to a path typed into *Name / path* was reported as saved to the default
   `figures` folder; the status line now names the folder it went to.
+- **References in sweeps that change the domain** (final time, domain length, grid): every sweep point's reference
+  was laid out on the domain of the first one, so it was drawn at the wrong times or places. Each reference now
+  covers the domain of the numerical data of its own sweep point.
+- **Numerical curve, reference and title at the same time:** at one time slider position the numerical data, the
+  reference (on a finer time grid) and the title (the slider value) showed up to one display step apart. The
+  reference is now evaluated at the times of the numerical data, and the title shows the time of the drawn data.
 
 ### Changed
+- **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
+  with (the time entry of *Files → Resolution ›* for references applies only without numerical data); in space the
+  reference resolution is used as before.
 - **Lagrangian layout presets and CSV files** store the particle style names (`particles_2d`). Files with the
   `Config, Dimensions, mode` row open their particles as before; older files with a scatter style saved in a
   Lagrangian session open it on a grid (choose the particle style again).

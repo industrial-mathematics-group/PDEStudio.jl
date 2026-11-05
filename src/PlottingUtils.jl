@@ -79,7 +79,7 @@ end
 
 Dynamically constructs a plot title reflecting the exact position within a multi-dimensional parameter sweep.
 
-Iterates through all registered UI axes. If a dimension is actively mapped to a spatial or parameter axis (found in `plot_dims`), it labels it `[Axis]`. Otherwise, it prints the exact fixed slider value (e.g., `T = 0.500 | N = 100`).
+Iterates through all registered UI axes. If a dimension is actively mapped to a spatial or parameter axis (found in `plot_dims`), it labels it `[Axis]`. Otherwise, it prints the fixed value (e.g., `T = 0.500 | N = 100`): for a dimension of the data, the value of the snapshot or grid line drawn (the one of `sim_data`, the drawn dataset, nearest to the slider), not the slider position.
 """
 function generate_dynamic_title(
     plot_dims::Tuple, 
@@ -104,7 +104,7 @@ function generate_dynamic_title(
         if i in plot_dims
             push!(title_parts, "$name = [Axis]")
         elseif i <= length(sel_vals)
-            val = i <= n_params ? _param_display_value(i, sel_vals[i]) : sel_vals[i]
+            val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
             push!(title_parts, "$name = $(_fmt_value(val))")
         end
     end
@@ -112,6 +112,14 @@ function generate_dynamic_title(
     return join(title_parts, " | ")
 end
 
+# The value of the dimension `dim` that is drawn for the slider value `v`: the nearest one on the axis of the dataset
+# (each dataset shows its snapshot / grid line nearest to the slider).
+function _drawn_value(sim_data, dim::Symbol, v)
+    (isnothing(sim_data) || !(v isa Real)) && return v
+    vals = _get_dim_vals(Val(manager.mode[]), sim_data, dim)
+    (isnothing(vals) || isempty(vals)) && return v
+    return vals[findmin(x -> abs(x - v), vals)[2]]
+end
 
 """
     plot_reference_lines!(ax::Axis, exponents::Vector; label, color, line_style, kwargs...)

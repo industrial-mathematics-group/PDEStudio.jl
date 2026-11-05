@@ -40,6 +40,14 @@ are cached). Presets and CSV files store the style name, so they restore the par
 test_particles_2d()` opens them directly, and `@launch` without a style picks a particle style for particle data.
 With a particle style, *Files → Resolution ›* lists only the references (evaluated on a grid).
 
+**References and the drawn time:** a reference solution (a method recognised as one, e.g. `analytical_solution`) is
+evaluated for every sweep point on the domain of that point's numerical data (a sweep over the final time or the
+domain size moves it) and at the times of that data, so at every position of the time slider the numerical curve and
+the reference show the same snapshot; *Files → Resolution ›* sets the reference's points in space. The title shows
+the time (and other grid values on sliders) of the drawn data, the snapshot nearest to the slider position, not the
+slider position itself. The display data is resampled to the display resolution in time (*Resolution ›*, nearest
+snapshot), so its time values are those of the display grid: at most half a solver step from the snapshot's own time.
+
 ### 📐 Plot Options (Data Projection)
 
 While Layout dictates *how* things are drawn, Plot Options dictate *what* is drawn. Changes made here are instantly resolved via the **Update Plot** button without needing to rebuild the layout.

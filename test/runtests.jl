@@ -140,6 +140,17 @@ function exact_advection_factory(params::ParamDict)
     return (x -> exact_advection(x))
 end
 
+# The exact transport solution up to the final time `T_end` (a swept parameter that changes the domain)
+function exact_transport_1d(params::ParamDict)
+    N, cfl, T_end = params[:N], params[:cfl], params[:T_end]
+    dx = 2π / N
+    dt = cfl * dx
+    x = collect(range(0.0, step = dx, length = N))
+    t = collect(range(0.0, step = dt, length = ceil(Int, T_end / dt) + 1))
+    u = [SVector{1, Float64}(sin(xi - ti) + 2.0) for xi in x, ti in t]
+    return create_sim_data(x, u, t, params; time_dim = :t, dims = :x)
+end
+
 # ==============================================================================
 # --- EXPERIMENT: 1D Lagrangian Particle Tracking ---
 # ==============================================================================
@@ -1888,6 +1899,67 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
 
         set_allowed_dims!((:x, :y, :z, :t))
         set_mode!(:eulerian)
+    end
+
+
+    # What is drawn: references on the domain and at the times of the data, titles with the drawn time, slider
+    # positions restored from a CSV over other data, reference lines, style values
+    ingroup("plots-1") && @testset "Drawn data: references, times, titles and restored sliders" begin
+        reset_plotter!()
+        set_mode!(:eulerian)
+        fig = launch_plotter()
+        display(fig)
+        w() = manager.widgets
+        cfg = SimulationConfig(create_param_dict(:cfl => 0.5, :N => 40, :sim_func_name => :advection_solver_1d),
+                               create_method_dict(:analytical_solution => create_param_dict(),
+                                                  :upwind => create_param_dict(:scheme => "upwind")),
+                               [:upwind, :analytical_solution]; varied = create_varied_dict(:cfl => [0.2, 0.4, 0.5]),
+                               reference = :exact_advection_factory)
+        set_sim_config!(cfg)
+        click_button!(:run_button)
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
+        cfl_slider() = w()[manager.reverse_map[:cfl]]
+        nearest(a, v) = a[findmin(x -> abs(x - v), a)[2]]
+
+        # 1. The numerical curve, the reference and the title show the same time at every slider position
+        set_close_to!(cfl_slider(), 0.2)
+        yield()
+        pdn, pdr = manager.plot_data[][:upwind], manager.plot_data[][:analytical_solution]
+        k = findfirst(==(0.2), pdn.active_param_values[1])
+        dn, dr = pdn.data[k], pdr.data[k]
+        @test dr.axes[2] == dn.axes[2]                 # the reference is evaluated at the times of the data
+        for ts in (0.3, 0.598, 1.0, 1.73)
+            set_close_to!(w()[:t], ts)
+            yield()
+            t_drawn = nearest(dn.axes[2], w()[:t].value[])
+            @test nearest(dr.axes[2], w()[:t].value[]) == t_drawn
+            @test occursin("Time (T) = $(PDEStudio._fmt_value(t_drawn))", manager.plot_titles[1])
+            ca = manager.caches[1][:analytical_solution]
+            @test maximum(abs.(ca.obs_u[] .- (sin.(ca.obs_x[] .- t_drawn) .+ 2))) < 1e-5
+        end
+
+        # 5. A sweep that changes the domain (final time): each reference covers the domain of its own sweep point
+        tcfg = SimulationConfig(create_param_dict(:cfl => 0.5, :N => 40, :T_end => 1.0, :sim_func_name => :exact_transport_1d),
+                                create_method_dict(:analytical_solution => create_param_dict(), :transport => create_param_dict()),
+                                [:transport, :analytical_solution]; varied = create_varied_dict(:T_end => [1.0, 2.0]),
+                                reference = :exact_advection_factory)
+        set_sim_config!(tcfg)
+        click_button!(:run_button)
+        set_axes_for_dim!(1)
+        pdn, pdr = manager.plot_data[][:transport], manager.plot_data[][:analytical_solution]
+        for k in 1:2
+            @test pdr.data[k].axes[2] == pdn.data[k].axes[2]
+            @test extrema(pdr.data[k].axes[1]) == (pdn.data[k].domain.mins[1], pdn.data[k].domain.maxs[1])
+        end
+        set_close_to!(w()[manager.reverse_map[:T_end]], 2.0)
+        yield()
+        set_close_to!(w()[:t], last(w()[:t].range[]))
+        yield()
+        t_drawn = nearest(pdn.data[2].axes[2], w()[:t].value[])
+        @test t_drawn > 2.0
+        ca = manager.caches[1][:analytical_solution]
+        @test maximum(abs.(ca.obs_u[] .- (sin.(ca.obs_x[] .- t_drawn) .+ 2))) < 1e-5   # (the data is exact too)
     end
 
     # The built-in examples of PDEStudioCore (the quick start of the README) load and run in the studio
