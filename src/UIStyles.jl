@@ -330,6 +330,7 @@ function set_plot_preset!()
     # 2. Reset Layout and Sliders safely
     apply_layout_options!(base_layout)
     empty!(manager.slider_cache)
+    empty!(manager.pending_sliders)
     
     # 3. Reset Camera
     manager.camera_cache = Dict{Symbol, Any}()

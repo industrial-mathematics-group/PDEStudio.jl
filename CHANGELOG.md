@@ -34,6 +34,8 @@ What has changed since the last release. Released versions are described in the
 - **Numerical curve, reference and title at the same time:** at one time slider position the numerical data, the
   reference (on a finer time grid) and the title (the slider value) showed up to one display step apart. The
   reference is now evaluated at the times of the numerical data, and the title shows the time of the drawn data.
+- **Slider positions of a CSV loaded while other data is shown** were lost (the slider came back at the value
+  clamped into the old range); they are applied once the new data is there.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn

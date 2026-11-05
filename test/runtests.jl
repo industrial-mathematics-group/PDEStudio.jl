@@ -1939,6 +1939,22 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
             @test maximum(abs.(ca.obs_u[] .- (sin.(ca.obs_x[] .- t_drawn) .+ 2))) < 1e-5
         end
 
+        # 4. A CSV loaded while other data is shown restores its slider positions after Run Simulation
+        set_close_to!(cfl_slider(), 0.4)
+        yield()
+        dir = mktempdir()
+        @test PDEStudio.save_params_to_csv("state", dir, Dict("Save Type" => "test"))
+        other = deepcopy(cfg)
+        other.varied[:cfl] = [0.1, 0.15]
+        set_sim_config!(other)
+        click_button!(:run_button)
+        @test cfl_slider().range[] == [0.1, 0.15]
+        PDEStudio.load_and_apply_csv!(joinpath(dir, "state.csv"))
+        yield()
+        click_button!(:run_button)
+        @test cfl_slider().range[] == [0.2, 0.4, 0.5] && cfl_slider().value[] == 0.4
+        @test isempty(manager.pending_sliders)
+
         # 5. A sweep that changes the domain (final time): each reference covers the domain of its own sweep point
         tcfg = SimulationConfig(create_param_dict(:cfl => 0.5, :N => 40, :T_end => 1.0, :sim_func_name => :exact_transport_1d),
                                 create_method_dict(:analytical_solution => create_param_dict(), :transport => create_param_dict()),

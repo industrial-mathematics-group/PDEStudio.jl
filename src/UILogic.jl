@@ -161,6 +161,8 @@ end
 
 Specifically manages the application of loaded parameter constraints to Makie `Slider`s. 
 Because sliders automatically trigger data-fetching loops, this function safely clamps the target values to the sliders' natively allowable ranges and bypasses updates if the slider is holding a dummy `[0.0]` state.
+A value outside the slider's current range (e.g. a CSV loaded while other data is shown) is kept in
+`manager.pending_sliders` and applied once by the slider step that brings a range containing it (or new data).
 """
 function apply_slider_options!(slider_options::Dict)
     isempty(slider_options) && return
@@ -181,16 +183,21 @@ function apply_slider_options!(slider_options::Dict)
                 # Safely cache the desired CSV value
                 manager.slider_cache[w_key] = Float64(desired_val)
                 manager.plot_cache[key] = desired_val
+                delete!(manager.pending_sliders, w_key)
                 
                 rng = widget.range[]
                 
-                # If the range is a dummy placeholder, do not touch the widget
+                # If the range is a dummy placeholder, do not touch the widget (the cached value is applied when the
+                # slider gets a range)
                 if isempty(rng) || rng == [0.0]
                     continue
                 end
                 
                 val = clamp(Float64(desired_val), Float64(rng[1]), Float64(rng[end]))
+                val == desired_val || (manager.pending_sliders[w_key] = Float64(desired_val))   # not in this range
                 set_close_to!(widget, val) 
+                # (a slider drag syncs the clamped position into the cache; the loaded value stays the one to restore)
+                manager.slider_cache[w_key] = Float64(desired_val)
             end
         end
     end
