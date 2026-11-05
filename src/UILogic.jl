@@ -987,6 +987,7 @@ function _after_editor_change!(cat, scope, key, target)
             w_key = get(manager.reverse_map, key, key)
             lbl_key = Symbol("$(w_key)_label")
             haskey(manager.widgets, lbl_key) && (manager.widgets[lbl_key][] = manager.labels[key] * ":")
+            notify(manager.plot_data)   # Chain A relabels the axis, animation and compare menus
         elseif scope === :components
             notify(manager.widgets[:u_axis].selection)
         end

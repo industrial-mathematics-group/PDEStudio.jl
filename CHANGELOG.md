@@ -67,6 +67,7 @@ What has changed since the last release. Released versions are described in the
   line.
 - **Menus with a meaningful order** (components, compare targets) were sorted by label (`Component 1, 10, 11, 2, …`);
   they keep their order.
+- **Renaming a variable** (UI → Labels → Variables) now relabels the axis, animation and compare menus right away.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
