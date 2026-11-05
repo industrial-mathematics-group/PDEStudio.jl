@@ -149,6 +149,13 @@ function exact_sparse_1d(params::ParamDict)
 end
 exact_sparse_factory(params) = (xt -> SVector(sin(xt[1] - xt[2]) + 2.0))
 
+# Particles at rest stored at uneven times (4, or 80 for `many`), carrying u = t
+function particles_uneven_1d(params::ParamDict)
+    t = params[:many] ? collect(range(0.0, 1.0, length = 80)) .^ 2 : [0.0, 0.1, 0.2, 1.0]
+    x0 = collect(range(0.0, 1.0, length = 40))
+    return create_sim_data([[SVector(p) for p in x0] for _ in t], [[SVector(ti) for _ in x0] for ti in t], t, params; time_dim = :t)
+end
+
 # The exact transport solution up to the final time `T_end` (a swept parameter that changes the domain)
 function exact_transport_1d(params::ParamDict)
     N, cfl, T_end = params[:N], params[:cfl], params[:T_end]
@@ -330,6 +337,17 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             exact_error(d) = maximum(k -> maximum(abs.(getindex.(d.u[:, k], 1) .- (sin.(d.axes[1] .- d.axes[2][k]) .+ 2))), axes(d.u, 2))
             @test exact_error(dn) < 1e-10 && exact_error(dr) < 1e-10
             @test length(dn.stats[:l2error]) == length(dn.axes[2])          # statistics over time follow the snapshots
+        end
+        # particle data drawn with a grid style: the stored times too (all 4, or 50 of 80), with the snapshot of each
+        for many in (false, true)
+            cfg = SimulationConfig(create_param_dict(:N => 40, :many => many, :sim_func_name => :particles_uneven_1d),
+                                   create_method_dict(:num => create_param_dict()), [:num])
+            run_all_simulations(cfg; calculate_stats = true)
+            d = PDEStudio.update_plot_data_collection!(Dict{Symbol, PDEStudio.AbstractPlotData}(), cfg, [:num])[:num].data[1]
+            stored = load_sim_data(PDEStudioCore.generate_tasks(cfg)[1], Val(:raw)).t
+            @test d isa ESimData && length(d.axes[2]) == min(length(stored), 50) && issubset(d.axes[2], stored)
+            @test all(k -> all(v -> v[1] ≈ d.axes[2][k], d.u[:, k]), axes(d.u, 2))   # u = t of the snapshot shown
+            @test length(d.stats[:mass]) == length(d.axes[2])
         end
         # particle data stored at uneven times: the reference at exactly these times, at most 100 of many
         t = [0.0, 0.1, 0.2, 1.0]

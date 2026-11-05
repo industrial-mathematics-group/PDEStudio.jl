@@ -93,8 +93,9 @@ What has changed since the last release. Released versions are described in the
   the key of an entry with an empty name (Makie's menus overflow the stack on an empty option).
 - **Numerical curve and reference at the same time (round 2):** grid data was resampled in time (the nearest stored
   snapshot relabelled with a display time), so the drawn data could be up to half the interval between stored
-  snapshots away from the reference and the title, e.g. for output stored every few steps. Grid data now shows its
-  stored snapshots at their own times (see *Changed*).
+  snapshots away from the reference and the title, e.g. for output stored every few steps. Data drawn with a grid
+  style (grid data, and particle data scattered to the grid) now shows its stored snapshots at their own times (see
+  *Changed*).
 - **References of particle data** were evaluated at evenly spaced times even when the data was stored at other times,
   and their cost grew with the number of stored times. They are evaluated at the data's times, at most the reference
   time resolution (default 100) of them.
@@ -105,7 +106,7 @@ What has changed since the last release. Released versions are described in the
 ### Changed
 - **`set_resolution!`** refuses resolutions outside 2–100000 (an `ArgumentError`), like the Resolution page; a time
   resolution of 1 made every dataset with time fail to load.
-- **Time axis of grid data:** the display resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the
+- **Time axis of data drawn with a grid style** (grid data, particle data scattered to the grid): the display resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the
   most stored snapshots shown; the data is no longer interpolated in time. All snapshots are shown up to it, otherwise
   that many, evenly spread (they then come from the stored data directly rather than from PDEStudioCore's cached
   conversion).

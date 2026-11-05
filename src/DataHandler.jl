@@ -170,7 +170,7 @@ Eulerian display data with a time axis (dimension `D`): the space axes at the di
 not interpolated but made of stored snapshots, so every time value drawn (and printed in the title) is the time of the
 snapshot shown. With at most `res[D]` stored snapshots all of them are shown (PDEStudioCore keeps a time axis whose
 length doesn't change, and caches the conversion); with more, `res[D]` of them, evenly spread over the stored ones.
-Grid data of particles (converted by PDEStudioCore) keeps PDEStudioCore's resampling.
+This holds for grid data and for particle data drawn on a grid (scattered to the grid by `convert_to_eulerian`).
 """
 function _load_snapshots(params::ParamDict, res::Tuple, D::Int)
     path = get_file_name(params)
@@ -179,14 +179,35 @@ function _load_snapshots(params::ParamDict, res::Tuple, D::Int)
     raw = nothing
     if isnothing(nt)
         raw = load_sim_data(params, Val(:raw))
-        nt = raw isa ESimData && ndims(raw.u) == D ? length(raw.axes[D]) : 0   # 0: not a grid with this time axis
+        nt = _stored_steps(raw, D)
         manager.stored_time_counts[key] = nt
     end
     nt == 0 && return load_sim_data(params, Val(:eulerian), res)
+    # (PDEStudioCore keeps the stored times when the time resolution is their number, for grids and particles)
     nt <= res[D] && return load_sim_data(params, Val(:eulerian), Base.setindex(res, nt, D))
     isnothing(raw) && (raw = load_sim_data(params, Val(:raw)))
     idx = unique(round.(Int, range(1, nt, length = res[D])))
-    return resample_eulerian(_select_snapshots(raw, idx), Base.setindex(res, length(idx), D))
+    sub = _select_snapshots(raw, idx)
+    sub_res = Base.setindex(res, length(idx), D)
+    return sub isa LSimData ? convert_to_eulerian(sub, sub_res) : resample_eulerian(sub, sub_res)
+end
+
+# The number of stored snapshots of data with the time axis `D` (grid or particles), 0 for anything else.
+_stored_steps(raw::ESimData, D::Int) = ndims(raw.u) == D && !isnothing(raw.domain.time_dim) ? length(raw.axes[D]) : 0
+_stored_steps(raw::LSimData, D::Int) = length(raw.domain.dim_keys) == D && !isnothing(raw.domain.time_dim) ? length(raw.t) : 0
+_stored_steps(raw, D::Int) = 0
+
+# The snapshots `idx` of particle data: positions, values and the statistics stored per snapshot.
+function _select_snapshots(data::LSimData{D, DS, M, T}, idx::AbstractVector{Int}) where {D, DS, M, T}
+    nt = length(data.t)
+    stats = Dict{Symbol, Any}()
+    for k in keys(data.stats)
+        k === :Solution && continue
+        v = data.stats[k]
+        keeps_time = data.domain.time_dim in get_kept_dims(k, data.domain)
+        stats[k] = keeps_time && v isa AbstractVector && !(v isa SVector) && length(v) == nt ? v[idx] : v
+    end
+    return LSimData{D, DS, M, T}(data.params, data.domain, data.t[idx], data.x[idx], data.u[idx], stats)
 end
 
 # The snapshots `idx` of Eulerian data (time is the last dimension): the solution and every statistic that keeps time.
