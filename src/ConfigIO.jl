@@ -261,8 +261,8 @@ folder exists, otherwise from the bundle folder; a missing copy is replaced by i
 
 A source that fails doesn't abort the load: the error is reported (log and status line) and the parameters come
 from the CSV, so the solver functions must then be defined some other way (e.g. by loading their package).
-Returns `(config, bundled, origins)`: the `SimulationConfig` returned by the last file if every file ran (otherwise
-`nothing`), the absolute paths of the bundled copies (`""` for missing files) and the original paths (if recorded).
+Returns `(config, bundled, origins)`: the `SimulationConfig` returned by the last file (or by the function without
+arguments it ends with, as for [`load_config_file!`](@ref)) if every file ran (otherwise `nothing`), the absolute paths of the bundled copies (`""` for missing files) and the original paths (if recorded).
 """
 function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     meta = get(get(parsed, "Metadata", Dict()), "General", Dict())
@@ -300,6 +300,16 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
             last_result = nothing
         end
         push!(bundled, copy)
+    end
+    # A file may end with a function that returns the configuration (as `load_config_file!` accepts)
+    if isempty(failures) && last_result isa Function
+        try
+            last_result = Base.invokelatest(last_result)
+        catch e
+            @error "The function returned by the bundled source $(basename(string(last(names)))) failed" exception = (e, catch_backtrace())
+            push!(failures, "$(basename(string(last(names)))): $(_short(first(split(sprint(showerror, e), '\n')), 70))")
+            last_result = nothing
+        end
     end
     if !isempty(failures)
         _status!("Source files of $(basename(filepath)) failed; the parameters come from the CSV, define the solvers " *

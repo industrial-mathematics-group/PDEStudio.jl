@@ -43,6 +43,8 @@ What has changed since the last release. Released versions are described in the
   written before read as they did.
 - **Hand-written CSVs with spaces after the commas** (`Category, Scope, Parameter, Value`) failed or put the rows
   into a wrong scope; header and key cells are stripped, and unknown categories and scopes are warned about.
+- **A bundled `.jl` configuration that ends with a function** (as `load_config_file!` accepts) wasn't called when the
+  export was loaded again, so function parameters came back as the text `"Closure"`.
 - **1-D axis limits of a constant field** (e.g. Float32 noise around a constant state) showed the round-off noise
   with repeated tick labels; they get the relative range of the colour ranges.
 - **Style values that can't be drawn** (`colors = []`, empty `markers` / `line_styles`, a `color_range` of one value,

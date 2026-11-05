@@ -318,6 +318,24 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
                                                        "UI" => Dict("x_axis" => Dict(), "lines_1d" => Dict())))
     end
 
+    @testset "Bundled config file ending with a function" begin
+        set_save_path!(mktempdir())
+        dir = mktempdir()
+        write(joinpath(dir, "fn_cfg.jl"), """
+            initial_condition(x) = sin(x) + 2.0
+            fn_cfg() = SimulationConfig(create_param_dict(:N => 16, :ic => initial_condition, :sim_func_name => :advection_solver_1d),
+                                        create_method_dict(:m => create_param_dict()), [:m])
+            fn_cfg
+            """)
+        PDEStudio.load_config_file!(joinpath(dir, "fn_cfg.jl"))
+        @test PDEStudio.manager.active_config.shared[:ic] isa Function
+        @test PDEStudio.save_params_to_csv("exp", dir, Dict("Save Type" => "test"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(dir, "exp.csv"))
+        @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
+        reset_manager!()
+    end
+
     @testset "Axis limits and style values" begin
         # 1D axis limits of a field that is constant up to Float32 noise: a usable range instead of the noise
         u = Float64.(1.4f0 .+ Float32.(1e-7 .* sin.(10 .* range(0, 1, length = 50))))
