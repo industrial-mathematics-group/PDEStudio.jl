@@ -931,6 +931,8 @@ function _invalid_ui_reason(key::Symbol, val)
     key === :color_range && !(val isa Union{AbstractVector, Tuple} && length(val) in (0, 2) && all(v -> v isa Real, val)) &&
         return "colour range: [] (automatic) or [lo, hi]"
     key === :levels && !(val isa Integer && val >= 2) && return "number of contour levels (an integer ≥ 2)"
+    key in (:animation_FPS, :animation_time, :dpi) && !(val isa Real && isfinite(val) && val > 0) &&
+        return "$(key === :animation_FPS ? "frame rate" : key === :dpi ? "resolution" : "duration") (a positive number)"
     return nothing
 end
 _valid_ui_value(key::Symbol, val) = isnothing(_invalid_ui_reason(key, val))
@@ -2265,12 +2267,22 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         if is_anim
             !check_selection_validity(target_name) && return
         end
+        # (checked before the main window is shut down: a frame rate of NaN or 0 can't be recorded)
+        for key in (is_anim ? (:animation_FPS, :animation_time, :dpi) : (:dpi,))
+            reason = _invalid_ui_reason(key, get(manager.ui[:export], key, nothing))
+            if !isnothing(reason)
+                _report(:warn, "Not exported: $key = $(repr(get(manager.ui[:export], key, nothing))) is not a valid $reason " *
+                               "(Files → Settings ›).")
+                return
+            end
+        end
 
         was_locked = manager.camera_locked[]
         manager.camera_locked[] = true 
         extract_and_store_camera_state!(plot_layout)
         
         target_widget = is_anim ? get_target_widget(target_name) : nothing
+        export_obs = nothing
 
         try
             # 1. SHUT DOWN MAIN WINDOW (Prevents cache corruption and duplicate colorbars)
@@ -2278,7 +2290,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
             empty!(manager.main_render_observers)
             
             # 2. BUILD PRISTINE EXPORT FIGURE (Takes exclusive control of manager.caches)
-            export_fig, export_obs = build_pristine_export_figure()
+            export_fig, obs = build_pristine_export_figure()
+            export_obs = obs
             dpi_val = get(manager.ui[:export], :dpi, 300)
 
             manager.is_exporting = true
@@ -2334,13 +2347,12 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 _report(:warn, "No valid static formats selected and no animation extension provided. Export bypassed.")
             end
             
-            # 3. SHUT DOWN EXPORT LISTENERS
-            for obs in export_obs; off(obs); end
-            
         catch e
             @error "Export Failed" exception=(e, catch_backtrace())
             _status!("Export failed: $(_short(sprint(showerror, e), 90))", :error)
         finally
+            # 3. SHUT DOWN EXPORT LISTENERS (also after a failure: they would re-render into the export figure)
+            isnothing(export_obs) || foreach(off, export_obs)
             manager.is_exporting = false
             
             manager.camera_locked[] = was_locked

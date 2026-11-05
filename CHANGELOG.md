@@ -69,6 +69,10 @@ What has changed since the last release. Released versions are described in the
   disk in between, ran without the warning. The confirmation is for the content now.
 - **Play Anim with `animation_FPS` or `animation_time` ≤ 0** threw and left the button on *Stop Anim*; it warns
   instead.
+- **Exports:** a failed export left the render listeners of its export figure attached (every later update also
+  redrew the hidden figure, one more set per failure); they are released now. `animation_FPS`, `animation_time` and
+  `dpi` must be positive numbers: the editor refuses others (e.g. `NaN`), and an export reports them instead of
+  failing.
 - **Deleted preset files** stayed in the preset lists (and *Edit ›* called them built in); the lists follow the files.
 - **Preset files written by hand:** *Edit ›* failed on a header with spaces after the commas, and a file that isn't a
   studio CSV threw out of *Apply* / *Edit ›* (in GLMakie that stops the window from updating). Such files open like

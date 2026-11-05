@@ -718,6 +718,23 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         manager.widgets[:export_text].stored_string[] = export_base * ".gif"
         click_button!(:export_button)
         @test isfile(export_base * ".gif")
+
+        # 8. A frame rate of NaN is refused by the editor and, set from code, reported by the export; a failed export
+        #    releases the render listeners of its export figure
+        @test_logs (:warn, r"not a valid frame rate") match_mode = :any type_into!(:animation_FPS, "NaN")
+        @test manager.ui[:export][:animation_FPS] == 10
+        n_listeners() = Dict(k => length(manager.triggers[k].listeners) for k in (:Plot, :Slider, :PlotData, :UI))
+        n0 = n_listeners()
+        manager.ui[:export][:animation_FPS] = NaN
+        manager.widgets[:export_text].stored_string[] = export_base * "_nan.mp4"
+        @test_logs (:warn, r"Not exported: animation_FPS") match_mode = :any click_button!(:export_button)
+        @test !isfile(export_base * "_nan.mp4") && n_listeners() == n0
+        manager.ui[:export][:animation_FPS] = 10
+        blocker = joinpath(export_dir, "blocker")              # a file: no folder can be made below it
+        write(blocker, "")
+        manager.widgets[:export_text].stored_string[] = joinpath(blocker, "sub", "x.png")
+        @test_logs (:error, r"Export Failed") match_mode = :any click_button!(:export_button)
+        @test n_listeners() == n0
     end
     # =========================================================================
     # --- CSV PIPELINE & PRESETS ---
