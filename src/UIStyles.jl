@@ -378,10 +378,13 @@ function apply_plot_preset!(::Val{:publication})
     set_ui_opt!(:axis_general, :title_size, 22)
     set_ui_opt!(:axis_general, :ticklabel_size, 16)
     
-    set_ui_opt!(:x_axis, :padding, 0.0)
-    set_ui_opt!(:x_axis, :label_offset, 5.0)
-    set_ui_opt!(:y_axis, :label_offset, 5.0)
-    set_ui_opt!(:z_axis, :label_offset, 5.0)
+    # every axis variant (`x_axis` alone would be the one of the style shown, see `_ui_template_scope`)
+    for scope in (:x_axis_1d, :x_axis_nd)
+        set_ui_opt!(scope, :padding, 0.0)
+    end
+    for scope in UI_AXIS_SCOPES
+        set_ui_opt!(scope, :label_offset, 5.0)
+    end
 
     set_ui_opt!(:plot_style, :line_width, 2.5)
     set_ui_opt!(:plot_style, :dashed_lines, false)
@@ -423,9 +426,10 @@ function apply_plot_preset!(::Val{:component})
 end
 
 function apply_plot_preset!(::Val{:compact3d})
-    set_ui_opt!(:x_axis, :label_offset, 5.0)
-    set_ui_opt!(:y_axis, :label_offset, 5.0)
-    set_ui_opt!(:z_axis, :label_offset, 15.0)
+    # the axes of the 3D styles, whatever style is shown
+    set_ui_opt!(:x_axis_nd, :label_offset, 5.0)
+    set_ui_opt!(:y_axis_nd, :label_offset, 5.0)
+    set_ui_opt!(:z_axis_3d, :label_offset, 15.0)
     set_ui_opt!(:axis_general, :legend_pos, :td)
 end
 

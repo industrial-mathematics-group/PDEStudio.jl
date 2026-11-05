@@ -61,8 +61,9 @@ What has changed since the last release. Released versions are described in the
   never recorded in the `Julia` category; they are now. The `Git` rows also record whether a repository had uncommitted changes (`git_dirty`).
 - **◀ ▶ in the Files tab:** the pages of a preset file and of a long preset list couldn't be turned (rows after the
   first page of a look preset were out of reach).
-- **The built-in `heatmap` look preset** wrote its axis options into the 1-D axes of the style shown before; it sets
-  the axes of the heatmap now.
+- **The built-in `heatmap` and `compact3d` look presets** wrote their axis options into the axes of the style shown
+  (e.g. the 1-D lines); they set the axes of the heatmap / of the 3D styles now, and `publication` sets every axis
+  variant.
 - **Fewer active methods with Compare = methods:** binding a configuration with fewer methods than subplots broke
   every plot update until the next run.
 - **"Click Load again"** confirmed a file by its path only: a second upload with the same name, or a file changed on

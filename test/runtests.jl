@@ -1879,6 +1879,16 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         yield()
         @test manager.ui[:labels][:title] == ""
         @test manager.ui[:plot_style][:line_width] == 2.5
+        # publication sets every axis variant, compact3d those of the 3D styles (whatever style is shown)
+        @test all(s -> manager.ui[s][:label_offset] == 5.0, PDEStudio.UI_AXIS_SCOPES)
+        @test manager.ui[:x_axis_1d][:padding] == 0.0 && manager.ui[:x_axis_nd][:padding] == 0.0
+        set_plot_preset!()
+        yield()
+        x1d_offset = manager.ui[:x_axis_1d][:label_offset]
+        set_plot_preset!(:compact3d)
+        yield()
+        @test manager.ui[:x_axis_nd][:label_offset] == 5.0 && manager.ui[:y_axis_nd][:label_offset] == 5.0
+        @test manager.ui[:x_axis_1d][:label_offset] == x1d_offset
         
         y1d_padding = manager.ui[:y_axis_1d][:padding]
         set_plot_preset!(:heatmap)
