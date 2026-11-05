@@ -1100,6 +1100,27 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test occursin("Upload one configuration", status())
         @test isnothing(PDEStudio.receive_upload!(Pair{String, Vector{UInt8}}[])) && occursin("Nothing was uploaded", status())
         @test PDEStudio.receive_upload!(["../../evil/x.csv" => bytes(plain_csv)]) == joinpath(PDEStudio.upload_dir(), "x", "x.csv")
+        # the confirmation is for the content: another upload under the same name asks again ...
+        code(N) = "SimulationConfig(create_param_dict(:N => $N, :sim_func_name => :advection_solver_1d), " *
+                  "create_method_dict(:upwind => create_param_dict(:scheme => \"upwind\")), [:upwind])\n"
+        set_sim_config!(fn_file)
+        PDEStudio.receive_upload!(["same.jl" => Vector{UInt8}(code(26))])
+        @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 30
+        PDEStudio.receive_upload!(["same.jl" => Vector{UInt8}(code(33))])
+        @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 30
+        click_button!(:load_config_button)
+        @test manager.active_config.shared[:N] == 33
+        # ... and so does a file that changed on disk between the two clicks
+        local_file = joinpath(root, "local.jl")
+        write(local_file, code(27))
+        PDEStudio._show_editor_text!(w[:export_text], local_file)   # (as typed or browsed)
+        click_button!(:load_config_button)
+        @test occursin("click Load again", status())
+        write(local_file, code(28))
+        click_button!(:load_config_button)
+        @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 33
+        click_button!(:load_config_button)
+        @test manager.active_config.shared[:N] == 28
 
         # 7. Browse… in a browser opens its picker instead of FILE_DIALOG (a screen that has one)
         picker = PickerScreen(Ref(0))

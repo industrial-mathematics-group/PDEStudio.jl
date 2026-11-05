@@ -347,8 +347,9 @@ with bundled sources) needs a second request for the same file: the first one on
 line.
 """
 function _request_load(path::AbstractString)
-    if _load_runs_code(path) && manager.pending_code_load != path
-        manager.pending_code_load = path
+    key = _load_key(path)
+    if _load_runs_code(path) && manager.pending_code_load != key
+        manager.pending_code_load = key
         what = endswith(lowercase(path), ".jl") ? "is Julia code" : "bundles source files"
         _status!("$(basename(path)) $what that will be executed. Only load files you trust: click Load again to run it.", :warn)
         haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :orange)
@@ -356,6 +357,27 @@ function _request_load(path::AbstractString)
     end
     manager.pending_code_load = ""
     _handle_load(path)
+end
+
+# What a confirmation (the second Load) is for: the path and the content of the file and of the source files a CSV
+# bundles, so another file under the same name (a new upload, a file changed on disk) needs its own confirmation.
+function _load_key(path::AbstractString)
+    files = [path]
+    if !endswith(lowercase(path), ".jl")
+        names = try
+            get(get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict()), "bundled_sources", String[])
+        catch
+            String[]
+        end
+        for name in (names isa AbstractVector ? names : [names])
+            append!(files, filter(isfile, [joinpath(dirname(abspath(path)), string(name)), string(name)]))
+        end
+    end
+    h = hash(abspath(path))
+    for f in files
+        h = isfile(f) ? hash(read(f), h) : hash(f, h)
+    end
+    return "$(abspath(path))#$(string(h; base = 16))"
 end
 
 # Loads a CSV or a Julia configuration file and reports the result (status line, colour of the load button).
@@ -475,6 +497,7 @@ function receive_upload!(files::AbstractVector)
         write(joinpath(dir, name), last(f))
     end
     path = joinpath(dir, names[main])
+    manager.pending_code_load = ""   # every upload asks for its own confirmation
     @info "Uploaded $(join(names, ", ")) to $dir"
     _show_editor_text!(manager.widgets[:export_text], path)
     _request_load(path)

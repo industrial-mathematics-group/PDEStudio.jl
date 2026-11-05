@@ -58,6 +58,8 @@ What has changed since the last release. Released versions are described in the
   the axes of the heatmap now.
 - **Fewer active methods with Compare = methods:** binding a configuration with fewer methods than subplots broke
   every plot update until the next run.
+- **"Click Load again"** confirmed a file by its path only: a second upload with the same name, or a file changed on
+  disk in between, ran without the warning. The confirmation is for the content now.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
