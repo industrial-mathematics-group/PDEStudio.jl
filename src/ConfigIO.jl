@@ -140,6 +140,24 @@ function _parse_csv_value(s::AbstractString)
     return str2val(txt)
 end
 
+# The column numbers of `Category, Scope, Parameter, Value` in the rows of a studio CSV (header names stripped, so a
+# hand-written header with spaces after the commas works); an ArgumentError for any other header.
+function _csv_columns(row, filepath::AbstractString)
+    names = Dict(strip(string(n)) => i for (i, n) in enumerate(propertynames(row)))
+    cols = map(c -> get(names, c, nothing), ("Category", "Scope", "Parameter", "Value"))
+    any(isnothing, cols) && throw(ArgumentError("$(basename(filepath)) is no studio CSV: its header must be " *
+                                                "Category, Scope, Parameter, Value"))
+    return cols
+end
+
+# The text of a value cell: an unquoted value is stripped (`…, Upwind scheme` written by hand), a quoted one keeps its
+# spaces (the studio's writer quotes such texts). `text` holds the file's text, read only when a value needs it.
+function _csv_value_text(val::String, filepath::AbstractString, text::Ref)
+    val == strip(val) && return val
+    isnothing(text[]) && (text[] = read(filepath, String))
+    return occursin('"' * replace(val, '"' => "\"\"") * '"', text[]) ? val : String(strip(val))
+end
+
 """
     _read_csv(filepath)
 
@@ -150,24 +168,14 @@ function _read_csv(filepath::AbstractString)
     parsed = Dict{String, Dict{String, Dict{String, Any}}}()
     raw = Dict{String, Dict{String, Dict{String, String}}}()
     cols = nothing
-    text = nothing   # the file's text, read only to tell quoted from unquoted values with surrounding spaces
+    text = Ref{Union{Nothing, String}}(nothing)
     for row in CSV.Rows(filepath)
         # Hand-written files may have spaces after the commas (`Category, Scope, Parameter, Value`): the column names
         # and the key cells are stripped.
-        if isnothing(cols)
-            names = Dict(strip(string(n)) => i for (i, n) in enumerate(propertynames(row)))
-            cols = map(c -> get(names, c, nothing), ("Category", "Scope", "Parameter", "Value"))
-            any(isnothing, cols) && throw(ArgumentError("$(basename(filepath)) is no studio CSV: its header must be " *
-                                                        "Category, Scope, Parameter, Value"))
-        end
+        isnothing(cols) && (cols = _csv_columns(row, filepath))
         # CSV.Rows yields lazy string types; plain `String`s are needed by the parser (and as dict keys)
         cat, scope, param = (String(strip(String(coalesce(row[c], "")))) for c in cols[1:3])
-        val_str = String(coalesce(row[cols[4]], ""))
-        # an unquoted value is stripped too (`…, Upwind scheme` written by hand); a quoted one keeps its spaces
-        if val_str != strip(val_str)
-            isnothing(text) && (text = read(filepath, String))
-            occursin('"' * replace(val_str, '"' => "\"\"") * '"', text) || (val_str = String(strip(val_str)))
-        end
+        val_str = _csv_value_text(String(coalesce(row[cols[4]], "")), filepath, text)
         (isempty(cat) || isempty(param)) && continue
         get!(Dict{String, Any}, get!(Dict{String, Dict{String, Any}}, parsed, cat), scope)[param] = _parse_csv_value(val_str)
         get!(Dict{String, String}, get!(Dict{String, Dict{String, String}}, raw, cat), scope)[param] = val_str

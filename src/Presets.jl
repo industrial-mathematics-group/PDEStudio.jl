@@ -70,14 +70,30 @@ _preset_kind_registry(kind::Symbol) = kind === :simulation ? manager.sim_presets
 """
     _preset_rows(kind, name) -> Union{Nothing, Vector{Vector{String}}}
 
-The rows `[Category, Scope, Parameter, Value]` of a preset file, as written (the values unparsed), or `nothing` if the
-preset has no file (the built-in look presets).
+The rows `[Category, Scope, Parameter, Value]` of a preset file, as written (the values unparsed; the header, the key
+cells and unquoted values stripped, as when loading the file), or `nothing` if the preset has no file (the built-in look presets). Throws
+an `ArgumentError` for a file that isn't a studio CSV.
 """
 function _preset_rows(kind::Symbol, name)
     path = _preset_file(_preset_kind_dir(kind), name)
     isnothing(path) && return nothing
-    return [String[String(coalesce(getproperty(row, c), "")) for c in (:Category, :Scope, :Parameter, :Value)]
-            for row in CSV.Rows(path)]
+    rows, cols, text = Vector{String}[], nothing, Ref{Union{Nothing, String}}(nothing)
+    for row in CSV.Rows(path)
+        isnothing(cols) && (cols = _csv_columns(row, path))
+        cell(c) = String(coalesce(row[c], ""))
+        push!(rows, String[strip(cell(cols[1])), strip(cell(cols[2])), strip(cell(cols[3])), _csv_value_text(cell(cols[4]), path, text)])
+    end
+    return rows
+end
+
+# `_preset_rows`, or `nothing` (with a warning) if the file can't be read: for drawing the editor, which must not fail.
+function _preset_rows_or_nothing(kind::Symbol, name)
+    try
+        return _preset_rows(kind, name)
+    catch e
+        @warn "The preset file of '$name' can't be read" exception = e
+        return nothing
+    end
 end
 
 """

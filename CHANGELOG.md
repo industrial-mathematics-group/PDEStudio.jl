@@ -70,6 +70,9 @@ What has changed since the last release. Released versions are described in the
 - **Play Anim with `animation_FPS` or `animation_time` ≤ 0** threw and left the button on *Stop Anim*; it warns
   instead.
 - **Deleted preset files** stayed in the preset lists (and *Edit ›* called them built in); the lists follow the files.
+- **Preset files written by hand:** *Edit ›* failed on a header with spaces after the commas, and a file that isn't a
+  studio CSV threw out of *Apply* / *Edit ›* (in GLMakie that stops the window from updating). Such files open like
+  the others or the status line says what is wrong.
 - **Status line:** messages with multibyte characters (`→`, `ü`, …) were wrapped inside a word and could exceed the
   line.
 - **Menus with a meaningful order** (components, compare targets) were sorted by label (`Component 1, 10, 11, 2, …`);

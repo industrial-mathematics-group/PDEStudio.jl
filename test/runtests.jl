@@ -1057,6 +1057,21 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         open_presets!(:simulation)
         @test !(:copied in manager.editor_row_keys) && !haskey(manager.sim_presets, :copied)
 
+        # A hand-written preset with spaces after the commas opens like the others; a file that isn't a studio CSV
+        # can't be applied or opened, which the status line says (nothing escapes from the click handler)
+        write(joinpath(sim_preset_dir(), "spaced.csv"), "Category, Scope, Parameter, Value\nSimulation, Shared, N, 40\n")
+        write(joinpath(sim_preset_dir(), "broken.csv"), "a,b\n1,2\n")
+        open_presets!(:simulation)
+        press_preset!(:spaced, :b)
+        @test w[:editor_title][] == "Preset: spaced" && manager.preset_file_rows == [["Simulation", "Shared", "N", "40"]]
+        open_presets!(:simulation)
+        @test_logs (:error, r"Applying the preset failed") match_mode = :any press_preset!(:broken, :a)
+        @test occursin("no studio CSV", w[:status][]) && w[:status_color][] == PDEStudio.STATUS_COLORS[:error]
+        @test_logs (:error, r"Opening the preset failed") match_mode = :any press_preset!(:broken, :b)
+        @test w[:editor_title][] == "Simulation presets" && occursin("no studio CSV", w[:status][])
+        rm(joinpath(sim_preset_dir(), "spaced.csv"))
+        rm(joinpath(sim_preset_dir(), "broken.csv"))
+
         # ... and of a list with more presets than rows
         for k in 1:PDEStudio.EDITOR_ROWS
             save_sim_preset("many_$(lpad(k, 2, '0'))")

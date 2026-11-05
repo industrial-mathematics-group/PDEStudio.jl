@@ -1224,7 +1224,7 @@ end
 
 # Whether `scope` is (still) a page of the tab, e.g. not a method that was removed.
 function _editor_scope_valid(tab, scope)
-    tab === :files && scope === PRESET_FILE && return !isnothing(_preset_rows(manager.preset_kind, manager.preset_name))
+    tab === :files && scope === PRESET_FILE && return !isnothing(_preset_rows_or_nothing(manager.preset_kind, manager.preset_name))
     haskey(TAB_EDITOR_PAGES, tab) && return scope in TAB_EDITOR_PAGES[tab]
     tab === :shared && return scope === :shared && !isnothing(manager.active_config)
     if tab === :advanced && !isnothing(scope)
@@ -1333,8 +1333,22 @@ function _preset_row_action!(i::Int, which::Symbol)
             _render_editor!()
         end
     else
+        _preset_rows(kind, name)   # a file that can't be read is reported (by the caller), the list stays
         manager.preset_name = name
         show_editor_page!(:files, PRESET_FILE)
+    end
+    return nothing
+end
+
+# Runs the action of a button; an error is logged and shown in the status line instead of escaping from the click
+# handler (in GLMakie that would stop the render loop and freeze the window).
+function _guarded(f, what::AbstractString)
+    try
+        f()
+    catch e
+        @error "$what failed" exception = (e, catch_backtrace())
+        msg = e isa LoadError ? sprint(showerror, e.error) : sprint(showerror, e)
+        _status!("$what failed: $(_short(first(split(msg, '\n')), 90))", :error)
     end
     return nothing
 end
@@ -1658,7 +1672,7 @@ function _render_editor!()
     mode = _editor_mode(tab, scope)
     cat = _scope_cat(tab, scope)
     if mode === :preset_file
-        manager.preset_file_rows = something(_preset_rows(manager.preset_kind, manager.preset_name), Vector{String}[])
+        manager.preset_file_rows = something(_preset_rows_or_nothing(manager.preset_kind, manager.preset_name), Vector{String}[])
     end
     items = mode === :overview ? _editor_scopes(cat) :
             mode === :rows ? _editor_keys(cat, scope) :
@@ -2054,7 +2068,7 @@ function _setup_editor_interactions!()
         manager.listeners[Symbol("Method_Row_", i, "_", which)] = on(w[Symbol("method_row_", i, "_", which)].clicks) do _
             mode = _active_editor_mode()
             if mode === :preset_list
-                _preset_row_action!(i, which)
+                _guarded(() -> _preset_row_action!(i, which), which === :a ? "Applying the preset" : "Opening the preset")
             elseif mode === :adv_method_list
                 i <= length(manager.editor_row_keys) || return
                 m = manager.editor_row_keys[i]
