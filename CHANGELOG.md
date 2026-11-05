@@ -82,7 +82,8 @@ What has changed since the last release. Released versions are described in the
   line.
 - **Menus with a meaningful order** (components, compare targets) were sorted by label (`Component 1, 10, 11, 2, …`);
   they keep their order.
-- **Renaming a variable** (UI → Labels → Variables) now relabels the axis, animation and compare menus right away.
+- **Renaming a variable** (UI → Labels → Variables) now relabels the axis, animation and compare menus right away,
+  without flagging *Apply Layout* / *Update Plot* (renaming a component doesn't flag *Update Plot* either).
 - **Advanced tab:** an empty text was shown as `<empty>`, which the tab refused as input; it shows `""` and accepts
   `<empty>`.
 - **Numerical curve and reference at the same time (round 2):** grid data was resampled in time (the nearest stored

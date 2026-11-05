@@ -2224,9 +2224,17 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test !manager.camera_locked[] && isempty(manager.camera_cache) && w()[:lock_camera_button].label[] == "Lock Camera"
 
         # 3. Renaming a variable (UI → Labels → Variables) relabels the axis menus
+        click_button!(:layout_apply)
+        @test !manager.flags[:Layout][] && !manager.flags[:Plot][]
         show_editor_page!(:ui, :variables)
         type_into!(:x, "Space")
         @test any(o -> o == ("Space", :x), w()[:x_axis].options[])
+        @test !manager.flags[:Layout][] && !manager.flags[:Plot][]   # (only names changed: nothing to apply)
+        show_editor_page!(:ui, :components)
+        type_into!(:component_1, "Density")
+        @test w()[:component].options[][1] == ("Density", 1) && !manager.flags[:Plot][]
+        type_into!(:component_1, "default")
+        show_editor_page!(:ui, :variables)
         type_into!(:x, "default")
         @test !any(o -> o[1] == "Space", w()[:x_axis].options[])
         show_tab!(:plot)

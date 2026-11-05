@@ -990,11 +990,24 @@ function _after_editor_change!(cat, scope, key, target)
             w_key = get(manager.reverse_map, key, key)
             lbl_key = Symbol("$(w_key)_label")
             haskey(manager.widgets, lbl_key) && (manager.widgets[lbl_key][] = manager.labels[key] * ":")
-            notify(manager.plot_data)   # Chain A relabels the axis, animation and compare menus
+            _relabel_menus!(() -> notify(manager.plot_data))   # Chain A relabels the axis, animation and compare menus
         elseif scope === :components
-            notify(manager.widgets[:u_axis].selection)
+            _relabel_menus!(() -> notify(manager.widgets[:u_axis].selection))   # Chain C: the component menu
         end
         manager.triggers[:UI][] += 1
+    end
+    return nothing
+end
+
+# Runs the menu chains to relabel their menus after a display name changed. Nothing structural changed, so the layout
+# lock is held meanwhile: the watchers that flag *Apply Layout* / *Update Plot* skip the selection notifications.
+function _relabel_menus!(f)
+    was_locked = manager.locks[:Layout]
+    manager.locks[:Layout] = true
+    try
+        f()
+    finally
+        manager.locks[:Layout] = was_locked
     end
     return nothing
 end
