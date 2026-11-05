@@ -103,8 +103,7 @@ What has changed since the last release. Released versions are described in the
   time resolution (default 100) of them.
 - **Exports of a reloaded export** didn't bundle the configuration file again (a file returning the configuration
   doesn't list itself), so function parameters came back as the text `"Closure"` from the second export on; the
-  bundled files are now sources of the loaded configuration: the originals where they still have the content that ran,
-  otherwise the bundled copies (an original edited since the export is not bundled in its place).
+  bundled files are now sources of the loaded configuration.
 
 ### Changed
 - **`set_resolution!`** refuses resolutions outside 2–100000 (an `ArgumentError`), like the Resolution page; a time

@@ -431,17 +431,6 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv"))
             @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
         end
-        # ... and it bundles the code that ran: the copy, if the original was edited after the first export
-        out1, out2 = mktempdir(), mktempdir()
-        reset_manager!()
-        PDEStudio.load_config_file!(joinpath(dir, "plain_cfg.jl"))
-        @test PDEStudio.save_params_to_csv("exp", out1, Dict("Save Type" => "test"))
-        write(joinpath(dir, "plain_cfg.jl"), replace(read(joinpath(dir, "plain_cfg.jl"), String), ":N => 16" => ":N => 99"))
-        reset_manager!()
-        PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
-        @test PDEStudio.manager.active_config.shared[:N] == 16
-        @test PDEStudio.save_params_to_csv("exp2", out2, Dict("Save Type" => "test"))
-        @test occursin(":N => 16", read(joinpath(out2, "exp2_sources", "plain_cfg.jl"), String))
         reset_manager!()
     end
 

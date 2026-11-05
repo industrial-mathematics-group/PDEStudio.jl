@@ -333,19 +333,17 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     return config, bundled, origins
 end
 
-_same_content(a::AbstractString, b::AbstractString) = isfile(a) && isfile(b) && read(a) == read(b)
-
-# Points the sources of a configuration at existing files, using the bundled copies for originals that are missing or
-# were edited since the export (the copy is what ran).
+# Points the sources of a configuration at existing files, using the bundled copies for missing originals.
 function _relocate_sources(sources::AbstractVector, bundled::Vector{String}, origins::Vector{String})
     out = String[]
     for src in sources
-        i = findfirst(==(abspath(src)), origins)
-        copy = !isnothing(i) && i <= length(bundled) ? bundled[i] : ""
-        if isfile(src) && (isempty(copy) || _same_content(src, copy))
+        if isfile(src)
             push!(out, abspath(src))
-        elseif !isempty(copy)
-            push!(out, copy)   # missing, or edited since the export: the bundled copy is the code that ran
+            continue
+        end
+        i = findfirst(==(abspath(src)), origins)
+        if !isnothing(i) && i <= length(bundled) && !isempty(bundled[i])
+            push!(out, bundled[i])
         else
             @warn "Source file $src not found; it is removed from the configuration."
         end
@@ -431,8 +429,7 @@ function load_and_apply_csv!(filepath::AbstractString)
     bundled_config, bundled, origins = _run_bundled_sources(parsed, filepath)
     # The bundled files are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
     # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
-    # (the original where it still has the content of the copy that ran, otherwise the copy)
-    runs = String[i <= length(origins) && _same_content(origins[i], bundled[i]) ? abspath(origins[i]) : bundled[i]
+    runs = String[i <= length(origins) && isfile(origins[i]) ? abspath(origins[i]) : bundled[i]
                   for i in eachindex(bundled) if !isempty(bundled[i])]
     sources = isnothing(bundled_config) ? runs : unique([_relocate_sources(bundled_config.sources, bundled, origins); runs])
 
