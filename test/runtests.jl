@@ -287,6 +287,12 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test hi - lo ≥ 2e-3 * 1.4 && lo < minimum(u) && hi > maximum(u)
         @test PDEStudio.calculate_padded_axis_range((0.0, 1.0), 0.1, false) == (-0.05, 1.05)
         @test PDEStudio.calculate_padded_axis_range((0.0, 0.0), 0.1, false) == (-0.1, 0.1)
+        # style values the renderer can't draw are refused by the editor
+        @test !PDEStudio._valid_ui_value(:colors, Any[]) && !PDEStudio._valid_ui_value(:markers, Any[])
+        @test !PDEStudio._valid_ui_value(:line_styles, Any[]) && !PDEStudio._valid_ui_value(:levels, 1)
+        @test !PDEStudio._valid_ui_value(:color_range, Any[1.0]) && !PDEStudio._valid_ui_value(:color_range, Any[:a, :b])
+        @test PDEStudio._valid_ui_value(:color_range, Any[]) && PDEStudio._valid_ui_value(:color_range, [0.0, 1.0])
+        @test PDEStudio._valid_ui_value(:levels, 2) && PDEStudio._valid_ui_value(:markers, [:circle])
     end
 end
 
@@ -1961,6 +1967,22 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test length(ax.finallimits.listeners) - n0 < 3
         @test count(p -> haskey(p, :label) && p.label[] == "Reference Lines", ax.scene.plots) == 1
         manager.ui[:plot_style][:reference] = Any[]
+
+        # 3. Style values the renderer can't draw are refused by the editor; filled contours draw with levels = 1
+        show_editor_page!(:ui, :contour_f)
+        @test_logs (:warn, r"not a valid number of contour levels") type_into!(:levels, "1")
+        @test manager.ui[:plot_style][:levels] == 15
+        show_tab!(:plot)
+        manager.ui[:plot_style][:levels] = 1           # e.g. from a hand-written file
+        logger = Test.TestLogger(min_level = Base.CoreLogging.Error)
+        Base.CoreLogging.with_logger(logger) do
+            click_menu!(w()[:plot_style], :contour_f)
+            set_axes_for_dim!(2)
+        end
+        @test isempty(logger.logs) && manager.active_plot_type === :contour_f
+        manager.ui[:plot_style][:levels] = 15
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
 
         # 4. A CSV loaded while other data is shown restores its slider positions after Run Simulation
         set_close_to!(cfl_slider(), 0.4)

@@ -891,11 +891,22 @@ function _show_editor_text!(tb, s::AbstractString)
     return nothing
 end
 
-# UI options holding colours are validated when edited: an invalid colour would only fail later, inside the
-# render loop, where it cannot be caught and leaves the studio unable to draw.
+# UI options the renderer can't draw with every value are validated when edited: an invalid colour, an empty list of
+# colours / markers / line styles, a colour range that isn't `[]` or `[lo, hi]` or fewer than 2 contour levels would
+# only fail later, inside the render loop. Returns `nothing` for a valid value, otherwise what a valid one is.
 const _COLOR_UI_KEYS = (:color, :colors)
-_valid_ui_value(key::Symbol, val) = key in _COLOR_UI_KEYS ? _valid_color(val) :
-                                    key === :color_map ? _valid_colormap(val) : true
+function _invalid_ui_reason(key::Symbol, val)
+    key in _COLOR_UI_KEYS && !_valid_color(val) && return "colour (e.g. :red, \"#1f77b4\" or (:blue, 0.5))"
+    key === :colors && (val isa AbstractVector && isempty(val)) && return "list of colours (at least one)"
+    key === :color_map && !_valid_colormap(val) && return "colormap (e.g. :viridis)"
+    key in (:markers, :line_styles) && !(val isa AbstractVector && !isempty(val)) &&
+        return "list of $(key === :markers ? "markers" : "line styles") (at least one, e.g. [:circle, :rect])"
+    key === :color_range && !(val isa Union{AbstractVector, Tuple} && length(val) in (0, 2) && all(v -> v isa Real, val)) &&
+        return "colour range: [] (automatic) or [lo, hi]"
+    key === :levels && !(val isa Integer && val >= 2) && return "number of contour levels (an integer ≥ 2)"
+    return nothing
+end
+_valid_ui_value(key::Symbol, val) = isnothing(_invalid_ui_reason(key, val))
 
 # Value restored by typing `default` into the editor: the built-in default of a UI option, the baseline configuration
 # (see `reset_sim_config!`) of a simulation entry. Returns `missing` if there is none.
@@ -1862,9 +1873,9 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
                                "Use numbers, :symbols, [vectors], (tuples) or \"text\" in quotes.")
                 return false
             end
-            if cat === :ui && !_valid_ui_value(key, val)
-                _report(:warn, "'$key' was not changed: $(repr(val)) is not a valid " *
-                               (key === :color_map ? "colormap (e.g. :viridis)." : "colour (e.g. :red, \"#1f77b4\" or (:blue, 0.5))."))
+            reason = cat === :ui ? _invalid_ui_reason(key, val) : nothing
+            if !isnothing(reason)
+                _report(:warn, "'$key' was not changed: $(repr(val)) is not a valid $reason.")
                 return false
             end
             target[key] = val
