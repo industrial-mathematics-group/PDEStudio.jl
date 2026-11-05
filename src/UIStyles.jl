@@ -89,7 +89,11 @@ frontend_key(s) = string(s)  # numbers, `nothing`, … (e.g. menu values that ar
 
 Helper function that uses `frontend_key` to automatically generate a formatted Makie dropdown tuple: `("Nice String", :key)`.
 """
-menu_opt(sym::Symbol) = (frontend_key(sym), sym)
+menu_opt(sym::Symbol) = _menu_label_ok((frontend_key(sym), sym))
+
+# A menu option whose label is empty (an empty display name) gets the name of its key instead (an empty label makes
+# Makie's Menu overflow the stack when it opens).
+_menu_label_ok(opt) = opt isa Tuple && length(opt) == 2 && isempty(strip(string(opt[1]))) ? (string(opt[2]), opt[2]) : opt
 
 is_surface(T::Symbol) = contains(String(T),"surface")
 

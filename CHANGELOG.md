@@ -89,7 +89,8 @@ What has changed since the last release. Released versions are described in the
   names starting with `#` are refused when adding a method (and warned about in a bound configuration).
 - **Empty texts in the editors:** the Advanced tab showed an empty text as `<empty>`, which it refused as input; it shows
   `""` and accepts `<empty>`. Empty texts inside vectors and tuples (`String[<empty>, "a"]`) can be applied again on
-  every page, and `<empty>` on the Labels pages is the empty name (it was stored as the text "<empty>").
+  every page, and `<empty>` on the Labels pages is the empty name (it was stored as the text "<empty>"). A menu shows
+  the key of an entry with an empty name (Makie's menus overflow the stack on an empty option).
 - **Numerical curve and reference at the same time (round 2):** grid data was resampled in time (the nearest stored
   snapshot relabelled with a display time), so the drawn data could be up to half the interval between stored
   snapshots away from the reference and the title, e.g. for output stored every few steps. Grid data now shows its

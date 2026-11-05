@@ -42,6 +42,9 @@ function update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_noti
     
     # Ensure options are properly sorted by priority BEFORE comparing state
     new_arr = isempty(new_options) ? Any[menu_opt(:none)] : sort ? Base.sort(new_options, by=menu_option_rank) : collect(Any, new_options)
+    # an empty display name (`<empty>` on a Labels page) is shown by its key: Makie's Menu overflows the stack when
+    # it opens with an empty option label
+    new_arr = Any[_menu_label_ok(o) for o in new_arr]
     
     old_arr = menu_widget.options[]
     options_changed = false

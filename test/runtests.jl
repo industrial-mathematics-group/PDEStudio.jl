@@ -2248,6 +2248,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         show_editor_page!(:ui, :variables)
         type_into!(:x, "<empty>")                                   # `<empty>` is the empty text, as on other pages
         @test manager.labels[:x] == ""
+        @test any(o -> o == ("x", :x), w()[:x_axis].options[])      # a menu shows the key for an empty name
         type_into!(:x, "default")
         @test !any(o -> o[1] == "Space", w()[:x_axis].options[])
         show_tab!(:plot)
