@@ -1,0 +1,16 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_ei2cfG
+[ Info: UI and Layout have been directly reset to defaults.
+parsed Config: Dict{String, Dict{String, Any}}("Resolution_Base" => Dict("t" => 80, "x" => 1), "Resolution_Ref" => Dict("t" => 1000.0, "x" => 2.5))
+[ Info: Loading configuration from CSV: /tmp/jl_yHOGcn/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring Config, Resolution_Base, x = 1 from the file: a resolution is a whole number from 2 to 100000.
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/ConfigIO.jl:525
+┌ Warning: Ignoring Config, Resolution_Ref, x = 2.5 from the file: a resolution is a whole number from 2 to 100000.
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/ConfigIO.jl:525
+[ Info: No simulation data found. Loading as a visual preset.
+t=80 x=200 ref x=400 ref t=1000
+[ Info: UI and Layout have been directly reset to defaults.
+parsed t=1: Dict{String, Dict{String, Any}}("Resolution_Base" => Dict("t" => 1))
+Test Summary:            | Pass  Total  Time
+resolution rows from CSV |    2      2  1.0s
