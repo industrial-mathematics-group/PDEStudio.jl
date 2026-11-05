@@ -946,6 +946,17 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         click_button!(:editor_prev)
         @test startswith(w[:editor_title][], "Preset: api_look  (1/") && manager.editor_row_keys == keys1
 
+        # 6. A preset whose file was removed leaves the list (and Edit › says so, instead of "built in")
+        open_presets!(:simulation)
+        save_sim_preset("gone"; description = "will be deleted")
+        @test :gone in manager.editor_row_keys
+        rm(joinpath(sim_preset_dir(), "gone.csv"))
+        @test_logs (:warn, r"was removed") press_preset!(:gone, :b)
+        @test !(:gone in manager.editor_row_keys) && !occursin("built in", w[:status][])
+        rm(joinpath(sim_preset_dir(), "copied.csv"))
+        open_presets!(:simulation)
+        @test !(:copied in manager.editor_row_keys) && !haskey(manager.sim_presets, :copied)
+
         # ... and of a list with more presets than rows
         for k in 1:PDEStudio.EDITOR_ROWS
             save_sim_preset("many_$(lpad(k, 2, '0'))")

@@ -62,6 +62,7 @@ What has changed since the last release. Released versions are described in the
   disk in between, ran without the warning. The confirmation is for the content now.
 - **Play Anim with `animation_FPS` or `animation_time` ≤ 0** threw and left the button on *Stop Anim*; it warns
   instead.
+- **Deleted preset files** stayed in the preset lists (and *Edit ›* called them built in); the lists follow the files.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn

@@ -1320,7 +1320,13 @@ function _preset_row_action!(i::Int, which::Symbol)
              _status!("Preset '$name' could not be applied (see the log).", :warn)
         _render_editor!()
     elseif isnothing(_preset_file(_preset_kind_dir(kind), name))
-        _report(:warn, "'$name' is built in and has no file: apply it and save it under a new name to edit it.")
+        if kind === :visual && haskey(PRESET_DESCRIPTIONS, name)
+            _report(:warn, "'$name' is built in and has no file: apply it and save it under a new name to edit it.")
+        else
+            delete!(_preset_kind_registry(kind), name)
+            _report(:warn, "The file of the preset '$name' was removed.")
+            _render_editor!()
+        end
     else
         manager.preset_name = name
         show_editor_page!(:files, PRESET_FILE)

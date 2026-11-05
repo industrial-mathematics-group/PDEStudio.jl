@@ -103,9 +103,16 @@ end
 """
     refresh_preset_registries!()
 
-Registers the visual and simulation presets found on disk (with their descriptions) in the preset lists of the editor.
+Registers the visual and simulation presets found on disk (with their descriptions) in the preset lists of the editor,
+and drops the presets whose file was removed (the built-in look presets stay).
 """
 function refresh_preset_registries!()
+    for (registry, kind) in ((manager.presets, :visual), (manager.sim_presets, :simulation))
+        for name in collect(keys(registry))
+            (kind === :visual && haskey(PRESET_DESCRIPTIONS, name)) && continue
+            isnothing(_preset_file(_preset_kind_dir(kind), name)) && delete!(registry, name)
+        end
+    end
     _scan_presets!(manager.presets, preset_dir())
     _scan_presets!(manager.sim_presets, sim_preset_dir())
     return nothing
