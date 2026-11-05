@@ -429,6 +429,14 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         # the Advanced tab: what it shows for an empty text can be applied again, and <empty> is accepted
         @test PDEStudio._raw_text("") == "\"\"" && PDEStudio._parse_raw(PDEStudio._raw_text("")) == (true, "")
         @test PDEStudio._parse_raw("<empty>") == (true, "") && PDEStudio._parse_raw("abc")[1] == false
+        # ... also inside vectors and tuples (shown as `String[<empty>, "a"]`), on the raw and the normal pages
+        for v in (["", "a"], ("", 1), Any["", :b])
+            @test PDEStudio._parse_raw(PDEStudio._raw_text(v)) == (true, v)
+        end
+        @test PDEStudio._empty_literals("(\"<empty>\", <empty>)") == "(\"<empty>\", \"\")"   # quoted text stays
+        shown = PDEStudio._editor_display(["", "a"])
+        @test PDEStudio._parse_editor_input(shown, ["q"]) == ["", "a"]
+        @test PDEStudio._valid_editor_value(shown, Dict(:tags => ["q"]), :tags, ["", "a"])
         # menus whose order means something keep it (no sort by label: Component 1, 2, …, 10, 11)
         fig = Figure()
         m = Menu(fig[1, 1], options = Any[("Component 1", 1)])
@@ -2235,6 +2243,8 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test w()[:component].options[][1] == ("Density", 1) && !manager.flags[:Plot][]
         type_into!(:component_1, "default")
         show_editor_page!(:ui, :variables)
+        type_into!(:x, "<empty>")                                   # `<empty>` is the empty text, as on other pages
+        @test manager.labels[:x] == ""
         type_into!(:x, "default")
         @test !any(o -> o[1] == "Space", w()[:x_axis].options[])
         show_tab!(:plot)

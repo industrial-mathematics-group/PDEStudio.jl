@@ -972,7 +972,38 @@ function _parse_editor_input(s::AbstractString, old)
         m = match(r"^\"(.*)\"$"s, txt)
         return isnothing(m) ? String(txt) : String(m.captures[1])
     end
-    return str2val(txt)
+    return str2val(_empty_literals(txt))
+end
+
+"""
+    _empty_literals(s)
+
+`s` with every `<empty>` outside quoted text replaced by `""`: `val2str` writes an empty text inside a vector or tuple
+as `<empty>` (`String[<empty>, "a"]`), which the editors show, so the shown text can be applied again.
+"""
+function _empty_literals(s::AbstractString)
+    occursin("<empty>", s) || return String(s)
+    out = IOBuffer()
+    quoted, escaped = false, false
+    i = firstindex(s)
+    while i <= lastindex(s)
+        c = s[i]
+        if !quoted && startswith(SubString(s, i), "<empty>")
+            print(out, "\"\"")
+            i = nextind(s, i, 7)
+            continue
+        end
+        if quoted && escaped
+            escaped = false
+        elseif quoted && c == '\\'
+            escaped = true
+        elseif c == '"'
+            quoted = !quoted
+        end
+        print(out, c)
+        i = nextind(s, i)
+    end
+    return String(take!(out))
 end
 
 # Flags or triggers whatever an editor change requires.
@@ -1448,7 +1479,7 @@ _raw_text(v) = isnothing(v) ? "nothing" : (v isa AbstractString && isempty(v)) ?
 function _parse_raw(s::AbstractString)
     txt = strip(s)
     txt == "<empty>" && return (true, "")
-    v = str2val(txt)
+    v = str2val(_empty_literals(txt))
     v isa AbstractString && !startswith(txt, '"') && return (false, nothing)
     return (true, v)
 end
@@ -1930,7 +1961,7 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
             end
             cat === :labels ? set_label!(key, string(val)) : (target[key] = val)
         elseif cat === :labels
-            set_label!(key, String(s))
+            set_label!(key, strip(s) == "<empty>" ? "" : String(s))   # (as the other pages: `<empty>` is "")
         else
             val = _parse_editor_input(s, target[key])
             if !_valid_editor_value(s, target, key, val)
@@ -1968,6 +1999,7 @@ function _valid_editor_value(s::AbstractString, target, key, val)
     (startswith(txt, '"') || !(val isa AbstractString || (val isa AbstractVector && any(v -> v isa AbstractString, val)))) && return true
     old = haskey(target, key) ? target[key] : nothing
     old isa AbstractString && return true
+    old isa AbstractVector && val isa AbstractVector && return true   # a vector literal with texts for a vector
     key in (_COLOR_UI_KEYS..., :color_map) && return true   # checked by `_valid_ui_value` (`#1f77b4`, `red`, `viridis`)
     (isnothing(old) || old === missing) && return true
     return false
