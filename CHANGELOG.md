@@ -70,6 +70,9 @@ What has changed since the last release. Released versions are described in the
 - **Renaming a variable** (UI → Labels → Variables) now relabels the axis, animation and compare menus right away.
 - **Advanced tab:** an empty text was shown as `<empty>`, which the tab refused as input; it shows `""` and accepts
   `<empty>`.
+- **Exports of a reloaded export** didn't bundle the configuration file again (a file returning the configuration
+  doesn't list itself), so function parameters came back as the text `"Closure"` from the second export on; the
+  bundled files are now sources of the loaded configuration.
 
 ### Changed
 - **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn

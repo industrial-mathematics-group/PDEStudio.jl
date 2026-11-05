@@ -413,8 +413,11 @@ function load_and_apply_csv!(filepath::AbstractString)
     empty!(manager.source_failures)
     parsed, raw = _read_csv(filepath)
     bundled_config, bundled, origins = _run_bundled_sources(parsed, filepath)
-    sources = isnothing(bundled_config) ? filter(!isempty, bundled) :
-              _relocate_sources(bundled_config.sources, bundled, origins)
+    # The bundled files are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
+    # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
+    runs = String[i <= length(origins) && isfile(origins[i]) ? abspath(origins[i]) : bundled[i]
+                  for i in eachindex(bundled) if !isempty(bundled[i])]
+    sources = isnothing(bundled_config) ? runs : unique([_relocate_sources(bundled_config.sources, bundled, origins); runs])
 
     new_dims, new_max = manager.allowed_dims, manager.max_params
     dims = get(get(parsed, "Config", Dict()), "Dimensions", nothing)

@@ -333,6 +333,28 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(dir, "exp.csv"))
         @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
+        # an export of the reloaded export bundles the file again (for a file ending with a configuration too)
+        write(joinpath(dir, "plain_cfg.jl"), """
+            ic2(x) = x
+            SimulationConfig(create_param_dict(:N => 16, :ic => ic2, :sim_func_name => :advection_solver_1d),
+                             create_method_dict(:m => create_param_dict()), [:m])
+            """)
+        for (i, first_export) in enumerate((joinpath(dir, "exp.csv"), nothing))
+            out1, out2 = mktempdir(), mktempdir()
+            if isnothing(first_export)
+                reset_manager!()
+                PDEStudio.load_config_file!(joinpath(dir, "plain_cfg.jl"))
+                @test PDEStudio.save_params_to_csv("exp", out1, Dict("Save Type" => "test"))
+                first_export = joinpath(out1, "exp.csv")
+            end
+            reset_manager!()
+            PDEStudio.load_and_apply_csv!(first_export)
+            @test PDEStudio.save_params_to_csv("exp2", out2, Dict("Save Type" => "test"))
+            @test haskey(PDEStudio.parse_csv_to_dict(joinpath(out2, "exp2.csv"))["Metadata"]["General"], "bundled_sources")
+            reset_manager!()
+            PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv"))
+            @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
+        end
         reset_manager!()
     end
 
