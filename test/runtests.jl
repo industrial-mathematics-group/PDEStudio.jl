@@ -446,8 +446,9 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
         @test N() == 24 && occursin("helper.jl changed since the export", PDEStudio.manager.source_note)
         @test realpath(joinpath(out1, "exp_sources", "helper.jl")) in sources()
-        @test realpath(joinpath(srcdir, "cfg.jl")) in sources()
-        PDEStudio._include_sources(PDEStudio.manager.active_config.sources)   # as Run Simulation does
+        # (the unchanged configuration stays a source; with older PDEStudioCore versions all copies are the sources)
+        @test (realpath(joinpath(srcdir, "cfg.jl")) in sources()) == PDEStudio._CORE_SKIPS_SOURCES
+        PDEStudio._run_simulations(PDEStudio.manager.active_config; force_overwrite = false)   # as Run Simulation
         @test @eval(helper_N()) == 24
         out2 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out2, Dict("Save Type" => "test"))
@@ -582,6 +583,40 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             ok || @info "Include form failed" form PDEStudio.manager.source_failures
             @test ok
         end
+        # code that names a variable, keyword or field `include` keeps its value (nothing edited)
+        write(joinpath(srcdir, "h.jl"), "form_N() = 1\n")
+        write(joinpath(srcdir, "cfg.jl"), """
+            include("h.jl")
+            kw(; include::Bool = true) = include ? 1 : 0
+            n = kw() + (let include = 2; include end) + sum(include for include in 1:2) + (; include = 1).include +
+                length(@NamedTuple{include::Bool}((true,)))
+            SimulationConfig(create_param_dict(:N => form_N() + n, :sim_func_name => :advection_solver_1d),
+                             create_method_dict(:m => create_param_dict()), [:m]; sources = [joinpath(@__DIR__, "h.jl")])
+            """)
+        reset_manager!()
+        PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
+        @test PDEStudio.manager.active_config.shared[:N] == 9
+        out = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
+        @test isempty(PDEStudio.manager.source_failures) && PDEStudio.manager.active_config.shared[:N] == 9
+        # the origin of a copy applies to an export only while the copy has the content it was loaded with, also for
+        # large files (same-length edits); a copy edited after the load still runs in place of its original at Run
+        big = joinpath(srcdir, "big.jl")
+        write(big, "big_N() = 3\n" * "#" * "x"^40_000 * "\n" * "SimulationConfig(create_param_dict(:N => big_N(), " *
+                   ":sim_func_name => :advection_solver_1d), create_method_dict(:m => create_param_dict()), [:m])\n")
+        reset_manager!()
+        PDEStudio.load_config_file!(big)
+        out = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
+        write(big, replace(read(big, String), "big_N() = 3" => "big_N() = 4"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
+        copy = joinpath(out, "exp_sources", "big.jl")
+        @test PDEStudio._origin_of(copy) == abspath(big)
+        write(copy, replace(read(copy, String), "big_N() = 3" => "big_N() = 5"))
+        @test isnothing(PDEStudio._origin_of(copy)) && PDEStudio._origin_of(copy; unchanged = false) == abspath(big)
         reset_manager!()
     end
 

@@ -48,10 +48,13 @@ under their own file names. Loading that CSV runs the copies again to restore th
 *   the configuration's sources are the originals that are unchanged and the copies of the others: *Run Simulation*
     includes them again in the same way, and a new export bundles them (recording the originals), so it reproduces
     the old one. (With PDEStudioCore versions before `run_all_simulations(...; load_sources = false)`, *Run
-    Simulation* includes the copies of edited originals from `<name>_sources/`, where only bundled files are found.);
+    Simulation* includes the sources as they are: once an original was edited all copies are the sources, and they
+    run from `<name>_sources/`, where only bundled files are found.);
 *   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
-*   if a copy fails, the load does not stop: the **parameters come from the CSV**, the status line names the file and
-    the error, and the solver functions have to be defined before *Run Simulation* (e.g. by loading their package).
+*   if a copy fails, the load does not stop: the **parameters come from the CSV**, and the status line names the file
+    and the error. *Run Simulation* includes the sources again, so restore what the file needs (e.g. a missing helper)
+    and load the export again, or remove the file from the sources (*Advanced* tab) and define the solvers otherwise
+    (e.g. by loading their package).
 
 Configuration files that reload reliably, from the studio and from any bundled copy:
 

@@ -297,12 +297,13 @@ end
 
 # Replaces `include` (calls such as `include("h.jl")` and `include(f, "h.jl")`, and `include` as a value, as in
 # `foreach(include, files)` or `include.(files)`) and `Base.include` in code that runs in `dir` by `_BundledInclude`
-# / `_BundledBaseInclude`. Definitions are kept (`include(p) = …` of a baremodule, an argument named `include`).
+# / `_BundledBaseInclude`. `include` is replaced only where its value is the module's `include` (`_redirected`), so a
+# variable or keyword of that name keeps its value; definitions are kept (`include(p) = …` of a baremodule).
 const _NO_VALUE_HEADS = (:global, :local, :import, :using, :export, :public, :struct, :abstract, :primitive, :quote,
-                         :inert)
+                         :inert, :parameters, :curly, :braces)
 function _redirect_includes(ex, dir::AbstractString, copies::Dict{String, String})
     isempty(copies) && return ex
-    ex === :include && return Expr(:call, _BundledInclude, _MODULE_EXPR, dir, copies)
+    ex === :include && return Expr(:call, _redirected, :include, _MODULE_EXPR, dir, copies)
     ex isa Expr || return ex
     ex == _BASE_INCLUDE && return Expr(:call, _BundledBaseInclude, dir, copies)
     ex.head in _NO_VALUE_HEADS && return ex
@@ -314,16 +315,21 @@ function _redirect_includes(ex, dir::AbstractString, copies::Dict{String, String
     return Expr(ex.head, (i <= kept ? a : redirect(a) for (i, a) in enumerate(ex.args))...)
 end
 _is_signature(ex) = ex isa Expr && ex.head in (:call, :where, :(::))
+_redirected(value, mod::Module, dir, copies) =
+    isdefined(mod, :include) && value === getglobal(mod, :include) ? _BundledInclude(mod, dir, copies) : value
 const _MODULE_EXPR = Expr(:macrocall, GlobalRef(Base, Symbol("@__MODULE__")), LineNumberNode(0))
 const _BASE_INCLUDE = Expr(:., :Base, QuoteNode(:include))
 
-# The original a bundled copy runs in place of (`manager.source_origins`), while the copy still has the content it
-# had when it was loaded; `nothing` otherwise.
-function _origin_of(copy::AbstractString)
+# The original a bundled copy runs in place of (`manager.source_origins`); for an export (`unchanged = true`) only while
+# the copy still has the content it had when it was loaded (a bundle overwritten by another export is no copy of it).
+# `nothing` otherwise.
+function _origin_of(copy::AbstractString; unchanged::Bool = true)
     entry = get(manager.source_origins, abspath(copy), nothing)
-    (isnothing(entry) || !isfile(copy) || hash(read(copy)) != entry.digest) && return nothing
+    (isnothing(entry) || !isfile(copy)) && return nothing
+    unchanged && _content_digest(copy) != entry.digest && return nothing
     return entry.origin
 end
+_content_digest(file) = hash(read(file, String))   # (of the text: the hash of a byte vector samples long ones)
 
 """
     _include_sources(sources)
@@ -335,13 +341,13 @@ The rest is included as PDEStudioCore's `run_all_simulations` does.
 function _include_sources(sources::AbstractVector{<:AbstractString})
     copies = Dict{String, String}()
     for src in sources
-        origin = _origin_of(src)
+        origin = _origin_of(src; unchanged = false)
         isnothing(origin) || (copies[normpath(origin)] = abspath(src))
     end
     for src in sources
         path = abspath(src)
         isfile(path) || throw(ArgumentError("source file not found: $path"))
-        origin = _origin_of(path)
+        origin = _origin_of(path; unchanged = false)   # (a copy edited after the load still runs as its original)
         if isnothing(origin)
             Base.include(ex -> _redirect_includes(ex, dirname(path), copies), get_target_module(), path)
         else
@@ -425,6 +431,7 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     manager.source_note = join(unique(notes), "; ")
     isempty(notes) || @warn "Loading $(basename(filepath)): $(manager.source_note)."
 
+    any_changed = any(i -> !isempty(bundled[i]) && !unchanged[i], eachindex(bundled))
     ran = String[]
     sources_of = Dict{String, String}()
     last_result = nothing
@@ -438,10 +445,12 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
         file = isempty(copy) ? origin(i) : copy
         runs_as = isempty(origin(i)) ? file : origin(i)
         # the source: the original while it is unchanged (or the copy is missing), otherwise the copy, which the next
-        # run includes in place of the original again
-        source = isempty(copy) || unchanged[i] ? abspath(runs_as) : copy
+        # run includes in place of the original again. PDEStudioCore versions without `load_sources` include the sources
+        # as they are at a run: then all copies are the sources once one differs, so that an original's `include` can't
+        # run an edited original after its copy
+        source = isempty(copy) || (unchanged[i] && (_CORE_SKIPS_SOURCES || !any_changed)) ? abspath(runs_as) : copy
         if source == copy && !isempty(origin(i))
-            manager.source_origins[copy] = (origin = origin(i), digest = hash(read(copy)))
+            manager.source_origins[copy] = (origin = origin(i), digest = _content_digest(copy))
         end
         isempty(origin(i)) || (sources_of[normpath(origin(i))] = source)
         @info "Executing bundled source: $(basename(file))" * (runs_as == file ? "" : " (as $runs_as)")
