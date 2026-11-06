@@ -1,0 +1,446 @@
+WARNING: Detected access to binding `Main.form_val` in a world prior to its definition world.
+  Julia 1.12 has introduced more strict world age semantics for global bindings.
+  !!! This code may malfunction under Revise.
+  !!! This code will error in future versions of Julia.
+Hint: Add an appropriate `invokelatest` around the access to this binding.
+To make this warning an error, and hence obtain a stack trace, use `julia --depwarn=error`.
+WARNING: import of Base.include into Main conflicts with an existing identifier; ignored.
+WARNING: import of Base.include into Main conflicts with an existing identifier; ignored.
+WARNING: import of Base.include into Main conflicts with an existing identifier; ignored.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_VGU88q
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_avhGJm/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_avhGJm/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_GS3VAH/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_GS3VAH/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_GhKRzv/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_GhKRzv/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_PltylK/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_PltylK/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_KiHLpr/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_KiHLpr/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_i9az4C/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_i9az4C/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_wfF1dS/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_wfF1dS/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_9kDAE8/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_9kDAE8/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_RdQBRo/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_RdQBRo/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_YqelPH/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_YqelPH/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_qzz43a/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_qzz43a/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_Ya4Z0u/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_Ya4Z0u/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_TBw6nW/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_TBw6nW/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_GXVCg1/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_GXVCg1/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_i1GmCF/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_i1GmCF/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_Xyv6sh/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_Xyv6sh/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_mQt1VQ/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_mQt1VQ/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_rGwT4C/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_rGwT4C/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_amT3q5/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_amT3q5/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_N00dLO/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_N00dLO/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_XfB5cn/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_XfB5cn/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_Ig6cT1/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_Ig6cT1/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_BpLc6T/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_BpLc6T/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_UQxOPf/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_UQxOPf/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_sOSy1c/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_sOSy1c/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_wthu8b/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_wthu8b/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_ANScGx/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_ANScGx/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_8x3dmz/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_8x3dmz/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_M4OWpC/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_M4OWpC/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_HMUfVH/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_HMUfVH/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_nLoPUp/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_nLoPUp/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_F1qXNl/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_F1qXNl/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_TXYTsm/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_TXYTsm/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_OQ7y65/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_OQ7y65/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_Vo8OTk/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_Vo8OTk/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_5MKQw8/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_5MKQw8/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_iKFIWV/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_iKFIWV/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_XeO5oP/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_XeO5oP/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_Hp46Qw/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_Hp46Qw/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_AhlrMN/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_AhlrMN/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_n3tG0v/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_n3tG0v/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_Zv282H/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_Zv282H/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_MUenPb/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_MUenPb/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_MqL5p4/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_MqL5p4/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_lEpUlj/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_lEpUlj/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_tHxE15/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_tHxE15/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:525
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_oJBlWG/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_oJBlWG/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3d/repo/src/ConfigIO.jl:432
+[ Info: Executing bundled source: h.jl (as /tmp/jl_T0buwt/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_T0buwt/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+Core skips sources: false
+include("h.jl")                                     load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+include(identity, "h.jl")                           load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+Base.include(@__MODULE__, "h.jl")                   load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+foreach(include, ["h.jl"])                          load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+include.(["h.jl"])                                  load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+map(f -> include(f), ["h.jl"]) (do-free closure)    load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+map(["h.jl"]) do f include(f) end                   load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+@eval include("h.jl")                               load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+Main.include("h.jl")                                load: ORIGINAL   Run: copy   note: h.jl changed since the export: the exported version ran
+eval(quote include("h.jl") end)                     load: ORIGINAL   Run: copy   note: h.jl changed since the export: the exported version ran
+evalfile(joinpath(@__DIR__, "h.jl"))                load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+import Base: include; include("h.jl")               load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+module M ... include ... end; form_val() = M.form_val()load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+kwarg: f(; include = true) = include ? ...          load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+local variable: let include = "h.jl"; Base.include(Main, include) endload: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+for include in ["h.jl"] ... end                     load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+named tuple (; include) shorthand                   load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+struct field include::Bool                          load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+@NamedTuple{include::Bool}                          load: copy       Run: copy   note: h.jl changed since the export: the exported version ran
+-- with cfg.jl edited too (cfg.jl then runs from its copy)
+include("h.jl")                                     load: copy       Run: copy   note: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran
+foreach(include, ["h.jl"])                          load: copy       Run: copy   note: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran
+Main.include("h.jl")                                load: ORIGINAL   Run: copy   note: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran
+kwarg: f(; include = true) = include ? ...          load: copy       Run: copy   note: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran
+local variable: let include = "h.jl"; Base.include(Main, include) endload: copy       Run: copy   note: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran
+exit=0
