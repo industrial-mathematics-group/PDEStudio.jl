@@ -1,0 +1,227 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_Kz8mrK
+[ Info: Plotter state completely cleared!
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_m9HX3u/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_m9HX3u/exp.csv
+[ Info: Executing bundled source: h.jl (as /tmp/jl_x6z1Uh/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_x6z1Uh/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x14 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (100, 14) (linear in space, nearest in time)...
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_mqEykX/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_mqEykX/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_jfMWhJ/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x14 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (100, 14) (linear in space, nearest in time)...
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_NETMzF/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_NETMzF/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_i9XM1E/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x14 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (100, 14) (linear in space, nearest in time)...
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_nq39SM/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_nq39SM/exp.csv
+[ Info: Executing bundled source: abs.jl
+[ Info: Executing bundled source: cfg.jl
+┌ Error: Running the bundled source cfg.jl failed
+│   exception =
+│    LoadError: edited original ran
+│    Stacktrace:
+│      [1] error(s::String)
+│        @ Base ./error.jl:44
+│      [2] aN()
+│        @ Main /tmp/jl_mRHDrd/abs.jl:1
+│      [3] top-level scope
+│        @ /tmp/jl_nq39SM/exp_sources/cfg.jl:2
+│      [4] eval(m::Module, e::Any)
+│        @ Core ./boot.jl:489
+│      [5] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+│        @ Base ./loading.jl:3064
+│      [6] include_string
+│        @ ./loading.jl:3074 [inlined]
+│      [7] _include_as(mod::Module, file::String, as::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:263
+│      [8] _run_bundled_sources(parsed::Dict{String, Dict{String, Dict{String, Any}}}, filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:331
+│      [9] load_and_apply_csv!(filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:450
+│     [10] _handle_load(path::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/UILogic.jl:395
+│     [11] case(tag::String; files::Vector{Pair{String, String}}, pre::String, n::String, edit::var"#7#8"{String}, src::Nothing)
+│        @ Main ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:22
+│     [12] eval_test_function(func::Any, args::Any, kwargs::Any, quoted_func::Union{Expr, Symbol}, source::LineNumberNode, negate::Bool)
+│        @ Test /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:394
+│     [13] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:34
+│     [14] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [15] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:35 [inlined]
+│     [16] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [17] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:42 [inlined]
+│     [18] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:755 [inlined]
+│     [19] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [20] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [21] _start()
+│        @ Base ./client.jl:577
+│    in expression starting at /tmp/jl_nq39SM/exp_sources/cfg.jl:2
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:333
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_SAilBr/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_SAilBr/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_PRtt1D/cfg.jl)
+┌ Error: Running the bundled source cfg.jl failed
+│   exception =
+│    LoadError: SystemError: opening file "/tmp/jl_PRtt1D/u.jl": No such file or directory
+│    Stacktrace:
+│      [1] include(mapexpr::Function, mod::Module, _path::String)
+│        @ Base ./Base.jl:310
+│      [2] top-level scope
+│        @ /tmp/jl_PRtt1D/cfg.jl:1
+│      [3] eval(m::Module, e::Any)
+│        @ Core ./boot.jl:489
+│      [4] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+│        @ Base ./loading.jl:3064
+│      [5] include_string
+│        @ ./loading.jl:3074 [inlined]
+│      [6] _include_as(mod::Module, file::String, as::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:263
+│      [7] _run_bundled_sources(parsed::Dict{String, Dict{String, Dict{String, Any}}}, filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:331
+│      [8] load_and_apply_csv!(filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:450
+│      [9] _handle_load(path::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/UILogic.jl:395
+│     [10] case(tag::String; files::Vector{Pair{String, String}}, pre::String, n::String, edit::var"#9#10", src::Nothing)
+│        @ Main ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:22
+│     [11] eval_test_function(func::Any, args::Any, kwargs::Any, quoted_func::Union{Expr, Symbol}, source::LineNumberNode, negate::Bool)
+│        @ Test /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:394
+│     [12] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:34
+│     [13] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [14] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:48 [inlined]
+│     [15] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [16] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:48 [inlined]
+│     [17] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:755 [inlined]
+│     [18] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [19] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [20] _start()
+│        @ Base ./client.jl:577
+│    in expression starting at /tmp/jl_PRtt1D/cfg.jl:1
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/oldsrc/src/ConfigIO.jl:333
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+ERROR: LoadError: Some tests did not pass: 3 passed, 2 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:33
+A: listed helper by name, unchanged (control) load: N = 20, failures = String[]
+                                              Run: ok, status = Simulation finished in 0.2 s (1 methods).
+C: unlisted helper, originals unchanged       load: N = 20, failures = String[]
+                                              Run: ok, status = Simulation finished in 0.0 s (1 methods).
+D: data file via @__DIR__, originals unchangedload: N = 20, failures = String[]
+                                              Run: ok, status = Simulation finished in 0.0 s (1 methods).
+K: listed helper by absolute path, edited     load: N = 20, failures = ["cfg.jl: edited original ran"]
+                                              Run: THROWS edited original ran -- status line: Source files of exp.csv failed; the parameters com
+
+run after load: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:42
+  Expression: case("K: listed helper by absolute path, edited"; files = String[] .=> String[], pre = "include($(repr(ah)))\n", n = "aN()", edit = (d->begin
+                #= /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:44 =#
+                write(ah, "aN() = error(\"edited original ran\")\n")
+            end))
+   Evaluated: case("K: listed helper by absolute path, edited"; files = Pair{String, String}[], pre = "include(\"/tmp/jl_mRHDrd/abs.jl\")\n", n = "aN()", edit = var"#7#8"{String}("/tmp/jl_mRHDrd/abs.jl"))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:34
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:35 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:42 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+E: unlisted helper deleted after the export   load: N = 20, failures = ["cfg.jl: SystemError: opening file \"/tmp/jl_PRtt1D/u.jl\": No such file or dire…"]
+                                              Run: THROWS SystemError: opening file "/tmp/jl_PRtt1D/u.jl": No such file or directory -- status line: Source files of exp.csv failed; the parameters com
+
+failed source, solvers defined some other way (docs: define them before Run): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:48
+  Expression: case("E: unlisted helper deleted after the export"; files = ["u.jl" => "uN() = 20\n"], pre = "include(\"u.jl\")\n", n = "20", edit = (d->begin
+                #= /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:49 =#
+                rm(joinpath(d, "u.jl"))
+            end))
+   Evaluated: case("E: unlisted helper deleted after the export"; files = ["u.jl" => "uN() = 20\n"], pre = "include(\"u.jl\")\n", n = "20", edit = var"#9#10"())
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:34
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:48 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_after_load.jl:48 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                                                  | Pass  Fail  Total  Time
+all                                                                            |    3     2      5  4.8s
+  run after load                                                               |    3     1      4  4.6s
+  failed source, solvers defined some other way (docs: define them before Run) |          1      1  0.2s
+RNG of the outermost testset: Random.Xoshiro(0x15374c900f0e475e, 0xc2e248f86588e375, 0xa703b010871cd983, 0x0a18aefaca416b4c, 0xe79d60a76b032060)

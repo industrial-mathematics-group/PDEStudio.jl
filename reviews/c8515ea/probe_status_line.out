@@ -1,0 +1,49 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_zRZFtc
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_fGdRhs/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_fGdRhs/exp.csv
+┌ Warning: Loading exp.csv: helper.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_wszger/helper.jl)
+[ Info: Executing bundled source: config.jl (as /tmp/jl_wszger/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing other.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_95IJCI/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_95IJCI/exp.csv
+┌ Warning: Loading exp.csv: helper.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_AlG4p5/helper.jl)
+[ Info: Executing bundled source: config.jl (as /tmp/jl_AlG4p5/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_ZsmmZn/exp2.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_ZsmmZn/exp2.csv
+┌ Warning: Loading exp2.csv: the original helper.jl is gone: the exported one ran; the original config.jl is gone: the exported one ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: helper.jl
+[ Info: Executing bundled source: config.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+status after loading the export: Loaded exp.csv (helper.jl changed since the export: the exported version ran). Run Simulation to apply it.  colour = RGB{Float32}(0.8, 0.4, 0.0)
+status after loading other.jl: Loaded other.jl. Run Simulation to apply it.
+K load 1: N = 24 sources = ["/tmp/jl_95IJCI/exp_sources/helper.jl", "/tmp/jl_95IJCI/exp_sources/config.jl"]
+  exp2_sources/config.jl: include("helper.jl")
+SimulationConfig(cr
+  exp2_sources/helper.jl: helper_N() = 24
+K export 2 alone: N = 24 failures = String[]
+Test Summary: | Pass  Total  Time
+all           |    3      3  1.7s

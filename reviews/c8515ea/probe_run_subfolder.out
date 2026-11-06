@@ -1,0 +1,21 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_bOiQR6
+[ Info: Plotter state completely cleared!
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_JefxYG/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_JefxYG/exp.csv
+[ Info: Executing bundled source: h.jl (as /tmp/jl_eZLqD5/lib/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_eZLqD5/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+ERROR: LoadError: There was an error during testing
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_subfolder.jl:20
+load: N = 20 failures = String[]
+Run: THROWS SystemError: opening file "/tmp/jl_JefxYG/exp_sources/lib/h.jl": No such file or directory
+Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_run_subfolder.jl:20
+  Expression: isempty(err)
+   Evaluated: isempty("SystemError: opening file \"/tmp/jl_JefxYG/exp_sources/lib/h.jl\": No such file or directory")

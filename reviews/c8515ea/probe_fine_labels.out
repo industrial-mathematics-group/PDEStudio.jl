@@ -1,0 +1,37 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_jFHNm2
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (50,) to (100,) (linear in space, nearest in time)...
+ERROR: LoadError: Some tests did not pass: 3 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_fine_labels.jl:27
+default                            x width = 0.0020000490980001118  y width = 0.0020000019979855566  yticklabels = true
+y scale_offset                     x width = 0.0020000490980001118  y width = 2.0957889868000734e-9  yticklabels = true
+x and y scale_offset               x width = 4.900000005747529e-8  y width = 2.0957889868000734e-9  yticklabels = true
+y tick_format {:.12f}              x width = 0.0020000490980001118  y width = 0.0020000019979855566  yticklabels = true
+
+fine labels: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_fine_labels.jl:39
+  Expression: yw < 1.0e-8
+   Evaluated: 0.0020000019979855566 < 1.0e-8
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_fine_labels.jl:28
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_fine_labels.jl:39 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+y tick_format {:.2f} (coarse)      x width = 0.0020000490980001118  y width = 0.0020000019979855566  yticklabels = true
+y log + scale_offset               x width = 0.0020000490980001118  y width = 0.011512991044804188  yticklabels = true
+Test Summary: | Pass  Fail  Total  Time
+fine labels   |    3     1      4  5.2s
+RNG of the outermost testset: Random.Xoshiro(0xe5c0b24940479622, 0x4eebd46d318d1991, 0x35a753a0730cef8b, 0x4d639e6f16c922fd, 0xfc8226bcb3af8577)
