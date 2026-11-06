@@ -13,9 +13,9 @@
 [![Human review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/ai-human-review.json)](https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#h-human-review)
 [![AI review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/ai-review.json)](https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#a-ai-review)
 
-![AI generation](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aidecl-generation.json)
-![Human review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aidecl-human-review.json)
-![AI review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aidecl-ai-review.json)
+![AI generation](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-generation.json)
+![Human review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-human-review.json)
+![AI review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-ai-review.json)
 </div>
 
 **PDEStudio.jl** is a highly interactive, Makie-driven graphical frontend engineered for the real-time visualization and exploration of Partial Differential Equation (PDE) simulations. It serves as the visual counterpart to the autonomous numerical backend, [PDEStudioCore.jl](https://github.com/industrial-mathematics-group/PDEStudioCore.jl).
