@@ -1,0 +1,46 @@
+few: stored 5 shown 5 ref 5
+dn.domain.spacing = [0.031415926535897934, 0.25]
+dr.domain.spacing = [0.01566859493895661, 0.25]
+many: stored 120 shown 50 ref 50
+dn.domain.spacing = [0.031415926535897934, 0.01680672268907563]
+dr.domain.spacing = [0.01566859493895661, 0.04081632653061224]
+Test Summary:                  | Pass  Total  Time
+non-uniform stored times (1-D) |    8      8  4.1s
+2-D nt=30: size (20, 20, 30) ref (400, 400, 30) stats Dict{Symbol, Tuple{Int64, Vararg{Int64}}}(:Solution => (20, 20, 30), :relative_l1error => (30,), :l1error => (30,), :l2norm => (30,), :l2error => (30,), :l1norm => (30,), :relative_mass => (30,), :wave_height => (30,), :mass => (30,), :mass_signed_error => (30,), :relative_l2error => (30,), :mass_error => (30,), :spacetime_relative_mass => (1,))
+2-D nt=80: size (20, 20, 50) ref (400, 400, 50) stats Dict{Symbol, Tuple{Int64, Vararg{Int64}}}(:Solution => (20, 20, 50), :relative_l1error => (50,), :l1error => (50,), :l2norm => (50,), :l2error => (50,), :l1norm => (50,), :relative_mass => (50,), :wave_height => (50,), :mass => (50,), :mass_signed_error => (50,), :relative_l2error => (50,), :mass_error => (50,), :spacetime_relative_mass => (1,))
+Test Summary:                                     | Pass  Total  Time
+2-D, spatial resampling + time subsampling, stats |    6      6  5.2s
+┌ Warning: Could not load the data of Dict{Symbol, Any}(:sim_func_name => :nonuni_1d, :kind => :many, :N => 200)
+
+time resolution 1 from code: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_time_display.jl:78
+  Expression: haskey(pd, :num) && !(isnothing((pd[:num]).data[1]))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_time_display.jl:71
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_time_display.jl:78 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:               | Fail  Total  Time
+time resolution 1 from code |    1      1  1.0s
+RNG of the outermost testset: Random.Xoshiro(0x025ba1cd0178ea94, 0xd84c4e4228c1c36c, 0xcb15cbb7389cadc1, 0x9c3df99a296bc1f8, 0xc85f5a5eb8bfe765)
+ERROR: LoadError: Some tests did not pass: 0 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_time_display.jl:70
+get_file_name(params) == path = true
+length(P.manager.stored_time_counts) = 1
+Test Summary:                                                    | Pass  Total  Time
+cache invalidation: same path, rewritten with another time count |    2      2  0.1s
+┌ Warning: Could not load the data of Dict{Symbol, Any}(:sim_func_name => :nonuni_1d, :kind => :many, :N => 200)
+
+time resolution 1 from code: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_time_display.jl:93
+  Expression: haskey(pd, :num) && !(isnothing((pd[:num]).data[1]))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_time_display.jl:86
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_time_display.jl:93 [inlined]
+   [4] macro expansion

@@ -256,7 +256,7 @@ function initialize_base_plot!(plot_layout::GridLayout, ax, active_methods, data
     valid_u = filter(isfinite, us_slices[base_idx])
     cr_obs = get_colorrange(ui_app, valid_u)
     
-    lvl_range = range(cr_obs[][1], cr_obs[][2], length=ui_app[:levels]) 
+    lvl_range = range(cr_obs[][1], cr_obs[][2], length=max(2, ui_app[:levels]))   # (as `apply_ui_style!`)
     
     cache = EulerianPlotCache()
     cache.obs_x.val = xs_slices[base_idx]

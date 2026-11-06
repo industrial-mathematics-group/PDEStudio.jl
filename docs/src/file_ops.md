@@ -23,7 +23,7 @@ Two kinds of files can be loaded:
 *   **CSV files** (exports and presets): values only, parsed safely. This is the preferred way: a CSV without bundled source files never runs code.
 *   **Julia files** (`.jl`) whose last expression is the `SimulationConfig`, or a function without arguments that returns it. The file runs in the target module (`set_target_module!`) and is added to the configuration's `sources`, so exports bundle it.
 
-> **⚠️ Code execution:** loading a Julia file, or a CSV that bundles source files (see below), **runs that code with your rights**. Only load files you trust. In the studio, such a file needs a second click on **Load**: the first one only shows the warning in the status line.
+> **⚠️ Code execution:** loading a Julia file, or a CSV that bundles source files (see below), **runs that code with your rights**. Only load files you trust. In the studio, such a file needs a second click on **Load**: the first one only shows the warning in the status line. The second click confirms that file as it was at the first one: the file itself and, for a CSV, the bundled copies it names; another file under the same name (a new upload) or a change of these files in between asks again. Files the code includes (`include("helper.jl")`) and the originals a CSV runs instead of its copies are **not** covered: a change of those between the two clicks runs without a new warning.
 
 The load button turns **green** when the file was read; press *Run Simulation* to compute and show it.
 

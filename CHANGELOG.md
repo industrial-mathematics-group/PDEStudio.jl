@@ -28,8 +28,96 @@ What has changed since the last release. Released versions are described in the
   names the missing axes, the old data is cleared and *Run Simulation* rebuilds the window with them.
 - **Export message:** an image exported to a path typed into *Name / path* was reported as saved to the default
   `figures` folder; the status line now names the folder it went to.
+- **References in sweeps that change the domain** (final time, domain length, grid): every sweep point's reference
+  was laid out on the domain of the first one, so it was drawn at the wrong times or places. Each reference now
+  covers the domain of the numerical data of its own sweep point.
+- **Numerical curve, reference and title at the same time:** at one time slider position the numerical data, the
+  reference (on a finer time grid) and the title (the slider value) showed up to one display step apart. The
+  reference is now evaluated at the times of the numerical data, and the title shows the time of the drawn data.
+- **Slider positions of a CSV loaded while other data is shown** were lost (the slider came back at the value
+  clamped into the old range); they are applied once the new data is there. A saved position outside the range of the file's own data
+  doesn't stay pending: moving the slider drops it, otherwise the next run applies it (clamped).
+- **Reference lines** (`reference` exponents) added a listener to the axis limits on every UI update (every slider
+  drag frame, every animation frame); they are removed with the lines now.
+- **Float32, Float16 and `SVector` parameters** came back from a CSV (exports, presets) as `Float64` / `Vector`; they
+  keep their type now (`1.5f0`, `Float16(0.1)`, `SA{Float64}[1.0, 2.0]`). The data hash is unchanged and files
+  written before read as they did. Other integer types, `MVector`/`SMatrix`, ranges, `NamedTuple`s and `missing` still
+  come back changed; the docs (*Presets*, "Which values keep their type") list them.
+- **Hand-written CSVs with spaces after the commas** (`Category, Scope, Parameter, Value`) failed or put the rows
+  into a wrong scope; header and key cells are stripped (and unquoted values, e.g. labels), and unknown categories and
+  scopes are warned about.
+- **A bundled `.jl` configuration that ends with a function** (as `load_config_file!` accepts) wasn't called when the
+  export was loaded again, so function parameters came back as the text `"Closure"`.
+- **1-D axis limits of a constant field** (e.g. Float32 noise around a constant state) showed the round-off noise
+  with repeated tick labels; they get the relative range of the colour ranges. Variations within the round-off of
+  the data's type (100 `eps`) or below what tick labels can show (1e-6 relative) count as constant; larger small
+  variations of Float64 data stay visible (they were drawn flat below 1e-5).
+- **Style values that can't be drawn** (`colors = []`, empty `markers` / `line_styles`, a `color_range` of one value,
+  `levels` below 2) were accepted by the editor and broke every plot update; they are refused now, and filled
+  contours draw with at least 2 levels.
+- **Style values from files:** the same values in a CSV or a look preset were stored and broke the plot (a one-value
+  `color_range` even threw out of the update). They are ignored with a warning now, a `color_range` that isn't
+  `[lo, hi]` is automatic, and an error in the style step is logged instead of escaping.
+- **Provenance of exports:** the dependencies of local packages (repository `<Name>.jl` of the package `<Name>`) were
+  never recorded in the `Julia` category; they are now. The `Git` rows also record whether a repository had uncommitted changes to tracked files (`git_dirty`; new,
+  untracked files don't count).
+- **◀ ▶ in the Files tab:** the pages of a preset file and of a long preset list couldn't be turned (rows after the
+  first page of a look preset were out of reach).
+- **The built-in `heatmap` and `compact3d` look presets** wrote their axis options into the axes of the style shown
+  (e.g. the 1-D lines); they set the axes of the heatmap / of the 3D styles now, and `publication` sets every axis
+  variant.
+- **Fewer active methods with Compare = methods:** binding a configuration with fewer methods than subplots broke
+  every plot update until the next run.
+- **"Click Load again"** confirmed a file by its path only: a second upload with the same name, or a file changed on
+  disk in between, ran without the warning. The confirmation is for the content now: of the file and the bundled
+  copies a CSV names, not of files the code includes (see *File Operations*).
+- **Play Anim with `animation_FPS` or `animation_time` ≤ 0** threw and left the button on *Stop Anim*; it warns
+  instead.
+- **Exports:** a failed export left the render listeners of its export figure attached (every later update also
+  redrew the hidden figure, one more set per failure); they are released now. `animation_FPS`, `animation_time` and
+  `dpi` must be positive numbers: the editor refuses others (e.g. `NaN`), and an export reports them instead of
+  failing.
+- **Deleted preset files** stayed in the preset lists (and *Edit ›* called them built in); the lists follow the files.
+- **Preset files written by hand:** *Edit ›* failed on a header with spaces after the commas, and a file that isn't a
+  studio CSV threw out of *Apply* / *Edit ›* (in GLMakie that stops the window from updating). Such files open like
+  the others or the status line says what is wrong.
+- **Status line:** messages with multibyte characters (`→`, `ü`, …) were wrapped inside a word and could exceed the
+  line.
+- **Menus with a meaningful order** (components, compare targets) were sorted by label (`Component 1, 10, 11, 2, …`);
+  they keep their order.
+- **Renaming a variable** (UI → Labels → Variables) now relabels the axis, animation and compare menus right away,
+  without flagging *Apply Layout* / *Update Plot* (renaming a component doesn't flag *Update Plot* either).
+- **A method named `#order` or `#methods`** opened the editor's drawing-order or method-list page instead of its own;
+  names starting with `#` are refused when adding a method (and warned about in a bound configuration).
+- **Empty texts in the editors:** the Advanced tab showed an empty text as `<empty>`, which it refused as input; it shows
+  `""` and accepts `<empty>`. Empty texts inside vectors and tuples (`String[<empty>, "a"]`) can be applied again on
+  every page, and `<empty>` on the Labels pages is the empty name (it was stored as the text "<empty>"). A menu shows
+  the key of an entry with an empty name (Makie's menus overflow the stack on an empty option).
+- **Numerical curve and reference at the same time (round 2):** grid data was resampled in time (the nearest stored
+  snapshot relabelled with a display time), so the drawn data could be up to half the interval between stored
+  snapshots away from the reference and the title, e.g. for output stored every few steps. Data drawn with a grid
+  style (grid data, and particle data scattered to the grid) now shows its stored snapshots at their own times (see
+  *Changed*).
+- **References of particle data** were evaluated at evenly spaced times even when the data was stored at other times,
+  and their cost grew with the number of stored times. They are evaluated at the data's times, at most the reference
+  time resolution (default 100) of them.
+- **Exports of a reloaded export** didn't bundle the configuration file again (a file returning the configuration
+  doesn't list itself), so function parameters came back as the text `"Closure"` from the second export on; the
+  bundled files are now sources of the loaded configuration.
 
 ### Changed
+- **Time axis of data drawn with a grid style** (grid data, particle data scattered to the grid): the display
+  resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the most stored snapshots shown; the data is
+  no longer interpolated in time. All snapshots are shown up to it, otherwise that many, evenly spread. Cost: the
+  first display of a data file reads its stored data once to count the snapshots (twice when PDEStudioCore's
+  conversion cache, `enable_cache!(true)`, writes to the file then). Data with more snapshots than the time resolution
+  is read in full and converted on every reload (each *Run*, each sweep point) instead of coming from the cached
+  conversion, so with the cache on, large data with many snapshots reloads slower (for a 256² × 401 grid: 266 MiB and
+  ~50 ms per dataset instead of 16 MiB and 2 ms); raising the time resolution to the number of snapshots uses the
+  cache again. With the cache off (the default) loading costs less than before.
+- **Reference resolution in time:** references are evaluated at the time values of the numerical data they are drawn
+  with, at most the time entry of the reference resolution (*Files → Resolution ›*) of them; in space the reference
+  resolution is used as before.
 - **Lagrangian layout presets and CSV files** store the particle style names (`particles_2d`). Files with the
   `Config, Dimensions, mode` row open their particles as before; older files with a scatter style saved in a
   Lagrangian session open it on a grid (choose the particle style again).

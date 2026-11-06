@@ -82,7 +82,7 @@ function _handle_plot_trigger!(
             
             mutated_sel_vals = is_compare ? _mutate_compare_vals(sel_vals, i) : sel_vals
             target_c_int = (is_compare && target == :component) ? i : c_sel[]
-            local_methods = is_compare && target == :methods ? [manager.methods[][i]] : manager.methods[]
+            local_methods = _subplot_methods(is_compare && target == :methods, i)
             
             data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
             isempty(valid_methods) && continue
@@ -93,7 +93,8 @@ function _handle_plot_trigger!(
             sim_data = _get_first_valid(first(values(data)))
             active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
             
-            ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals, sim_data)
+            ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+                                        something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
             
             manager.plot_titles[i] = ts
             
@@ -152,12 +153,27 @@ function _handle_plot_trigger!(
                 if axes[i].xscale[] == log10 && min_x <= 0; axes[i].xscale[] = identity; end
                 if axes[i].yscale[] == log10 && min_y <= 0; axes[i].yscale[] = identity; end
                 
-                set_axis_limits_manager!(axes[i], use_x, use_y)
+                set_axis_limits_manager!(axes[i], use_x, use_y; precision = _data_precision(data))
             end
         end
         _enforce_camera_lock!(axes)
     end
     return true
+end
+
+# The floating-point type of the loaded data (its round-off decides when a range counts as constant).
+function _data_precision(data)
+    d = isempty(data) ? nothing : _get_first_valid(first(values(data)))
+    T = isnothing(d) ? Float64 : eltype(d.domain.mins)
+    return T <: AbstractFloat ? T : Float64
+end
+
+# The methods drawn in subplot `i`: all active methods, or the `i`-th one with "Compare: methods". A configuration bound
+# since the layout was built may have fewer active methods than the layout has subplots (until it is run).
+function _subplot_methods(per_method::Bool, i::Int)
+    methods = manager.methods[]
+    per_method || return methods
+    return i <= length(methods) ? [methods[i]] : Symbol[]
 end
 
 """
@@ -195,7 +211,10 @@ function _handle_slider_trigger!(u_sel)
             haskey(w, widget_key) || continue
             ctrl = w[widget_key]
 
-            if length(ctrl.range[]) > 1
+            # A loaded position (CSV) waiting for a range that contains it takes precedence over the current one.
+            pending_entry = get(manager.pending_sliders, widget_key, nothing)
+            pending = isnothing(pending_entry) ? nothing : first(pending_entry)
+            if length(ctrl.range[]) > 1 && isnothing(pending)
                 slider_cache[widget_key] = Float64(ctrl.value[])
             end
 
@@ -210,10 +229,19 @@ function _handle_slider_trigger!(u_sel)
             end
 
             new_range = i <= n_params ? _param_slider_range(data, i) : _dim_slider_range(data, dim_sym)
-            if ctrl.range[] != new_range
-                old_val = get(slider_cache, widget_key, Float64(ctrl.value[]))
+            changed = ctrl.range[] != new_range
+            if changed
+                old_val = something(pending, get(slider_cache, widget_key, Float64(ctrl.value[])))
                 ctrl.range[] = new_range
                 set_close_to!(ctrl, old_val)
+            end
+            # consumed once: by a new range, by a range that contains it, or by data run after the file was loaded (then
+            # clamped: a position outside the range of the file's own data must not stay pending)
+            if !isnothing(pending) && (changed || first(new_range) <= pending <= last(new_range) ||
+                                       manager.data_generation > last(pending_entry))
+                changed || set_close_to!(ctrl, pending)
+                slider_cache[widget_key] = pending
+                delete!(manager.pending_sliders, widget_key)
             end
         end
     finally
@@ -289,7 +317,7 @@ function _handle_data_trigger!(
     for i in 1:num_plots
         mutated_sel_vals = is_compare ? _mutate_compare_vals(sel_vals, i) : sel_vals
         target_c_int = (is_compare && target == :component) ? i : c_sel[]
-        local_methods = is_compare && target == :methods ? [manager.methods[][i]] : manager.methods[]
+        local_methods = _subplot_methods(is_compare && target == :methods, i)
         
         data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
         isempty(valid_methods) && continue
@@ -317,7 +345,8 @@ function _handle_data_trigger!(
         
         active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
         
-        ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals, sim_data)
+        ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+                                    something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
         
         manager.plot_titles[i] = ts
             
@@ -353,7 +382,7 @@ function _handle_data_trigger!(
             if axes[i].xscale[] == log10 && min_x <= 0; axes[i].xscale[] = identity; end
             if axes[i].yscale[] == log10 && min_y <= 0; axes[i].yscale[] = identity; end
             
-            set_axis_limits_manager!(axes[i], use_x, use_y)
+            set_axis_limits_manager!(axes[i], use_x, use_y; precision = _data_precision(data))
         end
     end
     
@@ -476,6 +505,19 @@ function _mutate_compare_vals(current_sels, idx)
         mutated[t_idx] = c_vals[idx]
     end
     return mutated
+end
+
+# The dataset drawn for `methods` at the slider values `vals` (a numerical method's, if one is drawn), whose time and
+# grid values the title shows; `nothing` if none is loaded.
+function _drawn_dataset(data, methods, vals)
+    for numeric_only in (true, false), m in methods
+        (numeric_only && is_reference_method(m)) && continue
+        pd = get(data, m, nothing)
+        isnothing(pd) && continue
+        d = pd.data[_build_param_indices(pd, vals)...]
+        isnothing(d) || return d
+    end
+    return nothing
 end
 
 """

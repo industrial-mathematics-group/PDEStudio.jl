@@ -1,0 +1,47 @@
+[ Info: UI and Layout have been directly reset to defaults.
+ERROR: LoadError: Some tests did not pass: 0 passed, 2 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_csv_roundtrip.jl:71
+Type/value changes after the round trip:
+  svec: [1.0, 2.0]::SVector{2, Float64} -> [1.0, 2.0]::Vector{Float64}
+  f32: 1.5f0::Float32 -> 1.5::Float64
+hash equal: true
+Test Summary:               | Pass  Total  Time
+CSV round trip: value types |    1      1  1.2s
+  fun: sin::typeof(sin) -> "Closure"::String
+  struct: ProbeOpts(1, 2.0)::ProbeOpts -> "ProbeOpts(a=1, b=2.0)"::String
+  enum: probe_upwind::ProbeScheme -> "ProbeScheme.probe_upwind"::String
+  hash equal: true
+Test Summary:                                            | Total  Time
+CSV round trip: lossy values (enums, structs, functions) |     0  0.1s
+Test Summary:                               | Pass  Total  Time
+CSV round trip: sweeps, defaults, reference |    7      7  0.1s
+  parse result: KeyError: key :Scope not found
+
+Hand-written CSV (spaces after the commas): Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_csv_roundtrip.jl:84
+  Expression: !(res isa Exception)
+   Evaluated: !(KeyError(:Scope) isa Exception)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_csv_roundtrip.jl:72
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_csv_roundtrip.jl:84 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+  hand2 (spaces in rows only): Dict{String, Dict{String, Dict{String, Any}}}("Simulation" => Dict(" Shared" => Dict(" N" => 40)))
+
+Hand-written CSV (spaces after the commas): Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_csv_roundtrip.jl:89
+  Expression: haskey(res2, "Simulation") && haskey(res2["Simulation"], "Shared")
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_csv_roundtrip.jl:72
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/ps-b/probe_csv_roundtrip.jl:89 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                              | Fail  Total  Time
+Hand-written CSV (spaces after the commas) |    2      2  0.7s
+RNG of the outermost testset: Random.Xoshiro(0x29c4ce5ba01bc3ef, 0x99396dcb2b9d2cc8, 0x0d4f7341c9093e97, 0x740157b64808f8b4, 0x6407be0208605026)

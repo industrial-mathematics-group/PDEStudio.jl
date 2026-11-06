@@ -17,10 +17,10 @@ overview, `show_editor_page!(:shared)` the shared parameters).
 #### Setting Values
 Type a new value into a row and press Enter. Input is parsed with the safe literal parser `str2val`: numbers, symbols (`:upwind`), strings, tuples (`(64, 64)`), vectors (`[0.1, 0.2]`, `Float64[0.1, 0.2]`), dictionaries and ranges (`0.1:0.1:0.5`). **Nothing you type is ever evaluated as code.**
 
-*   **Text stays text:** if a parameter currently holds text, whatever you type is stored as text, even if it looks like a number or a name (`1e3`, `Float64`, `sin`). Quotes are optional. `<empty>` stands for the empty string.
+*   **Text stays text:** if a parameter currently holds text, whatever you type is stored as text, even if it looks like a number or a name (`1e3`, `Float64`, `sin`). Quotes are optional. `<empty>` stands for the empty string, on every page (also for a display name) and inside vectors and tuples (`String[<empty>, "a"]`).
 *   **The row button:** **on / off** toggles a Boolean; **↺** restores the default (like typing `default`, below).
 *   **`default`:** typing `default` (or clicking ↺) restores the built-in value of a UI option, the value of the bound configuration for a shared or method parameter (the one *Files → Simulation → Reset* returns to), or the built-in display name of a label.
-*   **Invalid input is refused:** text that is no literal (e.g. `[1, 2` or `abc` for a number) is not stored for a parameter that isn't text, and the status line says why. To make a parameter text, quote it (`"abc"`). Colours (`#1f77b4`, `red`) may be typed without quotes.
+*   **Invalid input is refused:** text that is no literal (e.g. `[1, 2` or `abc` for a number) is not stored for a parameter that isn't text, and the status line says why. To make a parameter text, quote it (`"abc"`). Colours (`#1f77b4`, `red`) may be typed without quotes. Style values the plot can't be drawn with are refused as well: an invalid colour or colormap, an empty list of `colors`, `markers` or `line_styles`, a `color_range` other than `[]` (automatic) or `[lo, hi]`, fewer than 2 contour `levels`.
 *   **Types matter for the cache:** simulation results are stored under a hash of the parameters, and the hash includes the value's type. `Any[:a, :b]` and `[:a, :b]` (a `Vector{Symbol}`) are different values, so changing one into the other computes the simulation again. Keep the displayed format if you only want to change entries.
 
 ### 📂 The Shared Tab
@@ -66,7 +66,7 @@ overview has four pages: `Shared` (`config.shared`), `Sweep` (`config.varied`), 
 `reference`, `postprocess`, `sources`) and *Methods ›*, the list of every method of `config.methods`, active or not,
 on full-width rows (long names fit; long lists get ◀ ▶ pages).
 *   **Values are Julia literals with their type**, shown exactly as stored: `20`, `0.5`, `"upwind"` (text is
-    quoted), `:symbol`, `Float64[0.2, 0.5]`, `(500,)`, `nothing`. What you type is parsed the same way and stored
+    quoted, the empty text is `""`; `<empty>` is accepted too), `:symbol`, `Float64[0.2, 0.5]`, `(500,)`, `nothing`. What you type is parsed the same way and stored
     as it is: no text fallback (unquoted text is refused), no single-value sweeps (a sweep must be a vector).
 *   **✕ deletes a key** from `shared`, `varied` or a method (the fields of `Config` can't be deleted).
 *   **Adding a key:** the row below the entries takes the name, the **type** (`auto` reads the literal as typed;

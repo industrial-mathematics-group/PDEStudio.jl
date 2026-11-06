@@ -29,17 +29,22 @@ function menu_option_rank(opt)
 end
 
 """
-    update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false)
+    update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false, sort=true)
 
 Safely updates the options of a Makie `Menu` widget. 
 
-Because rapidly swapping underlying tuples in a GLMakie backend can trigger WebGL buffer crashes or infinite `onany` recursion loops, this function mathematically verifies if an update is strictly necessary. If options do change, it gracefully preserves the user's active selection. If that selection is no longer valid, it attempts to bind to the first available element in the `fallbacks` array before defaulting to index `1`.
+Because rapidly swapping underlying tuples in a GLMakie backend can trigger WebGL buffer crashes or infinite `onany` recursion loops, this function checks whether an update is necessary. If options do change, it gracefully preserves the user's active selection. If that selection is no longer valid, it attempts to bind to the first available element in the `fallbacks` array before defaulting to index `1`.
+The options are sorted with `menu_option_rank` (by label), unless `sort = false`: menus whose order means something
+(the components, the compare targets) keep the order of `new_options`.
 """
-function update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false)
+function update_menu_safe!(menu_widget, new_options; fallbacks=Any[], force_notify=false, sort::Bool=true)
     curr = menu_widget.selection[]
     
     # Ensure options are properly sorted by priority BEFORE comparing state
-    new_arr = isempty(new_options) ? Any[menu_opt(:none)] : sort(new_options, by=menu_option_rank)
+    new_arr = isempty(new_options) ? Any[menu_opt(:none)] : sort ? Base.sort(new_options, by=menu_option_rank) : collect(Any, new_options)
+    # an empty display name (`<empty>` on a Labels page) is shown by its key: Makie's Menu overflows the stack when
+    # it opens with an empty option label
+    new_arr = Any[_menu_label_ok(o) for o in new_arr]
     
     old_arr = menu_widget.options[]
     options_changed = false
@@ -161,6 +166,9 @@ end
 
 Specifically manages the application of loaded parameter constraints to Makie `Slider`s. 
 Because sliders automatically trigger data-fetching loops, this function safely clamps the target values to the sliders' natively allowable ranges and bypasses updates if the slider is holding a dummy `[0.0]` state.
+A value outside the slider's current range (e.g. a CSV loaded while other data is shown) is kept in
+`manager.pending_sliders` and applied once by the slider step that brings a range containing it, a new range or newly
+run data (clamped); moving the slider drops it.
 """
 function apply_slider_options!(slider_options::Dict)
     isempty(slider_options) && return
@@ -181,16 +189,21 @@ function apply_slider_options!(slider_options::Dict)
                 # Safely cache the desired CSV value
                 manager.slider_cache[w_key] = Float64(desired_val)
                 manager.plot_cache[key] = desired_val
+                delete!(manager.pending_sliders, w_key)
                 
                 rng = widget.range[]
                 
-                # If the range is a dummy placeholder, do not touch the widget
+                # If the range is a dummy placeholder, do not touch the widget (the cached value is applied when the
+                # slider gets a range)
                 if isempty(rng) || rng == [0.0]
                     continue
                 end
                 
                 val = clamp(Float64(desired_val), Float64(rng[1]), Float64(rng[end]))
+                val == desired_val || (manager.pending_sliders[w_key] = (Float64(desired_val), manager.data_generation))
                 set_close_to!(widget, val) 
+                # (a slider drag syncs the clamped position into the cache; the loaded value stays the one to restore)
+                manager.slider_cache[w_key] = Float64(desired_val)
             end
         end
     end
@@ -340,8 +353,9 @@ with bundled sources) needs a second request for the same file: the first one on
 line.
 """
 function _request_load(path::AbstractString)
-    if _load_runs_code(path) && manager.pending_code_load != path
-        manager.pending_code_load = path
+    key = _load_key(path)
+    if _load_runs_code(path) && manager.pending_code_load != key
+        manager.pending_code_load = key
         what = endswith(lowercase(path), ".jl") ? "is Julia code" : "bundles source files"
         _status!("$(basename(path)) $what that will be executed. Only load files you trust: click Load again to run it.", :warn)
         haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :orange)
@@ -349,6 +363,27 @@ function _request_load(path::AbstractString)
     end
     manager.pending_code_load = ""
     _handle_load(path)
+end
+
+# What a confirmation (the second Load) is for: the path and the content of the file and of the source files a CSV
+# bundles, so another file under the same name (a new upload, a file changed on disk) needs its own confirmation.
+function _load_key(path::AbstractString)
+    files = [path]
+    if !endswith(lowercase(path), ".jl")
+        names = try
+            get(get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict()), "bundled_sources", String[])
+        catch
+            String[]
+        end
+        for name in (names isa AbstractVector ? names : [names])
+            append!(files, filter(isfile, [joinpath(dirname(abspath(path)), string(name)), string(name)]))
+        end
+    end
+    h = hash(abspath(path))
+    for f in files
+        h = isfile(f) ? hash(read(f), h) : hash(f, h)
+    end
+    return "$(abspath(path))#$(string(h; base = 16))"
 end
 
 # Loads a CSV or a Julia configuration file and reports the result (status line, colour of the load button).
@@ -468,6 +503,7 @@ function receive_upload!(files::AbstractVector)
         write(joinpath(dir, name), last(f))
     end
     path = joinpath(dir, names[main])
+    manager.pending_code_load = ""   # every upload asks for its own confirmation
     @info "Uploaded $(join(names, ", ")) to $dir"
     _show_editor_text!(manager.widgets[:export_text], path)
     _request_load(path)
@@ -671,7 +707,8 @@ end
 function _wrap_status(text::String)
     n = STATUS_LINE_CHARS
     length(text) <= n && return text
-    cut = something(findlast(' ', first(text, n + 1)), n + 1)
+    # a character index (`findlast` on the string gives a byte index, wrong after multibyte characters such as → or ü)
+    cut = something(findlast(==(' '), collect(first(text, n + 1))), n + 1)
     line1, rest = rstrip(first(text, cut - 1)), lstrip(text[nextind(text, 0, cut):end])
     length(rest) > n && (rest = first(rest, n - 1) * "…")
     return line1 * "\n" * rest
@@ -884,11 +921,24 @@ function _show_editor_text!(tb, s::AbstractString)
     return nothing
 end
 
-# UI options holding colours are validated when edited: an invalid colour would only fail later, inside the
-# render loop, where it cannot be caught and leaves the studio unable to draw.
+# UI options the renderer can't draw with every value are validated when edited: an invalid colour, an empty list of
+# colours / markers / line styles, a colour range that isn't `[]` or `[lo, hi]` or fewer than 2 contour levels would
+# only fail later, inside the render loop. Returns `nothing` for a valid value, otherwise what a valid one is.
 const _COLOR_UI_KEYS = (:color, :colors)
-_valid_ui_value(key::Symbol, val) = key in _COLOR_UI_KEYS ? _valid_color(val) :
-                                    key === :color_map ? _valid_colormap(val) : true
+function _invalid_ui_reason(key::Symbol, val)
+    key in _COLOR_UI_KEYS && !_valid_color(val) && return "colour (e.g. :red, \"#1f77b4\" or (:blue, 0.5))"
+    key === :colors && (val isa AbstractVector && isempty(val)) && return "list of colours (at least one)"
+    key === :color_map && !_valid_colormap(val) && return "colormap (e.g. :viridis)"
+    key in (:markers, :line_styles) && !(val isa AbstractVector && !isempty(val)) &&
+        return "list of $(key === :markers ? "markers" : "line styles") (at least one, e.g. [:circle, :rect])"
+    key === :color_range && !(val isa Union{AbstractVector, Tuple} && length(val) in (0, 2) && all(v -> v isa Real, val)) &&
+        return "colour range: [] (automatic) or [lo, hi]"
+    key === :levels && !(val isa Integer && val >= 2) && return "number of contour levels (an integer ≥ 2)"
+    key in (:animation_FPS, :animation_time, :dpi) && !(val isa Real && isfinite(val) && val > 0) &&
+        return "$(key === :animation_FPS ? "frame rate" : key === :dpi ? "resolution" : "duration") (a positive number)"
+    return nothing
+end
+_valid_ui_value(key::Symbol, val) = isnothing(_invalid_ui_reason(key, val))
 
 # Value restored by typing `default` into the editor: the built-in default of a UI option, the baseline configuration
 # (see `reset_sim_config!`) of a simulation entry. Returns `missing` if there is none.
@@ -925,7 +975,38 @@ function _parse_editor_input(s::AbstractString, old)
         m = match(r"^\"(.*)\"$"s, txt)
         return isnothing(m) ? String(txt) : String(m.captures[1])
     end
-    return str2val(txt)
+    return str2val(_empty_literals(txt))
+end
+
+"""
+    _empty_literals(s)
+
+`s` with every `<empty>` outside quoted text replaced by `""`: `val2str` writes an empty text inside a vector or tuple
+as `<empty>` (`String[<empty>, "a"]`), which the editors show, so the shown text can be applied again.
+"""
+function _empty_literals(s::AbstractString)
+    occursin("<empty>", s) || return String(s)
+    out = IOBuffer()
+    quoted, escaped = false, false
+    i = firstindex(s)
+    while i <= lastindex(s)
+        c = s[i]
+        if !quoted && startswith(SubString(s, i), "<empty>")
+            print(out, "\"\"")
+            i = nextind(s, i, 7)
+            continue
+        end
+        if quoted && escaped
+            escaped = false
+        elseif quoted && c == '\\'
+            escaped = true
+        elseif c == '"'
+            quoted = !quoted
+        end
+        print(out, c)
+        i = nextind(s, i)
+    end
+    return String(take!(out))
 end
 
 # Flags or triggers whatever an editor change requires.
@@ -943,10 +1024,24 @@ function _after_editor_change!(cat, scope, key, target)
             w_key = get(manager.reverse_map, key, key)
             lbl_key = Symbol("$(w_key)_label")
             haskey(manager.widgets, lbl_key) && (manager.widgets[lbl_key][] = manager.labels[key] * ":")
+            _relabel_menus!(() -> notify(manager.plot_data))   # Chain A relabels the axis, animation and compare menus
         elseif scope === :components
-            notify(manager.widgets[:u_axis].selection)
+            _relabel_menus!(() -> notify(manager.widgets[:u_axis].selection))   # Chain C: the component menu
         end
         manager.triggers[:UI][] += 1
+    end
+    return nothing
+end
+
+# Runs the menu chains to relabel their menus after a display name changed. Nothing structural changed, so the layout
+# lock is held meanwhile: the watchers that flag *Apply Layout* / *Update Plot* skip the selection notifications.
+function _relabel_menus!(f)
+    was_locked = manager.locks[:Layout]
+    manager.locks[:Layout] = true
+    try
+        f()
+    finally
+        manager.locks[:Layout] = was_locked
     end
     return nothing
 end
@@ -1178,7 +1273,7 @@ end
 
 # Whether `scope` is (still) a page of the tab, e.g. not a method that was removed.
 function _editor_scope_valid(tab, scope)
-    tab === :files && scope === PRESET_FILE && return !isnothing(_preset_rows(manager.preset_kind, manager.preset_name))
+    tab === :files && scope === PRESET_FILE && return !isnothing(_preset_rows_or_nothing(manager.preset_kind, manager.preset_name))
     haskey(TAB_EDITOR_PAGES, tab) && return scope in TAB_EDITOR_PAGES[tab]
     tab === :shared && return scope === :shared && !isnothing(manager.active_config)
     if tab === :advanced && !isnothing(scope)
@@ -1279,10 +1374,30 @@ function _preset_row_action!(i::Int, which::Symbol)
              _status!("Preset '$name' could not be applied (see the log).", :warn)
         _render_editor!()
     elseif isnothing(_preset_file(_preset_kind_dir(kind), name))
-        _report(:warn, "'$name' is built in and has no file: apply it and save it under a new name to edit it.")
+        if kind === :visual && haskey(PRESET_DESCRIPTIONS, name)
+            _report(:warn, "'$name' is built in and has no file: apply it and save it under a new name to edit it.")
+        else
+            delete!(_preset_kind_registry(kind), name)
+            _report(:warn, "The file of the preset '$name' was removed.")
+            _render_editor!()
+        end
     else
+        _preset_rows(kind, name)   # a file that can't be read is reported (by the caller), the list stays
         manager.preset_name = name
         show_editor_page!(:files, PRESET_FILE)
+    end
+    return nothing
+end
+
+# Runs the action of a button; an error is logged and shown in the status line instead of escaping from the click
+# handler (in GLMakie that would stop the render loop and freeze the window).
+function _guarded(f, what::AbstractString)
+    try
+        f()
+    catch e
+        @error "$what failed" exception = (e, catch_backtrace())
+        msg = e isa LoadError ? sprint(showerror, e.error) : sprint(showerror, e)
+        _status!("$what failed: $(_short(first(split(msg, '\n')), 90))", :error)
     end
     return nothing
 end
@@ -1360,12 +1475,14 @@ end
 _raw_value(scope, key) = scope === :config ? getproperty(manager.active_config, key) : _raw_target(scope)[key]
 
 # A value exactly as stored: a Julia literal with its type (`20`, `0.5`, `"text"`, `:sym`, `Float64[0.1, 0.2]`).
-_raw_text(v) = isnothing(v) ? "nothing" : val2str(v; top_level = false)
+_raw_text(v) = isnothing(v) ? "nothing" : (v isa AbstractString && isempty(v)) ? "\"\"" : val2str(v; top_level = false)
 
-# Parses a raw literal; text must be quoted (anything that is no literal is refused).
+# Parses a raw literal; text must be quoted (anything that is no literal is refused). `<empty>` is the empty text, as
+# on the other editor pages.
 function _parse_raw(s::AbstractString)
     txt = strip(s)
-    v = str2val(txt)
+    txt == "<empty>" && return (true, "")
+    v = str2val(_empty_literals(txt))
     v isa AbstractString && !startswith(txt, '"') && return (false, nothing)
     return (true, v)
 end
@@ -1507,7 +1624,9 @@ function _add_method!()
     name = lstrip(_box_text(w[:method_add_name]), ':')
     isempty(name) && return _report(:warn, "Type the name of the new method.")
     m = Symbol(name)
-    (haskey(config.methods, m) || m in _RANK_0) && return _report(:warn, "'$m' exists already (or is a reserved name).")
+    # names starting with `#` are those of the editor's own pages (`#order`, `#methods`)
+    (haskey(config.methods, m) || m in _RANK_0 || startswith(name, '#')) &&
+        return _report(:warn, "'$m' exists already (or is a reserved name: shared, sweep, config, names starting with #).")
     config.methods[m] = create_param_dict()
     Makie.reset!(w[:method_add_name])
     manager.flags[:Simulation][] = true
@@ -1604,7 +1723,7 @@ function _render_editor!()
     mode = _editor_mode(tab, scope)
     cat = _scope_cat(tab, scope)
     if mode === :preset_file
-        manager.preset_file_rows = something(_preset_rows(manager.preset_kind, manager.preset_name), Vector{String}[])
+        manager.preset_file_rows = something(_preset_rows_or_nothing(manager.preset_kind, manager.preset_name), Vector{String}[])
     end
     items = mode === :overview ? _editor_scopes(cat) :
             mode === :rows ? _editor_keys(cat, scope) :
@@ -1847,7 +1966,7 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
             end
             cat === :labels ? set_label!(key, string(val)) : (target[key] = val)
         elseif cat === :labels
-            set_label!(key, String(s))
+            set_label!(key, strip(s) == "<empty>" ? "" : String(s))   # (as the other pages: `<empty>` is "")
         else
             val = _parse_editor_input(s, target[key])
             if !_valid_editor_value(s, target, key, val)
@@ -1855,9 +1974,9 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
                                "Use numbers, :symbols, [vectors], (tuples) or \"text\" in quotes.")
                 return false
             end
-            if cat === :ui && !_valid_ui_value(key, val)
-                _report(:warn, "'$key' was not changed: $(repr(val)) is not a valid " *
-                               (key === :color_map ? "colormap (e.g. :viridis)." : "colour (e.g. :red, \"#1f77b4\" or (:blue, 0.5))."))
+            reason = cat === :ui ? _invalid_ui_reason(key, val) : nothing
+            if !isnothing(reason)
+                _report(:warn, "'$key' was not changed: $(repr(val)) is not a valid $reason.")
                 return false
             end
             target[key] = val
@@ -1885,6 +2004,7 @@ function _valid_editor_value(s::AbstractString, target, key, val)
     (startswith(txt, '"') || !(val isa AbstractString || (val isa AbstractVector && any(v -> v isa AbstractString, val)))) && return true
     old = haskey(target, key) ? target[key] : nothing
     old isa AbstractString && return true
+    old isa AbstractVector && val isa AbstractVector && return true   # a vector literal with texts for a vector
     key in (_COLOR_UI_KEYS..., :color_map) && return true   # checked by `_valid_ui_value` (`#1f77b4`, `red`, `viridis`)
     (isnothing(old) || old === missing) && return true
     return false
@@ -2000,7 +2120,7 @@ function _setup_editor_interactions!()
         manager.listeners[Symbol("Method_Row_", i, "_", which)] = on(w[Symbol("method_row_", i, "_", which)].clicks) do _
             mode = _active_editor_mode()
             if mode === :preset_list
-                _preset_row_action!(i, which)
+                _guarded(() -> _preset_row_action!(i, which), which === :a ? "Applying the preset" : "Opening the preset")
             elseif mode === :adv_method_list
                 i <= length(manager.editor_row_keys) || return
                 m = manager.editor_row_keys[i]
@@ -2022,8 +2142,8 @@ function _setup_editor_interactions!()
     for (name, step) in ((:editor_prev, -1), (:editor_next, 1))
         manager.listeners[Symbol("Editor_Page_Turn_", step)] = on(w[name].clicks) do _
             cat = manager.active_tab[]
-            cat in EDITOR_TABS || return
-            scope, page = get(manager.editor_view, cat, (nothing, 1))
+            _editor_tab(cat) || return   # also the pages of the Files tab (preset lists and files)
+            scope, page = _view(cat)
             manager.editor_view[cat] = (scope, page + step)
             _render_editor!()
         end
@@ -2197,12 +2317,22 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         if is_anim
             !check_selection_validity(target_name) && return
         end
+        # (checked before the main window is shut down: a frame rate of NaN or 0 can't be recorded)
+        for key in (is_anim ? (:animation_FPS, :animation_time, :dpi) : (:dpi,))
+            reason = _invalid_ui_reason(key, get(manager.ui[:export], key, nothing))
+            if !isnothing(reason)
+                _report(:warn, "Not exported: $key = $(repr(get(manager.ui[:export], key, nothing))) is not a valid $reason " *
+                               "(Files → Settings ›).")
+                return
+            end
+        end
 
         was_locked = manager.camera_locked[]
         manager.camera_locked[] = true 
         extract_and_store_camera_state!(plot_layout)
         
         target_widget = is_anim ? get_target_widget(target_name) : nothing
+        export_obs = nothing
 
         try
             # 1. SHUT DOWN MAIN WINDOW (Prevents cache corruption and duplicate colorbars)
@@ -2210,7 +2340,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
             empty!(manager.main_render_observers)
             
             # 2. BUILD PRISTINE EXPORT FIGURE (Takes exclusive control of manager.caches)
-            export_fig, export_obs = build_pristine_export_figure()
+            export_fig, obs = build_pristine_export_figure()
+            export_obs = obs
             dpi_val = get(manager.ui[:export], :dpi, 300)
 
             manager.is_exporting = true
@@ -2266,13 +2397,12 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 _report(:warn, "No valid static formats selected and no animation extension provided. Export bypassed.")
             end
             
-            # 3. SHUT DOWN EXPORT LISTENERS
-            for obs in export_obs; off(obs); end
-            
         catch e
             @error "Export Failed" exception=(e, catch_backtrace())
             _status!("Export failed: $(_short(sprint(showerror, e), 90))", :error)
         finally
+            # 3. SHUT DOWN EXPORT LISTENERS (also after a failure: they would re-render into the export figure)
+            isnothing(export_obs) || foreach(off, export_obs)
             manager.is_exporting = false
             
             manager.camera_locked[] = was_locked
@@ -2317,10 +2447,14 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
             !check_selection_validity(target_name) && return
             
             target_widget = get_target_widget(target_name)
-            is_animating[] = true
-            
             duration = manager.ui[:export][:animation_time]
             fps = manager.ui[:export][:animation_FPS]
+            if !(fps isa Real && isfinite(fps) && fps > 0 && duration isa Real && isfinite(duration) && duration > 0)
+                _report(:warn, "Can't animate with animation_FPS = $(repr(fps)) and animation_time = $(repr(duration)): " *
+                               "set both to positive numbers (Files → Settings ›).")
+                return
+            end
+            is_animating[] = true
             rng = target_widget.range[]
             start_time = time()
             
@@ -2422,7 +2556,7 @@ function _setup_chain_A!(::Val{:eulerian})
                 # Use menu_opt instead of string()
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
-            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false)
+            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
 
             ptype = manager.widgets[:plot_style].selection[]
             p_dim = get(PLOT_DIM_MAP, ptype, 1)
@@ -2539,7 +2673,7 @@ function _setup_chain_A!(::Val{:lagrangian})
             for p_key in pd_first.active_param_keys
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
-            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false)
+            update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
         end
     end
 end
@@ -2681,7 +2815,7 @@ function _setup_chain_C!(mode::Val{T}) where T
                 
                 push!(c_options, (frontend_key(sym), i))
             end
-            update_menu_safe!(w[:component], c_options; fallbacks=[1])
+            update_menu_safe!(w[:component], c_options; fallbacks=[1], sort=false)   # in component order
         end
     end
 end

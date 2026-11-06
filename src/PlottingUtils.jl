@@ -79,7 +79,7 @@ end
 
 Dynamically constructs a plot title reflecting the exact position within a multi-dimensional parameter sweep.
 
-Iterates through all registered UI axes. If a dimension is actively mapped to a spatial or parameter axis (found in `plot_dims`), it labels it `[Axis]`. Otherwise, it prints the exact fixed slider value (e.g., `T = 0.500 | N = 100`).
+Iterates through all registered UI axes. If a dimension is actively mapped to a spatial or parameter axis (found in `plot_dims`), it labels it `[Axis]`. Otherwise, it prints the fixed value (e.g., `T = 0.500 | N = 100`): for a dimension of the data, the value of the snapshot or grid line drawn (the one of `sim_data`, the drawn dataset, nearest to the slider), not the slider position.
 """
 function generate_dynamic_title(
     plot_dims::Tuple, 
@@ -104,7 +104,7 @@ function generate_dynamic_title(
         if i in plot_dims
             push!(title_parts, "$name = [Axis]")
         elseif i <= length(sel_vals)
-            val = i <= n_params ? _param_display_value(i, sel_vals[i]) : sel_vals[i]
+            val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
             push!(title_parts, "$name = $(_fmt_value(val))")
         end
     end
@@ -112,6 +112,14 @@ function generate_dynamic_title(
     return join(title_parts, " | ")
 end
 
+# The value of the dimension `dim` that is drawn for the slider value `v`: the nearest one on the axis of the dataset
+# (each dataset shows its snapshot / grid line nearest to the slider).
+function _drawn_value(sim_data, dim::Symbol, v)
+    (isnothing(sim_data) || !(v isa Real)) && return v
+    vals = _get_dim_vals(Val(manager.mode[]), sim_data, dim)
+    (isnothing(vals) || isempty(vals)) && return v
+    return vals[findmin(x -> abs(x - v), vals)[2]]
+end
 
 """
     plot_reference_lines!(ax::Axis, exponents::Vector; label, color, line_style, kwargs...)
@@ -157,6 +165,9 @@ function plot_reference_lines!(
         end
         
         l = lines!(ax, pts; color=color, linestyle=line_style, label=label, kwargs...)
+        # Deleting the line (`delete_plots_by_label!` on every UI step) also detaches its listeners from the axis
+        # limits; they would otherwise pile up (one per UI step and exponent).
+        append!(getfield(l, :deregister_callbacks), pts.inputs)
         push!(plotted_lines, l)
     end
     return plotted_lines
@@ -168,12 +179,14 @@ Extracts the exact color range bounds from the UI dictionary or dynamically calc
 
 Always returns a `Makie.Vec2f` wrapped in an Observable to prevent ComputePipeline strict typing crashes during contourf level recalculations.
 """
-# Widens a (numerically) constant range `[lo, hi]` to a relative width of 1e-3 (absolute 1e-6 around zero).
-# A field that is constant up to floating-point noise (e.g. the initial state of a Riemann problem in `Float32`)
-# would otherwise get contour levels spaced below the data's precision, which makes Makie's `contourf` fail.
-function _pad_degenerate_range(lo::Real, hi::Real)
+# Widens a (numerically) constant range `[lo, hi]` (relative width up to `rtol`) to a relative width of 1e-3 (absolute
+# 1e-6 around zero). A field that is constant up to floating-point noise (e.g. the initial state of a Riemann problem in
+# `Float32`) would otherwise get contour levels spaced below the data's precision, which makes Makie's `contourf` fail.
+# (Colours are `Float32`, so colour ranges use the default; axis limits the precision of the data, see
+# `calculate_padded_axis_range`.)
+function _pad_degenerate_range(lo::Real, hi::Real; rtol::Real = 1e-5)
     scale = max(abs(lo), abs(hi))
-    hi - lo > 1e-5 * scale && return (lo, hi)
+    hi - lo > rtol * scale && return (lo, hi)
     pad = max(1e-3 * scale, 1e-6)
     return (lo - pad, hi + pad)
 end
@@ -181,7 +194,7 @@ end
 function get_colorrange(ui_app::Dict, u_data::AbstractArray)
     cr_val = ui_app[:color_range] 
     
-    if isempty(cr_val)
+    if length(cr_val) != 2 || !all(v -> v isa Real, cr_val)   # automatic (also for a value that isn't [lo, hi])
         valid_u = filter(isfinite, vec(u_data))
         l_u, h_u = isempty(valid_u) ? (0.0, 1.0) : (minimum(valid_u), maximum(valid_u))
         l_u, h_u = _pad_degenerate_range(l_u, h_u)
@@ -249,13 +262,13 @@ function delete_plots_by_label!(ax::Axis, label_to_delete::String)
 end
 
 """
-    set_axis_limits_manager!(ax::Axis, xs, us)
+    set_axis_limits_manager!(ax::Axis, xs, us; precision = Float64)
 
 Safely computes and applies the optimal bounding box for a 2D axis. 
 
 Handles extreme edge cases (like purely horizontal/vertical lines) by applying dynamic padding factors. It also proactively catches negative values before activating `log10` scales to prevent the Makie rendering engine from fatally crashing on domain errors.
 """
-function set_axis_limits_manager!(ax::Axis, xs, us)
+function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFloat} = Float64)
     
     ui_x = _axis_ui(:x_axis)
     ui_y = _axis_ui(:y_axis)
@@ -282,16 +295,16 @@ function set_axis_limits_manager!(ax::Axis, xs, us)
     is_locked = manager.camera_locked[]
     
     if !is_locked
-        final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x) 
-        final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y) 
+        final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision) 
+        final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision) 
         try limits!(ax, final_xlims..., final_ylims...) catch; end
     else
         # Safety net: If camera is locked but the current limits are invalid for a log scale, 
         # force an override to prevent a hard Makie crash.
         curr_lims = ax.finallimits[]
         if (use_log_x && curr_lims.origin[1] <= 0) || (use_log_y && curr_lims.origin[2] <= 0)
-            final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x) 
-            final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y) 
+            final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision) 
+            final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision) 
             try limits!(ax, final_xlims..., final_ylims...) catch; end
         end
     end
@@ -491,12 +504,20 @@ function create_or_update_colorbar!(plot_layout::GridLayout, plot_object, color_
     end
 end
 
-"""
-    calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool)
+# The smallest relative width of an axis range that Makie's tick labels resolve (below it every label reads the same):
+# narrower ranges are drawn as constant.
+const _AXIS_MIN_RTOL = 1e-6
 
-Computes the mathematically perfect padding around raw data limits, safely handling both linear and logarithmic coordinate spaces.
 """
-function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool)
+    calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool; precision = Float64)
+
+Computes the padding around raw data limits, safely handling both linear and logarithmic coordinate spaces. A range
+that is constant up to the round-off of the data's floating-point type `precision` (relative width up to
+`100 eps(precision)`), or narrower than the tick labels can resolve (relative width 1e-6), gets a relative width of
+1e-3 instead, so the noise doesn't fill the axis with repeated tick labels.
+"""
+function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool;
+                                     precision::Type{<:AbstractFloat} = Float64)
     min_raw, max_raw = raw_limits
     if isnothing(min_raw) || isnothing(max_raw) || !isfinite(min_raw) || !isfinite(max_raw)
         return is_log_scale ? (0.1, 1.0) : (0.0, 1.0)
@@ -508,8 +529,13 @@ function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is
         pad = log_range * padding_factor / 2.0
         return (10^(log_min - pad), 10^(log_max + pad))
     else
-        data_range = max_raw - min_raw
-        pad = data_range ≈ 0 ? 0.1 : (data_range * padding_factor / 2.0)
+        # A field constant up to the round-off of its type (e.g. a constant Float32 state), or varying by less than the
+        # tick labels can show (`_AXIS_MIN_RTOL`), gets the relative range of the colour ranges, so noise doesn't fill
+        # the axis with repeated tick labels; larger small variations stay visible; an exact zero keeps ±0.1.
+        min_raw == max_raw == 0 && return (-0.1, 0.1)
+        lo, hi = _pad_degenerate_range(min_raw, max_raw; rtol = max(100 * eps(precision), _AXIS_MIN_RTOL))
+        (lo, hi) == (min_raw, max_raw) || return (lo, hi)
+        pad = (max_raw - min_raw) * padding_factor / 2.0
         return (min_raw - pad, max_raw + pad)
     end
 end

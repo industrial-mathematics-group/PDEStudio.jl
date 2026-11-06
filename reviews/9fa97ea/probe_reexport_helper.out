@@ -1,0 +1,9 @@
+== /workspace/julia/PDEStudioDev/PDEStudio.jl
+loaded export 1: N = 25; sources = ["/tmp/jl_xTLnd4/exp_sources/helper.jl", "/tmp/jl_yDYybh/orig/config.jl"]
+export 2 records N = 25; bundled helper.jl: helper_N() = 24
+export 2 on its own (originals gone): N = 24, failures = String[]
+Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/ps/probe_reexport_helper.jl:28
+== /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/ps/oldsrc
+loaded export 1: N = 25; sources = ["/tmp/jl_scoe5w/orig/helper.jl", "/tmp/jl_scoe5w/orig/config.jl"]
+export 2 records N = 25; bundled helper.jl: helper_N() = 25
+export 2 on its own (originals gone): N = 25, failures = String[]

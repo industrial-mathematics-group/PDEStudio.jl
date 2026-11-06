@@ -1,0 +1,142 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Module save root path set to: /tmp/jl_4uXQWf
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 2 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (200, 50) (linear in space, nearest in time)...
+┌ Error: Export Failed
+│   exception =
+│    InexactError: Int64(NaN)
+│    Stacktrace:
+│      [1] Int64
+│        @ ./float.jl:925 [inlined]
+│      [2] convert
+│        @ ./number.jl:7 [inlined]
+│      [3] _round_convert
+│        @ ./rounding.jl:489 [inlined]
+│      [4] round
+│        @ ./rounding.jl:488 [inlined]
+│      [5] round(::Type{Int64}, x::Float64)
+│        @ Base ./rounding.jl:486
+│      [6] (::PDEStudio.var"#_setup_export_interactions!##15#_setup_export_interactions!##16"{Figure, GridLayout, PDEStudio.var"#build_pristine_export_figure#_setup_export_interactions!##6"{GridLayout}, PDEStudio.var"#check_selection_validity#_setup_export_interactions!##5"{PDEStudio.var"#get_target_widget#_setup_export_interactions!##4"}, PDEStudio.var"#get_target_widget#_setup_export_interactions!##4", Observable{Any}, Textbox})(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/UILogic.jl:2278
+│      [7] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│      [8] setindex!(observable::Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│      [9] click_button!(k::Symbol)
+│        @ Main ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/common.jl:22
+│     [10] top-level scope
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:11
+│     [11] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [12] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:15 [inlined]
+│     [13] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [14] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:20 [inlined]
+│     [15] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [16] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [17] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/UILogic.jl:2326
+[ Info: Restoring main UI...
+┌ Info: after the failed export (before any update)
+└   cache_plots_in(fig) = true
+┌ Info: after Update Plot
+└   cache_plots_in(fig) = true
+┌ Info: main lines before
+└   length(y0) = 200
+┌ Info: slider moved
+│   cache_plots_in(fig) = true
+└   (lp[1])[] != y0 = true
+┌ Error: Export Failed
+│   exception =
+│    InexactError: Int64(NaN)
+│    Stacktrace:
+│      [1] Int64
+│        @ ./float.jl:925 [inlined]
+│      [2] convert
+│        @ ./number.jl:7 [inlined]
+│      [3] _round_convert
+│        @ ./rounding.jl:489 [inlined]
+│      [4] round
+│        @ ./rounding.jl:488 [inlined]
+│      [5] round(::Type{Int64}, x::Float64)
+│        @ Base ./rounding.jl:486
+│      [6] (::PDEStudio.var"#_setup_export_interactions!##15#_setup_export_interactions!##16"{Figure, GridLayout, PDEStudio.var"#build_pristine_export_figure#_setup_export_interactions!##6"{GridLayout}, PDEStudio.var"#check_selection_validity#_setup_export_interactions!##5"{PDEStudio.var"#get_target_widget#_setup_export_interactions!##4"}, PDEStudio.var"#get_target_widget#_setup_export_interactions!##4", Observable{Any}, Textbox})(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/UILogic.jl:2278
+│      [7] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│      [8] setindex!(observable::Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│      [9] click_button!(k::Symbol)
+│        @ Main ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/common.jl:22
+│     [10] top-level scope
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:11
+│     [11] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [12] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:15 [inlined]
+│     [13] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [14] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:34 [inlined]
+│     [15] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [16] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [17] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/UILogic.jl:2326
+[ Info: Restoring main UI...
+┌ Info: listeners after 2 failed exports
+└   length((manager.triggers[:Plot]).listeners) = 3
+ERROR: LoadError: Some tests did not pass: 3 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:10
+
+N1 (impact): after a failed export the plot caches belong to the export figure: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:37
+  Expression: length((manager.triggers[:Plot]).listeners) == 1
+   Evaluated: 3 == 1
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:11
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:15 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a2b.jl:37 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                                                    | Pass  Fail  Total   Time
+ps-a probe 2                                                                     |    3     1      4  13.7s
+  N1 (impact): after a failed export the plot caches belong to the export figure |    3     1      4   3.8s
+RNG of the outermost testset: Random.Xoshiro(0xf5bef72e1d946ccb, 0x8ef14d36c5ee07cf, 0x00d7484d6c2d7bd9, 0x92cf157b7c665ac7, 0xaa70deb5f30e6ae6)

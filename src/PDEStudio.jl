@@ -138,7 +138,7 @@ Base.@kwdef mutable struct PlotManager
     active_axes::Observable{Vector{Int}} = Observable{Vector{Int}}(Int[])    # indices into plot_vars bound to plot axes
     method_filter::Symbol = :all                                              # methods listed by the Methods tab
     allowed_styles::Vector{Symbol} = Symbol[]                                 # plot styles the data allows (empty: all)
-    pending_code_load::String = ""                                            # file that runs code, waiting for a second Load
+    pending_code_load::String = ""                                            # file that runs code (path#content hash), waiting for a second Load
     source_failures::Vector{String} = String[]                                # bundled sources that failed in the last load
     preset_kind::Symbol = :simulation                                         # presets listed in the Files tab
     preset_name::Symbol = Symbol("")                                          # preset file open in the Files tab
@@ -151,6 +151,10 @@ Base.@kwdef mutable struct PlotManager
     # --- persistent caches (they outlive a closed window) ---
     camera_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     slider_cache::Dict{Symbol, Float64} = Dict{Symbol, Float64}()
+    pending_sliders::Dict{Symbol, Tuple{Float64, Int}} =               # loaded slider positions not yet in range
+        Dict{Symbol, Tuple{Float64, Int}}()                              #   (value, data_generation when loaded)
+    data_generation::Int = 0                                             # counts the data loads of "Run Simulation"
+    stored_time_counts::Dict{String, Int} = Dict{String, Int}()       # data file#mtime => stored snapshots (0: not a grid)
     layout_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     plot_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     exploration_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
@@ -213,6 +217,9 @@ get_base_variables() = collect(manager.allowed_dims)
     set_resolution!(dim::Symbol, val::Int; is_ref::Bool=false)
 
 Dynamically sets the internal interpolation and rendering resolution for a specific spatial or temporal dimension. Can target either the numerical baseline grid or the highly-resolved analytical reference grid.
+For a time axis it is the most snapshots shown: data is not interpolated in time, but shows its stored snapshots (all of
+them up to `val`, otherwise `val` of them, evenly spread); a reference uses the times of the data it is drawn with (at
+most `val` of them with `is_ref = true`).
 """
 function set_resolution!(dim::Symbol, val::Int; is_ref::Bool=false)
     target = is_ref ? manager.resolution_ref : manager.resolution_base
@@ -385,6 +392,7 @@ function simulation_trigger()
         manager.locks[:Layout] = true
         try
             update_plot_data_collection!(manager.plot_data[], curr_config, manager.methods[]; force_reload = true)
+            manager.data_generation += 1
             notify(manager.plot_data)
         finally
             manager.locks[:Layout] = false

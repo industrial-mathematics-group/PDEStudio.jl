@@ -1,0 +1,218 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Module save root path set to: /tmp/jl_kCGKoO
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+Running simulations...  33%|█████████▍                  |  ETA: 0:00:00[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 6 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+Calculating stats...  33%|██████████                    |  ETA: 0:00:07[KCalculating stats... 100%|██████████████████████████████| Time: 0:00:03[K
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 65) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 27) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 65) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 27) to (200, 50) (linear in space, nearest in time)...
+[ Info: Loading configuration from CSV: /tmp/jl_E35TTM/bad.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_klhYsj/bad.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+┌ Error: Updating the plot failed; the current plot style or options could not be drawn for this data. Change them (e.g. the plot style, colours or levels) and click 'Update Plot' again.
+│   exception =
+│    DivideError: integer division error
+│    Stacktrace:
+│      [1] div
+│        @ ./int.jl:341 [inlined]
+│      [2] div
+│        @ ./div.jl:325 [inlined]
+│      [3] div
+│        @ ./div.jl:366 [inlined]
+│      [4] fld
+│        @ ./div.jl:336 [inlined]
+│      [5] mod
+│        @ ./int.jl:327 [inlined]
+│      [6] mod1
+│        @ ./operators.jl:896 [inlined]
+│      [7] initialize_base_plot!(plot_layout::GridLayout, ax::Axis, active_methods::Vector{Symbol}, data_tuples::Tuple{Vector{Any}, Vector{Any}}, x_key::String, y_key::String, z_key::String, u_key::String, title_str::String, ::Val{:lines_1d}, plot_idx::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/Render.jl:127
+│      [8] _handle_plot_trigger!(::Val{:lines_1d}, plot_layout::GridLayout, axes::Vector{Any}, num_plots::Int64, compare_labels::Vector{String}, x_sel::Observable{Any}, y_sel::Observable{Any}, z_sel::Observable{Any}, u_sel::Observable{Any}, c_sel::Observable{Any}, selector_obs::Vector{Observable{Any}}, _build_param_indices::typeof(PDEStudio._build_param_indices), _mutate_compare_vals::typeof(PDEStudio._mutate_compare_vals))
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/PlottingLogic.jl:108
+│      [9] macro expansion
+│        @ /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:515 [inlined]
+│     [10] macro expansion
+│        @ /workspace/julia/PDEStudioDev/PDEStudio.jl/src/PDEStudio.jl:272 [inlined]
+│     [11] (::PDEStudio.var"#setup_render_lift!##0#setup_render_lift!##1"{:lines_1d, GridLayout, Vector{Observable{Any}}, Observable{Any}, Observable{Any}, Observable{Any}, Observable{Any}, Observable{Any}, Vector{String}, Int64, Vector{Any}})(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:513
+│     [12] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [13] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [14] (::PDEStudio.var"#setup_plot_window!##3#setup_plot_window!##4"{PDEStudio.var"#rebuild_plot_layout!#setup_plot_window!##0"{Figure, GridLayout}})(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:456
+│     [15] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [16] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [17] (::PDEStudio.var"#setup_plot_window!##7#setup_plot_window!##8")(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:472
+│     [18] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [19] setindex!(observable::Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│     [20] click_button!(b::Symbol)
+│        @ Main ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:15
+│     [21] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:38 [inlined]
+│     [22] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [23] top-level scope
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:33
+│     [24] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [25] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [26] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:518
+┌ Error: Updating the plot failed; the current plot style or options could not be drawn for this data. Change them (e.g. the plot style, colours or levels) and click 'Update Plot' again.
+│   exception =
+│    DivideError: integer division error
+│    Stacktrace:
+│      [1] div
+│        @ ./int.jl:341 [inlined]
+│      [2] div
+│        @ ./div.jl:325 [inlined]
+│      [3] div
+│        @ ./div.jl:366 [inlined]
+│      [4] fld
+│        @ ./div.jl:336 [inlined]
+│      [5] mod
+│        @ ./int.jl:327 [inlined]
+│      [6] mod1
+│        @ ./operators.jl:896 [inlined]
+│      [7] initialize_base_plot!(plot_layout::GridLayout, ax::Axis, active_methods::Vector{Symbol}, data_tuples::Tuple{Vector{Any}, Vector{Any}}, x_key::String, y_key::String, z_key::String, u_key::String, title_str::String, ::Val{:lines_1d}, plot_idx::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/Render.jl:127
+│      [8] _handle_plot_trigger!(::Val{:lines_1d}, plot_layout::GridLayout, axes::Vector{Any}, num_plots::Int64, compare_labels::Vector{String}, x_sel::Observable{Any}, y_sel::Observable{Any}, z_sel::Observable{Any}, u_sel::Observable{Any}, c_sel::Observable{Any}, selector_obs::Vector{Observable{Any}}, _build_param_indices::typeof(PDEStudio._build_param_indices), _mutate_compare_vals::typeof(PDEStudio._mutate_compare_vals))
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/PlottingLogic.jl:108
+│      [9] macro expansion
+│        @ /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:515 [inlined]
+│     [10] macro expansion
+│        @ /workspace/julia/PDEStudioDev/PDEStudio.jl/src/PDEStudio.jl:272 [inlined]
+│     [11] (::PDEStudio.var"#setup_render_lift!##0#setup_render_lift!##1"{:lines_1d, GridLayout, Vector{Observable{Any}}, Observable{Any}, Observable{Any}, Observable{Any}, Observable{Any}, Observable{Any}, Vector{String}, Int64, Vector{Any}})(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:513
+│     [12] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [13] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [14] (::PDEStudio.var"#setup_plot_window!##5#setup_plot_window!##6")(::Int64)
+│        @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:464
+│     [15] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [16] setindex!(observable::Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│     [17] click_button!(b::Symbol)
+│        @ Main ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:15
+│     [18] macro expansion
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:39 [inlined]
+│     [19] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [20] top-level scope
+│        @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:33
+│     [21] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [22] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [23] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/MakiePlotting.jl:518
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_EaBsir/bad.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+ERROR: LoadError: Some tests did not pass: 2 passed, 4 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:31
+  color_range = [1.0]: stored [1.0]; exception: BoundsError: attempt to access 1-element Vector{Float64} at index [2]
+
+CSV with style values the renderer can't draw: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:46
+  Expression: isnothing(err)
+   Evaluated: isnothing(BoundsError([1.0], (2,)))
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:46 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:33
+
+CSV with style values the renderer can't draw: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:47
+  Expression: PDEStudio._valid_ui_value(Symbol(key), (manager.ui[:plot_style])[Symbol(key)])
+   Evaluated: PDEStudio._valid_ui_value(color_range, [1.0])
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:47 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:33
+  colors = Any[]: stored Any[]; no exception
+
+CSV with style values the renderer can't draw: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:47
+  Expression: PDEStudio._valid_ui_value(Symbol(key), (manager.ui[:plot_style])[Symbol(key)])
+   Evaluated: PDEStudio._valid_ui_value(colors, Any[])
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:47 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:33
+  line_styles = Any[]: stored Any[]; no exception
+
+CSV with style values the renderer can't draw: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:47
+  Expression: PDEStudio._valid_ui_value(Symbol(key), (manager.ui[:plot_style])[Symbol(key)])
+   Evaluated: PDEStudio._valid_ui_value(line_styles, Any[])
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:47 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-b/probe_gui.jl:33
+Test Summary:                                 | Pass  Fail  Total  Time
+CSV with style values the renderer can't draw |    2     4      6  2.0s
+RNG of the outermost testset: Random.Xoshiro(0x111c383dd900eaf6, 0x3341d651b68e27cd, 0x8aa1b8d45e196aa1, 0x4cabe8be06a1f0a8, 0x78bdb48b01980c1a)
