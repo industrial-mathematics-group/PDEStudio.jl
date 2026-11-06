@@ -384,10 +384,14 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
         csv = joinpath(mktempdir(), "res.csv")
         write(csv, "Category,Scope,Parameter,Value\nConfig,Resolution_Base,x,0\nConfig,Resolution_Base,t,1\n" *
-                   "Config,Resolution_Ref,x,2.5\nConfig,Resolution_Ref,t,80\n")
+                   "Config,Resolution_Ref,x,2.5\nConfig,Resolution_Ref,t,80\n" *
+                   "Config,Resolution_Base,y,1e20\nConfig,Resolution_Ref,y,99999999999999999999\nConfig,Resolution_Base,z,true\n")
         @test_logs (:warn, r"Ignoring the Resolution_Base row x") (:warn, r"Ignoring the Resolution_Ref row x") match_mode = :any PDEStudio.load_and_apply_csv!(csv)
         @test PDEStudio.get_resolution(:t) == 1 && PDEStudio.get_resolution(:t; is_ref = true) == 80
         @test PDEStudio.get_resolution(:x) == 100 && PDEStudio.get_resolution(:x; is_ref = true) == 200
+        # huge values (also beyond Int64) and booleans are ignored too, not a failing load
+        @test PDEStudio.get_resolution(:y) == 100 && PDEStudio.get_resolution(:y; is_ref = true) == 200
+        @test PDEStudio.get_resolution(:z) == 100
         reset_manager!()
     end
 
@@ -428,35 +432,100 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
         out1 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out1, Dict("Save Type" => "test"))
-        # unchanged originals: the copies run as the originals, which stay the sources (later edits are picked up)
+        # unchanged originals: the copies run as the originals and are the sources; an export records the originals
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
         @test N() == 24 && isempty(PDEStudio.manager.source_note)
-        @test realpath(joinpath(srcdir, "helper.jl")) in realpath.(PDEStudio.manager.active_config.sources)
-        # the included helper was edited since the export: the exported version runs (also its helper), the copies
-        # are the sources, the status line says so, and a re-export reproduces the first export
+        @test all(s -> startswith(realpath(s), realpath(joinpath(out1, "exp_sources"))), PDEStudio.manager.active_config.sources)
+        out0 = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out0, Dict("Save Type" => "test"))
+        origins = PDEStudio.parse_csv_to_dict(joinpath(out0, "exp.csv"))["Metadata"]["General"]["source_origins"]
+        @test sort(basename.(origins)) == ["cfg.jl", "helper.jl"] && all(o -> dirname(o) == abspath(srcdir), origins)
+        # the included helper was edited since the export: the exported version runs (also its helper), the status
+        # line says so, and a re-export reproduces the first export
         write_sources(25)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
-        @test N() == 24 && occursin("changed since the export", PDEStudio.manager.source_note)
+        @test N() == 24 && occursin("helper.jl changed since the export", PDEStudio.manager.source_note)
         @test all(s -> startswith(realpath(s), realpath(joinpath(out1, "exp_sources"))), PDEStudio.manager.active_config.sources)
         out2 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out2, Dict("Save Type" => "test"))
         @test bundled_N(out2) == 24
+        # loading a .jl file afterwards clears the note
+        PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
+        @test isempty(PDEStudio.manager.source_note)
         rm(srcdir; recursive = true)                       # without the originals the second export still reproduces
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out2, "exp.csv"))
         @test N() == 24 && isempty(PDEStudio.manager.source_failures)
-        # a missing copy whose original exists: the original runs and is a source (the next export bundles it)
+        @test occursin("the original cfg.jl is gone", PDEStudio.manager.source_note)
+        # a missing copy whose original exists: the original runs (its includes of bundled files run the copies) and
+        # is a source, so the next export bundles it
         mkpath(srcdir)
-        write_sources(24)
+        write_sources(25)
         rm(joinpath(out1, "exp_sources", "cfg.jl"))
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
         @test N() == 24 && realpath(joinpath(srcdir, "cfg.jl")) in realpath.(PDEStudio.manager.active_config.sources)
+        @test occursin("cfg.jl is missing from the export", PDEStudio.manager.source_note)
         out3 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out3, Dict("Save Type" => "test"))
-        @test isfile(joinpath(out3, "exp_sources", "cfg.jl"))
+        @test isfile(joinpath(out3, "exp_sources", "cfg.jl")) && bundled_N(out3) == 24
+        reset_manager!()
+    end
+
+    @testset "Bundled sources: files that aren't bundled, absolute paths, symlinks" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        srcdir = mktempdir()
+        # only the configuration is a source (as `load_config_file!` lists it); it includes an unlisted helper, reads
+        # a data file next to itself and includes a listed helper by absolute path
+        abs_helper = joinpath(mktempdir(), "abs_helper.jl")
+        function write_sources(n, m)
+            write(joinpath(srcdir, "util.jl"), "util_N() = 10\n")
+            write(joinpath(srcdir, "n.txt"), "3")
+            write(abs_helper, "abs_N() = $m\n")
+            write(joinpath(srcdir, "cfg.jl"), """
+                include("util.jl")
+                include($(repr(abs_helper)))
+                SimulationConfig(create_param_dict(:N => $n + util_N() + abs_N() + parse(Int, read(joinpath(@__DIR__, "n.txt"), String)),
+                                                   :sim_func_name => :advection_solver_1d),
+                                 create_method_dict(:m => create_param_dict()), [:m]; sources = [$(repr(abs_helper))])
+                """)
+        end
+        N() = PDEStudio.manager.active_config.shared[:N]
+        write_sources(100, 1000)
+        PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
+        @test N() == 1113
+        out1 = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out1, Dict("Save Type" => "test"))
+        # both listed files edited: the exported ones run, the unlisted helper and the data file are found next to
+        # the original, and the absolute include runs the bundled copy
+        write_sources(200, 2000)
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
+        @test isempty(PDEStudio.manager.source_failures) && N() == 1113
+        @test !(abspath(abs_helper) in PDEStudio.manager.active_config.sources)   # the copy is the source
+        out2 = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out2, Dict("Save Type" => "test"))
+        rm(abs_helper)
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out2, "exp.csv"))
+        @test isempty(PDEStudio.manager.source_failures) && N() == 1113
+        # a symlinked source is bundled as a file, so later edits through the link are seen as edits
+        linkdir = mktempdir()
+        write(joinpath(linkdir, "real.jl"), "SimulationConfig(create_param_dict(:N => 7, :sim_func_name => :advection_solver_1d), " *
+                                           "create_method_dict(:m => create_param_dict()), [:m])\n")
+        symlink(joinpath(linkdir, "real.jl"), joinpath(linkdir, "link.jl"))
+        reset_manager!()
+        PDEStudio.load_config_file!(joinpath(linkdir, "link.jl"))
+        out3 = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out3, Dict("Save Type" => "test"))
+        @test !islink(joinpath(out3, "exp_sources", "link.jl"))
+        write(joinpath(linkdir, "real.jl"), replace(read(joinpath(linkdir, "real.jl"), String), "7" => "8"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out3, "exp.csv"))
+        @test N() == 7 && occursin("changed since the export", PDEStudio.manager.source_note)
         reset_manager!()
     end
 
@@ -536,6 +605,8 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test PDEStudio._parse_raw(PDEStudio._raw_text(Any['"', ""])) == (true, Any['"', ""])
         @test PDEStudio._empty_literals("Any['\\'', <empty>]") == "Any['\\'', \"\"]"
         @test PDEStudio._empty_literals("x' * <empty>") == "x' * \"\""
+        @test PDEStudio._empty_literals("c in '\"' ? <empty> : 1") == "c in '\"' ? \"\" : 1"   # a Char after a keyword
+        @test PDEStudio._empty_literals("xin' * <empty>") == "xin' * \"\""                    # ... not after a name
         shown = PDEStudio._editor_display(["", "a"])
         @test PDEStudio._parse_editor_input(shown, ["q"]) == ["", "a"]
         @test PDEStudio._valid_editor_value(shown, Dict(:tags => ["q"]), :tags, ["", "a"])
@@ -564,13 +635,13 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64)
             @test hi - lo ≥ 2e-3 && lo < minimum(v) && hi > maximum(v)
         end
-        # ... unless the axis labels resolve it (a `scale_offset` or a custom tick format): then only round-off is flat
+        # ... unless the axis labels resolve it (a `scale_offset`): then only round-off is flat
         v = 1 .+ 1e-9 .* sin.(range(0, 2π, length = 50))
         lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64,
                                                       fine_labels = true)
         @test (maximum(v) - minimum(v)) / (hi - lo) > 0.9
         @test PDEStudio._fine_labels(Dict(:scale_offset => 1.0, :tick_format => "default"))
-        @test PDEStudio._fine_labels(Dict(:scale_offset => 0.0, :tick_format => "{:.12f}"))
+        @test !PDEStudio._fine_labels(Dict(:scale_offset => 0.0, :tick_format => "{:.2f}"))   # may show fewer digits
         @test !PDEStudio._fine_labels(Dict(:scale_offset => 0.0, :tick_format => "default"))
         @test PDEStudio.calculate_padded_axis_range((0.0, 1.0), 0.1, false) == (-0.05, 1.05)
         @test PDEStudio.calculate_padded_axis_range((0.0, 0.0), 0.1, false) == (-0.1, 0.1)

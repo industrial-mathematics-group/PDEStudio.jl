@@ -516,7 +516,7 @@ Computes the padding around raw data limits, safely handling both linear and log
 that is constant up to the round-off of the data's floating-point type `precision` (relative width up to
 `100 eps(precision)`), or narrower than the default tick labels can resolve (relative width 1e-6), gets a relative
 width of 1e-3 instead, so the noise doesn't fill the axis with repeated tick labels. With `fine_labels` (the axis has a
-`scale_offset` or a custom `tick_format`, whose labels resolve such deviations) only round-off is drawn flat.
+`scale_offset`, whose offset labels resolve such deviations) only round-off is drawn flat.
 """
 function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool;
                                      precision::Type{<:AbstractFloat} = Float64, fine_labels::Bool = false)
@@ -534,8 +534,7 @@ function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is
         # A field constant up to the round-off of its type (e.g. a constant Float32 state), or varying by less than the
         # tick labels can show (`_AXIS_MIN_RTOL`), gets the relative range of the colour ranges, so noise doesn't fill
         # the axis with repeated tick labels; larger small variations stay visible; an exact zero keeps ±0.1.
-        # With labels that resolve small deviations (`fine_labels`: a `scale_offset` or a custom tick format) only
-        # round-off is flattened.
+        # With labels that resolve small deviations (`fine_labels`: a `scale_offset`) only round-off is flattened.
         min_raw == max_raw == 0 && return (-0.1, 0.1)
         rtol = fine_labels ? 100 * eps(precision) : max(100 * eps(precision), _AXIS_MIN_RTOL)
         lo, hi = _pad_degenerate_range(min_raw, max_raw; rtol)
@@ -545,9 +544,9 @@ function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is
     end
 end
 
-# Whether the tick labels of an axis resolve deviations far below the value (`set_axis_styles!`): an offset label
-# (`1.0 + 5.0e-10`) or a custom format.
-_fine_labels(ui) = get(ui, :scale_offset, 0.0) != 0 || get(ui, :tick_format, "default") != "default"
+# Whether the tick labels of an axis resolve deviations far below the value (`set_axis_styles!`): offset labels
+# (`1.0 + 5.0e-10`). A custom tick format doesn't count, it may show fewer digits than the default labels.
+_fine_labels(ui) = get(ui, :scale_offset, 0.0) != 0
 
 """
     _safe_extrema(data_slices)

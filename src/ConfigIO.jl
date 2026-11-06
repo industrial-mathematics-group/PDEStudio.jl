@@ -249,35 +249,56 @@ _keysyms(d) = Dict{Symbol, Any}(Symbol(k) => v for (k, v) in d)
 # ------------------------------------------------------------------------------
 
 """
-    _include_as(mod, file, as)
+    _include_as(mod, file, as, copies = Dict{String, String}())
 
 Runs the code of `file` in `mod` as if it were the file `as`: `@__DIR__` and relative `include`s resolve next to
 `as`. Used to run the snapshot of a source file bundled with an export at the place of its original, so it finds the
-files it includes there while that folder exists. (Sets the task-local source path that `Base.include` uses.)
+files next to the original that aren't bundled (helpers it includes, data files). `include`s of the files in `copies`
+(original path => bundled copy) run the copy instead, also as the original (see `_redirect_includes`). (Sets the
+task-local source path that `Base.include` uses.)
 """
-function _include_as(mod::Module, file::AbstractString, as::AbstractString)
+function _include_as(mod::Module, file::AbstractString, as::AbstractString,
+                     copies::Dict{String, String} = Dict{String, String}())
     tls = task_local_storage()
     previous = get(tls, :SOURCE_PATH, nothing)
     tls[:SOURCE_PATH] = as
     try
-        return Base.include_string(mod, read(file, String), as)
+        return Base.include_string(ex -> _redirect_includes(ex, dirname(as), copies), mod, read(file, String), as)
     finally
         isnothing(previous) ? delete!(tls, :SOURCE_PATH) : (tls[:SOURCE_PATH] = previous)
     end
+end
+
+# Replaces the `include(path)` calls of code that runs in `dir` by `_bundled_include`, which runs the bundled copy of
+# a file in `copies` and includes any other file as usual (redirecting its `include`s in the same way).
+function _redirect_includes(ex, dir::AbstractString, copies::Dict{String, String})
+    (ex isa Expr && !isempty(copies)) || return ex
+    ex.head in (:quote, :inert) && return ex
+    if ex.head === :call && length(ex.args) == 2 && ex.args[1] === :include &&
+       !(ex.args[2] isa Expr && ex.args[2].head in (:..., :parameters))
+        return Expr(:call, _bundled_include, Expr(:macrocall, Symbol("@__MODULE__"), LineNumberNode(0)), dir,
+                    _redirect_includes(ex.args[2], dir, copies), copies)
+    end
+    return Expr(ex.head, (_redirect_includes(a, dir, copies) for a in ex.args)...)
+end
+
+function _bundled_include(mod::Module, dir::AbstractString, path::AbstractString, copies::Dict{String, String})
+    file = normpath(isabspath(path) ? path : joinpath(dir, path))
+    copy = get(copies, file, nothing)
+    isnothing(copy) || return _include_as(mod, copy, file, copies)
+    return Base.include(ex -> _redirect_includes(ex, dirname(file), copies), mod, file)
 end
 
 """
     _run_bundled_sources(parsed, filepath)
 
 Includes the source files bundled with an exported CSV into the target module (this executes their code). The export
-runs as it was exported:
-- if every bundled copy has the content of its original (and the originals exist), the copies run as their
-  originals: relative `include`s and `@__DIR__` resolve there, and the originals are the sources of the loaded
-  configuration (later edits of them are picked up);
-- otherwise (an original was edited, moved or deleted since the export) every copy runs from the bundle folder, so
-  relative `include`s resolve to the bundled helpers and the configuration is the exported one; the copies are its
-  sources, and the status line says so (`manager.source_note`).
-A missing copy is replaced by its original if that still exists.
+runs as it was exported: every bundled copy runs, and the copies are the sources of the loaded configuration (the
+next export bundles what ran). A copy runs as its original while the original's folder exists: `@__DIR__` and
+relative `include`s resolve there, so files that aren't bundled (helpers that aren't listed as sources, data files)
+are found, while `include`s of bundled files run their copies. If the folder is gone, the copy runs in the bundle
+folder. A missing copy is replaced by its original if that still exists. If an original was edited since the export,
+or a copy or an original is missing, the status line says so (`manager.source_note`).
 
 A source that fails doesn't abort the load: the error is reported (log and status line) and the parameters come
 from the CSV, so the solver functions must then be defined some other way (e.g. by loading their package).
@@ -305,14 +326,25 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     end
     bundled = String[copy_of(name) for name in names]
     origin(i) = i <= length(origins) ? origins[i] : ""
-    unchanged(i) = !isempty(origin(i)) && isfile(origin(i)) && read(origin(i)) == read(bundled[i])
-    as_originals = all(i -> isempty(bundled[i]) || unchanged(i), eachindex(bundled))
-    if !as_originals
-        edited = [basename(origin(i)) for i in eachindex(bundled)
-                  if !isempty(bundled[i]) && !isempty(origin(i)) && isfile(origin(i)) && !unchanged(i)]
-        manager.source_note = !isempty(edited) ? "$(join(edited, ", ")) changed since the export: the exported version ran" :
-            any(!isempty, origins) ? "the original sources are gone: the exported ones ran" : ""   # (older exports: none recorded)
+    copies = Dict{String, String}(normpath(origin(i)) => bundled[i] for i in eachindex(bundled)
+                                  if !isempty(bundled[i]) && !isempty(origin(i)))
+    for (orig, copy) in copies
+        manager.source_origins[copy] = orig   # the next export records the original, not the copy
     end
+    notes = String[]
+    for i in eachindex(bundled)
+        isempty(origin(i)) && continue   # (older exports record no originals)
+        name = basename(origin(i))
+        if isempty(bundled[i])
+            isfile(origin(i)) && push!(notes, "$name is missing from the export: its original ran")
+        elseif !isfile(origin(i))
+            push!(notes, "the original $name is gone: the exported one ran")
+        elseif read(origin(i)) != read(bundled[i])
+            push!(notes, "$name changed since the export: the exported version ran")
+        end
+    end
+    manager.source_note = join(notes, "; ")
+    isempty(notes) || @warn "Loading $(basename(filepath)): $(manager.source_note)."
 
     ran = String[]
     last_result = nothing
@@ -324,11 +356,11 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
             continue
         end
         file = isempty(copy) ? origin(i) : copy
-        runs_as = isempty(copy) || as_originals ? origin(i) : copy
+        runs_as = !isempty(origin(i)) && isdir(dirname(origin(i))) ? origin(i) : file
         @info "Executing bundled source: $(basename(file))" * (runs_as == file ? "" : " (as $runs_as)")
-        push!(ran, abspath(runs_as))
+        push!(ran, abspath(file))
         try
-            last_result = _include_as(get_target_module(), file, runs_as)
+            last_result = _include_as(get_target_module(), file, runs_as, copies)
         catch e
             @error "Running the bundled source $(basename(file)) failed" exception = (e, catch_backtrace())
             msg = e isa LoadError ? sprint(showerror, e.error) : sprint(showerror, e)
@@ -354,17 +386,16 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     return config, ran, bundled, origins
 end
 
-# Points the sources of a configuration at existing files, using the bundled copies for missing originals.
+# Points the sources of a configuration returned by bundled files at the files that ran: the bundled copy of a bundled
+# file (also if its original exists), any other file as it is.
 function _relocate_sources(sources::AbstractVector, bundled::Vector{String}, origins::Vector{String})
     out = String[]
     for src in sources
-        if isfile(src)
-            push!(out, abspath(src))
-            continue
-        end
-        i = findfirst(==(abspath(src)), origins)
+        i = findfirst(o -> normpath(o) == normpath(abspath(src)), origins)
         if !isnothing(i) && i <= length(bundled) && !isempty(bundled[i])
             push!(out, bundled[i])
+        elseif isfile(src)
+            push!(out, abspath(src))
         else
             @warn "Source file $src not found; it is removed from the configuration."
         end
@@ -394,6 +425,7 @@ A file that loads reliably, also from the snapshot bundled with an export, inclu
 function load_config_file!(path::AbstractString)
     file = abspath(path)
     empty!(manager.source_failures)
+    manager.source_note = ""
     @warn "Executing $(basename(file)): loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code)."
     result = Base.include(get_target_module(), file)
     result isa Function && (result = Base.invokelatest(result))
@@ -535,7 +567,7 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
     cfg = get(parsed, "Config", Dict())
     for (scope, target) in (("Resolution_Base", manager.resolution_base), ("Resolution_Ref", manager.resolution_ref))
         for (k, v) in get(cfg, scope, Dict())
-            n = v isa Real && isinteger(v) ? Int(v) : nothing
+            n = v isa Real && !(v isa Bool) && isinteger(v) && 1 <= v <= MAX_RESOLUTION ? Int(v) : nothing
             if _valid_resolution(n)
                 target[Symbol(k)] = n
             else
@@ -824,9 +856,12 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
                     bundled_name = joinpath(bundle_dir, name)
                     dst_path = joinpath(csv_dir, bundled_name)
                     mkpath(dirname(dst_path))
-                    abspath(src_path) == abspath(dst_path) || cp(src_path, dst_path; force = true)
+                    # (a symlinked source is copied as a file: the snapshot must not follow later edits)
+                    abspath(src_path) == abspath(dst_path) ||
+                        cp(src_path, dst_path; force = true, follow_symlinks = true)
                     push!(bundled_names, bundled_name)
-                    push!(origins, abspath(src_path))
+                    # the copy of a loaded export ran in place of its original, which stays the origin
+                    push!(origins, get(manager.source_origins, abspath(src_path), abspath(src_path)))
                 else
                     @warn "Source file not found and skipped: $src_path"
                 end

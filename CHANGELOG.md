@@ -23,18 +23,19 @@ What has changed since the last release. Released versions are described in the
 - **Resolution page with particle styles:** only the references (particles are shown as computed).
 
 ### Fixed
-- **A loaded export runs as it was exported.** If its bundled sources differ from their originals (an original or an
-  included helper was edited, moved or deleted since the export), all bundled copies run from `<name>_sources/` and
-  become the configuration's sources, so a new export reproduces the old one; before, the edited originals ran (for
-  helpers included by relative path) while the old copies were bundled again. The status line names the changed files.
-  With unchanged originals the copies run as the originals, which stay the sources, as before. A missing copy whose
-  original ran is a source now too (the next export bundles it).
+- **A loaded export runs as it was exported.** Its bundled copies run and become the configuration's sources, so a new
+  export reproduces the old one; before, an edited helper included by relative path ran in place of its copy, and
+  the edited originals were bundled again. The copies still run in place of their originals while their folder
+  exists (files that aren't bundled, such as unlisted helpers and data files, are found there), and an `include` of
+  a bundled file runs its copy. The status line names originals edited or gone since the export, also when a load
+  changes the window. A missing copy whose original ran is a source now too (the next export bundles it).
+- **Symlinked sources** are bundled as files: before, the bundle held the link, so it followed later edits.
 - **Time resolution 1** (`set_resolution!(:t, 1)`, a CSV row) made all data with time fail to load; it shows the last
-  snapshot now. Resolutions are whole numbers from 1 to 100000 everywhere: `set_resolution!` throws otherwise, CSV rows
-  outside that range are ignored with a warning, the Resolution page accepts 1 (e.g. for particles without extent
-  along an axis, as PDEStudioCore advises).
-- **Nearly constant data on an axis with offset tick labels** (`scale_offset`) or a custom `tick_format`: variations
-  below 1e-6 relative are drawn instead of flattened (those labels show them); with the default labels they stay flat.
+  snapshot now. Resolutions are whole numbers from 1 to 100000 everywhere: `set_resolution!` throws otherwise, CSV
+  rows outside that range (also huge ones) are ignored with a warning, the Resolution page accepts 1 (e.g. for
+  particles without extent along an axis, as PDEStudioCore advises).
+- **Nearly constant data on an axis with offset tick labels** (`scale_offset`): variations below 1e-6 relative are
+  drawn instead of flattened (the offset labels show them); with other labels they stay flat.
 - **Advanced tab:** a Char literal `'"'` before `<empty>` in a vector no longer breaks applying the shown value.
 - **Data with axes the window doesn't have** (e.g. a time axis `:iteration` without `set_allowed_dims!`) was dropped
   silently: an empty plot, "Simulation finished" and the sliders of the previous configuration. Now the status line

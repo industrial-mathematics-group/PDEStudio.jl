@@ -403,8 +403,9 @@ function _handle_load(path::AbstractString)
     if structural
         load_btn.buttoncolor[] = :orange
         run_btn.buttoncolor[] = :orange
+        note = manager.source_note
         _status!("$(basename(path)) changes the dimensions or slider count: Run Simulation rebuilds the window " *
-                 "(save a preset first to keep the current settings).", :warn)
+                 "(save a preset first to keep the current settings)." * (isempty(note) ? "" : " ($note)"), :warn)
     else
         # a failing bundled source has its own warning in the status line; keep it visible
         note = manager.source_note
@@ -1020,14 +1021,26 @@ function _empty_literals(s::AbstractString)
     return String(take!(out))
 end
 
-# Whether the `'` at `i` opens a Char literal (after an identifier, a closing bracket or a quote it is an adjoint).
+# Whether the `'` at `i` opens a Char literal (after an identifier, a closing bracket or a quote it is an adjoint,
+# after a keyword such as `in` a Char).
 function _char_literal_start(s::AbstractString, i::Int)
     k = prevind(s, i)
     while k >= firstindex(s) && isspace(s[k])
         k = prevind(s, k)
     end
-    return k < firstindex(s) || !(isletter(s[k]) || isdigit(s[k]) || s[k] in ('_', ')', ']', '}', '\'', '!'))
+    k < firstindex(s) && return true
+    _ident_char(c) = isletter(c) || isdigit(c) || c in ('_', '!')
+    if _ident_char(s[k])
+        j = k
+        while prevind(s, j) >= firstindex(s) && _ident_char(s[prevind(s, j)])
+            j = prevind(s, j)
+        end
+        return SubString(s, j, k) in _KEYWORDS_BEFORE_VALUES
+    end
+    return !(s[k] in (')', ']', '}', '\''))
 end
+const _KEYWORDS_BEFORE_VALUES = ("in", "isa", "return", "where", "if", "elseif", "while", "do", "else", "for", "begin",
+                                 "let", "try", "global", "local", "const")
 
 # Flags or triggers whatever an editor change requires.
 function _after_editor_change!(cat, scope, key, target)
@@ -1666,8 +1679,6 @@ function _delete_method!(m::Symbol)
 end
 
 # --- Files tab: the resolution of the data and the references -----------------------------------------------------
-
-# Points per dimension the studio resamples to; the time dimension is coarser (see `_sync_resolution_dims!`).
 
 # The rows of the resolution page: every dimension for the data, then for the references.
 # Particle data is shown as it is: in the Lagrangian mode only the references (evaluated on a grid) have a resolution.

@@ -39,13 +39,15 @@ A configuration that comes from a Julia file (listed in its `sources`, which loa
 **bundled with every export**: the files of `sources` are copied into `<name>_sources/` next to the exported CSV,
 under their own file names. Loading that CSV runs the copies again to restore the solvers:
 
-*   **the export runs as it was exported.** If every copy still has the content of its original, the copies run **as
-    if they were the original files**: `@__DIR__` and relative `include`s find the files next to the originals, and the
-    originals stay the configuration's sources, so later runs and exports pick up your edits of them;
-*   if an original was **edited, moved or deleted** since the export, all copies run from `<name>_sources/` instead,
-    so a file that includes another one finds the bundled version of it (list it in `sources` too, so it is bundled).
-    The configuration is the exported one, the copies are its sources (a new export reproduces the old one), and the
-    status line names the changed files;
+*   **the export runs as it was exported:** the copies run, also if an original was edited since, and they are the
+    configuration's sources, so a new export reproduces the old one (it records the original files as their origin).
+    The status line names originals that were edited or are gone;
+*   the copies run **as if they were the original files** while the originals' folder exists: `@__DIR__` and relative
+    `include`s find the files next to the originals (helpers that aren't in `sources`, data files), and an `include`
+    of a file in `sources` runs its bundled copy. Files that aren't in `sources` are not bundled, so they run as
+    they are now;
+*   if an original's folder is gone (the originals were moved or deleted), its copy runs from `<name>_sources/`,
+    where it finds the other bundled files, but not the files that aren't bundled;
 *   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
 *   if a copy fails, the load does not stop: the **parameters come from the CSV**, the status line names the file and
     the error, and the solver functions have to be defined before *Run Simulation* (e.g. by loading their package).
@@ -60,7 +62,7 @@ Configuration files that reload reliably, from the studio and from any bundled c
 3.  **Solvers in a package** are the most robust: `using MySolvers` at the top, and the bundled file only holds the
     configuration. Packages must be installed in the environment that loads the file.
 4.  **Data files** (meshes, initial conditions) are read relative to `@__DIR__` and are not bundled; keep them with the
-    configuration or in a package.
+    configuration (an export finds them there while that folder exists) or in a package.
 
 ```julia
 # configs/advection.jl

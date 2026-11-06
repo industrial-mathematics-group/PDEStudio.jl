@@ -46,11 +46,12 @@ domain size moves it) and at the times of that data, so at every position of the
 the reference show the same time; *Files → Resolution ›* sets the reference's points in space. Data drawn with a
 grid style (grid data, and particle data scattered to the grid) is not interpolated in time: it shows its stored
 snapshots at their own times, all of them up to the time resolution of *Resolution ›* (default 50), otherwise that
-many, evenly spread over the stored ones (a time resolution of 1 shows the last snapshot). (Data with more snapshots than the time resolution is read in full on every
-reload; with `enable_cache!(true)` the cached conversion is used only up to the time resolution, so raise it to the
-number of snapshots to reload large data from the cache.) The title shows the time (and
-other grid values on sliders) of the drawn data, the snapshot nearest to the slider position, not the slider
-position itself. Particle styles show every stored time. A reference is evaluated at up to the reference time
+many, evenly spread over the stored ones. A time resolution of 1 shows the last snapshot: curves over time are a
+single point then (lines draw nothing), and animations are refused. (Data with more snapshots than the time
+resolution is read in full on every reload; with `enable_cache!(true)` the cached conversion is used only up to the
+time resolution, so raise it to the number of snapshots to reload large data from the cache.) The title shows the
+time (and other grid values on sliders) of the drawn data, the snapshot nearest to the slider position, not the
+slider position itself. Particle styles show every stored time. A reference is evaluated at up to the reference time
 resolution (default 100) of the drawn times, so when the data shows more times than that (particle styles, or a
 reference time resolution below the data's), the reference shows the nearest of those.
 

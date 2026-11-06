@@ -141,6 +141,7 @@ Base.@kwdef mutable struct PlotManager
     pending_code_load::String = ""                                            # file that runs code (path#content hash), waiting for a second Load
     source_failures::Vector{String} = String[]                                # bundled sources that failed in the last load
     source_note::String = ""                                                  # e.g. "cfg.jl changed since the export: …"
+    source_origins::Dict{String, String} = Dict{String, String}()             # bundled copy => original (for exports)
     preset_kind::Symbol = :simulation                                         # presets listed in the Files tab
     preset_name::Symbol = Symbol("")                                          # preset file open in the Files tab
     preset_file_rows::Vector{Vector{String}} = Vector{String}[]               # its rows [Category, Scope, Parameter, Value]
