@@ -1,0 +1,110 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_Bl9fpI
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_fjcS5R/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 0: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_82diNq/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_3vrw9z/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 2.5: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_owCVpR/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_6X4Lxk/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_63i7bk/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 100001: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_bduuTG/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = -5: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_s9vnLD/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_LIO5I9/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_RIni6R/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = "abc": a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_fVNKfh/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_entv8l/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = Inf: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_eZsyGA/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = NaN: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+ERROR: LoadError: Some tests did not pass: 11 passed, 2 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_res_csv2.jl:5
+0                      parsed as 0 (Int64) -> x = 100
+1                      parsed as 1 (Int64) -> x = 1
+2.5                    parsed as 2.5 (Float64) -> x = 100
+1e3                    parsed as 1000.0 (Float64) -> x = 1000
+100000                 parsed as 100000 (Int64) -> x = 100000
+100001                 parsed as 100001 (Int64) -> x = 100
+-5                     parsed as -5 (Int64) -> x = 100
+1e20                   parsed as 1.0e20 (Float64) -> THROWS InexactError: Int64(1.0e20)
+
+CSV resolution rows: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_res_csv2.jl:17
+  Expression: !(startswith(res, "THROWS"))
+   Evaluated: !(startswith("THROWS InexactError: Int64(1.0e20)", "THROWS"))
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_res_csv2.jl:17 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_res_csv2.jl:6
+99999999999999999999   parsed as 99999999999999999999 (Int128) -> THROWS InexactError: trunc(Int64, 99999999999999999999)
+
+CSV resolution rows: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_res_csv2.jl:17
+  Expression: !(startswith(res, "THROWS"))
+   Evaluated: !(startswith("THROWS InexactError: trunc(Int64, 99999999999999999999)", "THROWS"))
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_res_csv2.jl:17 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_res_csv2.jl:6
+abc                    parsed as "abc" (String) -> x = 100
+true                   parsed as true (Bool) -> x = 1
+Inf                    parsed as Inf (Float64) -> x = 100
+NaN                    parsed as NaN (Float64) -> x = 100
+Test Summary:       | Pass  Fail  Total  Time
+CSV resolution rows |   11     2     13  1.3s
+RNG of the outermost testset: Random.Xoshiro(0x7db0fa1f98d3fbe1, 0xeaa0ca3c05d0ca78, 0xd5c1df1a057d5b59, 0x728203c6b67234d2, 0x8beacec4c2d895c4)

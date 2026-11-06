@@ -1,0 +1,126 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_RT0BnY
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:516
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_ePw8H2/exp.csv
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+┌ Warning: The configuration sweeps 3 parameters, but the studio has only 2 parameter sliders. Call `set_max_params!(3)` before `launch_plotter()`; parameters without a slider stay at their first value.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/MakiePlotting.jl:129
+[ Info: Loading configuration from CSV: /tmp/jl_ePw8H2/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:426
+[ Info: Executing bundled source: h.jl (as /tmp/jl_kQlaGE/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_kQlaGE/cfg.jl)
+[ Info: Structural limits changed! Configuration staged; press 'Run Simulation' to rebuild the studio.
+[ Info: Structural rebuild initiated. Relaunching UI...
+[ Info: Plotter state completely cleared!
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 8 simulation task(s) (parallel: false)...
+Running simulations...  25%|███████                     |  ETA: 0:00:01[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 8 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x21 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (24, 21) to (100, 21) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (26, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x17 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (24, 17) to (100, 17) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x18 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (26, 18) to (100, 18) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x21 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (24, 21) to (100, 21) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (26, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x17 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (24, 17) to (100, 17) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x18 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (26, 18) to (100, 18) (linear in space, nearest in time)...
+[ Info: Metadata and Parameters saved to /tmp/jl_vDAn8N/exp2.csv
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+┌ Warning: The configuration sweeps 3 parameters, but the studio has only 2 parameter sliders. Call `set_max_params!(3)` before `launch_plotter()`; parameters without a slider stay at their first value.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/MakiePlotting.jl:129
+[ Info: Loading configuration from CSV: /tmp/jl_ePw8H2/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_kQlaGE/cfg.jl)
+┌ Error: Running the bundled source cfg.jl failed
+│   exception =
+│    LoadError: SystemError: opening file "/tmp/jl_kQlaGE/h.jl": No such file or directory
+│    Stacktrace:
+│      [1] include(mapexpr::Function, mod::Module, _path::String)
+│        @ Base ./Base.jl:310
+│      [2] _bundled_include(mod::Module, dir::String, path::String, copies::Dict{String, String}, mapexpr::typeof(identity))
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:295
+│      [3] (::PDEStudio._BundledInclude)(path::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:279
+│      [4] top-level scope
+│        @ /tmp/jl_kQlaGE/cfg.jl:1
+│      [5] eval(m::Module, e::Any)
+│        @ Core ./boot.jl:489
+│      [6] include_string(mapexpr::PDEStudio.var"#_include_as##0#_include_as##1"{String, Dict{String, String}, typeof(identity)}, mod::Module, code::String, filename::String)
+│        @ Base ./loading.jl:3064
+│      [7] _include_as(mod::Module, file::String, as::String, copies::Dict{String, String}, mapexpr::typeof(identity))
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:266
+│      [8] _include_as(mod::Module, file::String, as::String, copies::Dict{String, String})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:262
+│      [9] _run_bundled_sources(parsed::Dict{String, Dict{String, Dict{String, Any}}}, filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:450
+│     [10] load_and_apply_csv!(filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:569
+│     [11] _handle_load(path::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/UILogic.jl:395
+│     [12] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:27
+│     [13] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [14] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:43 [inlined]
+│     [15] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [16] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:45 [inlined]
+│     [17] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [18] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [19] _start()
+│        @ Base ./client.jl:577
+│    in expression starting at /tmp/jl_kQlaGE/cfg.jl:1
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:452
+[ Info: Structural limits changed! Configuration staged; press 'Run Simulation' to rebuild the studio.
+ERROR: LoadError: Some tests did not pass: 6 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:26
+structural status: Loaded exp.csv (h.jl changed since the export: the exported version ran). Run Simulation rebuilds the window for it.  colour = RGB{Float32}(0.8, 0.4, 0.0)
+
+staged: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:30
+  Expression: occursin("changes the dimensions", status()) && occursin("h.jl changed since the export", status())
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:27
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:28 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/old/probe_staged.jl:30 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+after Run: N = 24 sources = ["/tmp/jl_ePw8H2/exp_sources/h.jl", "/tmp/jl_kQlaGE/cfg.jl"] max_params = 3
+export 2 origins: ["/tmp/jl_kQlaGE/h.jl", "/tmp/jl_kQlaGE/cfg.jl"]
+failures = ["h.jl: missing", "cfg.jl: SystemError: opening file \"/tmp/jl_kQlaGE/h.jl\": No such file or dire…"]
+structural status with a failure: Source files of exp.csv failed; the parameters come from the CSV, define the solvers before running. (h.jl: missing; cfg.jl: SystemError: opening file "…
+Test Summary:                 | Pass  Fail  Total  Time
+all                           |    6     1      7  6.9s
+  staged                      |    4     1      5  5.4s
+  structural + failing source |    2            2  1.5s
+RNG of the outermost testset: Random.Xoshiro(0x577b312cb222e59f, 0x82731acaffc71496, 0xd9f5b7c75769f3be, 0x4c5846519d807d01, 0x370b04adb50d511e)
+exit 1

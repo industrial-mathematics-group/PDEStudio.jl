@@ -39,13 +39,25 @@ A configuration that comes from a Julia file (listed in its `sources`, which loa
 **bundled with every export**: the files of `sources` are copied into `<name>_sources/` next to the exported CSV,
 under their own file names. Loading that CSV runs the copies again to restore the solvers:
 
-*   each copy runs **as if it were the original file** while the original's folder exists, so `@__DIR__` and relative
-    `include`s find the files next to the original (later edits of those files are used, the configuration itself
-    is the snapshot of the export);
-*   without the original folder the copies run from `<name>_sources/`, so a file that includes another one finds it
-    there if that one is listed in `sources` too;
-*   if a copy fails, the load does not stop: the **parameters come from the CSV**, the status line names the file and
-    the error, and the solver functions have to be defined before *Run Simulation* (e.g. by loading their package).
+*   **the export runs as it was exported:** the copies run, also if an original was edited since. The status line
+    names originals that were edited or are gone;
+*   the copies run **as if they were the original files**: `@__DIR__` and relative `include`s find the files next to
+    the originals (helpers that aren't in `sources`, data files), and an `include` of a file in `sources` (also
+    `include(f, path)`, `Base.include`, `foreach(include, files)`; not in default values of function arguments, or
+    when a macro passes `include` on) runs its bundled copy. Files that aren't in `sources` are not bundled, so they
+    run as they are now, and are missing if the originals' folder is gone. A copy keeps running in place of its
+    original (also after you edit it) until a `.jl` file is loaded;
+*   the configuration's sources are the originals that are unchanged and the copies of the others: *Run Simulation*
+    includes them again in the same way, and a new export bundles them (recording the originals), so it reproduces
+    the old one. (With PDEStudioCore versions before `run_all_simulations(...; load_sources = false)`, *Run
+    Simulation* includes the sources as they are: once an original was edited or is gone, all copies are the
+    sources, and they run from `<name>_sources/`, where only bundled files are found. An `include` by absolute path,
+    or of the original of a missing copy, then runs the edited original.);
+*   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
+*   if a copy fails, the load does not stop: the **parameters come from the CSV**, and the status line names the file
+    and the error. *Run Simulation* includes the sources again, so restore what the file needs (e.g. a missing helper)
+    and load the export again, or remove the file from the sources (*Advanced* tab) and define the solvers otherwise
+    (e.g. by loading their package).
 
 Configuration files that reload reliably, from the studio and from any bundled copy:
 
@@ -57,7 +69,7 @@ Configuration files that reload reliably, from the studio and from any bundled c
 3.  **Solvers in a package** are the most robust: `using MySolvers` at the top, and the bundled file only holds the
     configuration. Packages must be installed in the environment that loads the file.
 4.  **Data files** (meshes, initial conditions) are read relative to `@__DIR__` and are not bundled; keep them with the
-    configuration or in a package.
+    configuration (an export finds them there while that folder exists) or in a package.
 
 ```julia
 # configs/advection.jl

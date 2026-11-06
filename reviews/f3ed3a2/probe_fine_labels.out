@@ -1,0 +1,21 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_pudF8h
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (50,) to (100,) (linear in space, nearest in time)...
+default                            x width = 0.0020000490980001118  y width = 0.0020000019979855566  yticklabels = true
+y scale_offset                     x width = 0.0020000490980001118  y width = 2.0957889868000734e-9  yticklabels = true
+x and y scale_offset               x width = 4.900000005747529e-8  y width = 2.0957889868000734e-9  yticklabels = true
+y tick_format {:.12f}              x width = 0.0020000490980001118  y width = 2.0957889868000734e-9  yticklabels = true
+y tick_format {:.2f} (coarse)      x width = 0.0020000490980001118  y width = 2.0957889868000734e-9  yticklabels = true
+y log + scale_offset               x width = 0.0020000490980001118  y width = 0.011512991044804188  yticklabels = true
+Test Summary: | Pass  Total  Time
+fine labels   |    4      4  2.2s

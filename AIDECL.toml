@@ -48,8 +48,6 @@ Reviewed-by = "blhackslash <dev@blackslash.win>"
 AI-Review = "A2"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
-# Changed on claude/aidecl by Claude agents to address the A2 reviews in reviews/ (and reviewed again there).
-# Human-Review: to be filled in by the responsible person (e.g. `aidecl annotate ... -H H1 --reviewed-by ...`).
 [[annotations]]
 path = ["CHANGELOG.md", "docs/src/editors.md", "docs/src/file_ops.md", "docs/src/index.md", "docs/src/presets.md", "docs/src/rendering.md", "src/ConfigIO.jl", "src/DataHandler.jl", "src/MakiePlotting.jl", "src/PDEStudio.jl", "src/PlottingLogic.jl", "src/PlottingUtils.jl", "src/Presets.jl", "src/Render.jl", "src/UILogic.jl", "src/UIStyles.jl", "test/runtests.jl"]
 AI-Generation = "G3"

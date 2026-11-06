@@ -1,0 +1,24 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_QevkCJ
+[ Info: Plotter state completely cleared!
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:516
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_9Enn30/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_9Enn30/exp.csv
+[ Info: Executing bundled source: h.jl (as /tmp/jl_zy5cTE/lib/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_zy5cTE/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x14 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (100, 14) (linear in space, nearest in time)...
+load: N = 20 failures = String[]
+Run: ok: Simulation finished in 0.2 s (1 methods).
+exit 0

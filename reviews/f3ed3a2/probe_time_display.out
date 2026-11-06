@@ -1,0 +1,101 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_n0yCST
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Module save root path set to: /tmp/jl_ZEB4XE
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Eulerian representation conv_E_20x20x30 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (40, 40, 30) to (20, 20, 30) (linear in space, nearest in time)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Resampling Eulerian data from (40, 40, 50) to (20, 20, 50) (linear in space, nearest in time)...
+[ Info: Module save root path set to: /tmp/jl_jVUb87
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: Eulerian representation conv_E_100x5 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (200, 5) to (100, 5) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (200, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Module save root path set to: /tmp/jl_1nwLCe
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: Resampling Eulerian data from (200, 1) to (100, 1) (linear in space, nearest in time)...
+few: stored 5 shown 5 ref 5
+dn.domain.spacing = [0.031415926535897934, 0.25]
+dr.domain.spacing = [0.031415926535897934, 0.25]
+many: stored 120 shown 50 ref 50
+dn.domain.spacing = [0.031415926535897934, 0.01680672268907563]
+dr.domain.spacing = [0.031415926535897934, 0.04081632653061224]
+Test Summary:                  | Pass  Total  Time
+non-uniform stored times (1-D) |    8      8  4.4s
+2-D nt=30: size (20, 20, 30) ref (200, 200, 30) stats Dict{Symbol, Tuple{Int64, Vararg{Int64}}}(:Solution => (20, 20, 30), :relative_l1error => (30,), :l1error => (30,), :l2norm => (30,), :l2error => (30,), :l1norm => (30,), :relative_mass => (30,), :wave_height => (30,), :mass => (30,), :mass_signed_error => (30,), :relative_l2error => (30,), :mass_error => (30,), :spacetime_relative_mass => (1,))
+2-D nt=80: size (20, 20, 50) ref (200, 200, 50) stats Dict{Symbol, Tuple{Int64, Vararg{Int64}}}(:Solution => (20, 20, 50), :relative_l1error => (50,), :l1error => (50,), :l2norm => (50,), :l2error => (50,), :l1norm => (50,), :relative_mass => (50,), :wave_height => (50,), :mass => (50,), :mass_signed_error => (50,), :relative_l2error => (50,), :mass_error => (50,), :spacetime_relative_mass => (1,))
+Test Summary:                                     | Pass  Total  Time
+2-D, spatial resampling + time subsampling, stats |    6      6  4.7s
+get_file_name(params) == path = true
+length(P.manager.stored_time_counts) = 1
+Test Summary:                                                    | Pass  Total  Time
+cache invalidation: same path, rewritten with another time count |    2      2  0.1s
+Test Summary:               | Pass  Total  Time
+time resolution 1 from code |    1      1  0.1s

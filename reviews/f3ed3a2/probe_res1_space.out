@@ -1,0 +1,9 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_kwLyAi
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+[ Info: Eulerian representation conv_E_100x1x3 not cached; generating it on the fly...
+set ok = true; loaded: (100, 1, 3)
