@@ -1471,7 +1471,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test_logs (:error, r"failed") match_mode=:any set_sim_config!(csv)
         @test !isempty(manager.source_failures) && occursin("helper.jl", manager.source_failures[1])
         @test manager.active_config.shared[:N] == 24
-        @test occursin("Restore what they need", status())
+        @test occursin("failed", status()) && occursin("helper.jl", status())   # (the advice after it may be cut off)
         # ... and Run Simulation, which includes the sources again, says why it can't run
         click_button!(:run_button)
         @test wait_status(s -> occursin("Running failed", s) && occursin("helper.jl", s); timeout = 60)

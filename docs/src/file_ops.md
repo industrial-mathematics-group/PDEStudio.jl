@@ -43,8 +43,10 @@ under their own file names. Loading that CSV runs the copies again to restore th
     names originals that were edited or are gone;
 *   the copies run **as if they were the original files**: `@__DIR__` and relative `include`s find the files next to
     the originals (helpers that aren't in `sources`, data files), and an `include` of a file in `sources` (also
-    `include(f, path)`, `Base.include`, `foreach(include, files)`) runs its bundled copy. Files that aren't in
-    `sources` are not bundled, so they run as they are now, and are missing if the originals' folder is gone;
+    `include(f, path)`, `Base.include`, `foreach(include, files)`; not in default values of function arguments, or
+    when a macro passes `include` on) runs its bundled copy. Files that aren't in `sources` are not bundled, so they
+    run as they are now, and are missing if the originals' folder is gone. A copy keeps running in place of its
+    original (also after you edit it) until a `.jl` file is loaded;
 *   the configuration's sources are the originals that are unchanged and the copies of the others: *Run Simulation*
     includes them again in the same way, and a new export bundles them (recording the originals), so it reproduces
     the old one. (With PDEStudioCore versions before `run_all_simulations(...; load_sources = false)`, *Run

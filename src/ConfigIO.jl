@@ -323,8 +323,8 @@ const _MODULE_EXPR = Expr(:macrocall, GlobalRef(Base, Symbol("@__MODULE__")), Li
 const _BASE_INCLUDE = Expr(:., :Base, QuoteNode(:include))
 
 # The original a bundled copy runs in place of (`manager.source_origins`, recorded when its export is loaded; also after
-# the copy was edited), or `nothing`. The entry is dropped when the file is loaded as a `.jl` file (it then runs as
-# itself) and when an export writes other files over the bundle (see `save_params_to_csv`).
+# the copy was edited), or `nothing`. The entries are dropped when a `.jl` file is loaded (its configuration replaces
+# the loaded one), and an entry when an export writes another file over the copy (see `save_params_to_csv`).
 _origin_of(copy::AbstractString) = isfile(copy) ? get(manager.source_origins, abspath(copy), nothing) : nothing
 
 """
@@ -471,8 +471,8 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
         end
     end
     if !isempty(failures)
-        _status!("Source files of $(basename(filepath)) failed; the parameters come from the CSV. Restore what they need " *
-                 "and load again, or remove them from the sources (Advanced). ($(join(failures, "; ")))", :warn)
+        _status!("Source files of $(basename(filepath)) failed ($(join(failures, "; "))); the parameters come from the CSV. " *
+                 "Restore what they need and load again, or remove them from the sources (Advanced).", :warn)
     end
     config = isempty(failures) && last_result isa SimulationConfig ? last_result : nothing
     return config, ran, sources_of
@@ -518,7 +518,6 @@ function load_config_file!(path::AbstractString)
     file = abspath(path)
     empty!(manager.source_failures)
     manager.source_note = ""
-    delete!(manager.source_origins, file)   # (a bundled copy loaded as a file runs as itself)
     @warn "Executing $(basename(file)): loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code)."
     result = Base.include(get_target_module(), file)
     result isa Function && (result = Base.invokelatest(result))
@@ -526,6 +525,9 @@ function load_config_file!(path::AbstractString)
         throw(ArgumentError("$(basename(file)) must end with a SimulationConfig (or a function without arguments " *
                             "that returns one); it returned $(result === nothing ? "nothing" : "a $(typeof(result))")."))
     any(src -> isfile(src) && samefile(src, file), result.sources) || (result.sources = String[result.sources...; file])
+    # The configuration of this file replaces the loaded one: the copies of an export loaded before (this file too, if
+    # it is one) run as themselves now.
+    empty!(manager.source_origins)
 
     new_max = max(manager.max_params, length(result.varied))
     if new_max != manager.max_params
