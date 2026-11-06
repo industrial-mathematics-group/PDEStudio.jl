@@ -39,11 +39,14 @@ A configuration that comes from a Julia file (listed in its `sources`, which loa
 **bundled with every export**: the files of `sources` are copied into `<name>_sources/` next to the exported CSV,
 under their own file names. Loading that CSV runs the copies again to restore the solvers:
 
-*   each copy runs **as if it were the original file** while the original's folder exists, so `@__DIR__` and relative
-    `include`s find the files next to the original (later edits of those files are used, the configuration itself
-    is the snapshot of the export);
-*   without the original folder the copies run from `<name>_sources/`, so a file that includes another one finds it
-    there if that one is listed in `sources` too;
+*   **the export runs as it was exported.** If every copy still has the content of its original, the copies run **as
+    if they were the original files**: `@__DIR__` and relative `include`s find the files next to the originals, and the
+    originals stay the configuration's sources, so later runs and exports pick up your edits of them;
+*   if an original was **edited, moved or deleted** since the export, all copies run from `<name>_sources/` instead,
+    so a file that includes another one finds the bundled version of it (list it in `sources` too, so it is bundled).
+    The configuration is the exported one, the copies are its sources (a new export reproduces the old one), and the
+    status line names the changed files;
+*   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
 *   if a copy fails, the load does not stop: the **parameters come from the CSV**, the status line names the file and
     the error, and the solver functions have to be defined before *Run Simulation* (e.g. by loading their package).
 

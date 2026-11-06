@@ -269,42 +269,64 @@ end
 """
     _run_bundled_sources(parsed, filepath)
 
-Includes the source files bundled with an exported CSV into the target module (this executes their code). Each
-bundled copy runs as if it were its original (relative `include`s and `@__DIR__` resolve there) while the original's
-folder exists, otherwise from the bundle folder; a missing copy is replaced by its original if that still exists.
+Includes the source files bundled with an exported CSV into the target module (this executes their code). The export
+runs as it was exported:
+- if every bundled copy has the content of its original (and the originals exist), the copies run as their
+  originals: relative `include`s and `@__DIR__` resolve there, and the originals are the sources of the loaded
+  configuration (later edits of them are picked up);
+- otherwise (an original was edited, moved or deleted since the export) every copy runs from the bundle folder, so
+  relative `include`s resolve to the bundled helpers and the configuration is the exported one; the copies are its
+  sources, and the status line says so (`manager.source_note`).
+A missing copy is replaced by its original if that still exists.
 
 A source that fails doesn't abort the load: the error is reported (log and status line) and the parameters come
 from the CSV, so the solver functions must then be defined some other way (e.g. by loading their package).
-Returns `(config, bundled, origins)`: the `SimulationConfig` returned by the last file (or by the function without
-arguments it ends with, as for [`load_config_file!`](@ref)) if every file ran (otherwise `nothing`), the absolute paths of the bundled copies (`""` for missing files) and the original paths (if recorded).
+Returns `(config, ran, bundled, origins)`: the `SimulationConfig` returned by the last file (or by the function
+without arguments it ends with, as for [`load_config_file!`](@ref)) if every file ran (otherwise `nothing`), the
+files that ran (the sources of the loaded configuration), the absolute paths of the bundled copies (`""` for missing
+files) and the original paths (if recorded).
 """
 function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
+    manager.source_note = ""
     meta = get(get(parsed, "Metadata", Dict()), "General", Dict())
     names = get(meta, "bundled_sources", nothing)
     names isa AbstractString && (names = isempty(names) ? String[] : [names])
-    (names isa AbstractVector && !isempty(names)) || return nothing, String[], String[]
+    (names isa AbstractVector && !isempty(names)) || return nothing, String[], String[], String[]
     origins = get(meta, "source_origins", String[])
     origins = origins isa AbstractString ? [origins] : origins
     origins = origins isa AbstractVector ? String[string(o) for o in origins] : String[]
 
     dir = dirname(abspath(filepath))
-    bundled = String[]
+    # bundled as `<export>_sources/<file>`, by earlier versions as `<export>_source_<i>.jl` next to the CSV
+    function copy_of(name)
+        candidates = unique([joinpath(dir, string(name)), joinpath(dir, basename(string(name))), string(name)])
+        idx = findfirst(isfile, candidates)
+        return isnothing(idx) ? "" : abspath(candidates[idx])
+    end
+    bundled = String[copy_of(name) for name in names]
+    origin(i) = i <= length(origins) ? origins[i] : ""
+    unchanged(i) = !isempty(origin(i)) && isfile(origin(i)) && read(origin(i)) == read(bundled[i])
+    as_originals = all(i -> isempty(bundled[i]) || unchanged(i), eachindex(bundled))
+    if !as_originals
+        edited = [basename(origin(i)) for i in eachindex(bundled)
+                  if !isempty(bundled[i]) && !isempty(origin(i)) && isfile(origin(i)) && !unchanged(i)]
+        manager.source_note = !isempty(edited) ? "$(join(edited, ", ")) changed since the export: the exported version ran" :
+            any(!isempty, origins) ? "the original sources are gone: the exported ones ran" : ""   # (older exports: none recorded)
+    end
+
+    ran = String[]
     last_result = nothing
     failures = manager.source_failures
     for (i, name) in enumerate(names)
-        origin = i <= length(origins) ? origins[i] : ""
-        # bundled as `<export>_sources/<file>`, by earlier versions as `<export>_source_<i>.jl` next to the CSV
-        candidates = unique([joinpath(dir, string(name)), joinpath(dir, basename(string(name))), string(name)])
-        idx = findfirst(isfile, candidates)
-        copy = isnothing(idx) ? "" : abspath(candidates[idx])
-        if isempty(copy) && !(!isempty(origin) && isfile(origin))
+        copy = bundled[i]
+        if isempty(copy) && !(!isempty(origin(i)) && isfile(origin(i)))
             push!(failures, "$(basename(string(name))): missing")
-            push!(bundled, "")
             continue
         end
-        runs_as = !isempty(origin) && isdir(dirname(origin)) ? origin : copy
-        file = isempty(copy) ? origin : copy
+        file = isempty(copy) ? origin(i) : copy
+        runs_as = isempty(copy) || as_originals ? origin(i) : copy
         @info "Executing bundled source: $(basename(file))" * (runs_as == file ? "" : " (as $runs_as)")
+        push!(ran, abspath(runs_as))
         try
             last_result = _include_as(get_target_module(), file, runs_as)
         catch e
@@ -313,7 +335,6 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
             push!(failures, "$(basename(file)): $(_short(first(split(msg, '\n')), 70))")
             last_result = nothing
         end
-        push!(bundled, copy)
     end
     # A file may end with a function that returns the configuration (as `load_config_file!` accepts)
     if isempty(failures) && last_result isa Function
@@ -330,7 +351,7 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
                  "before running. ($(join(failures, "; ")))", :warn)
     end
     config = isempty(failures) && last_result isa SimulationConfig ? last_result : nothing
-    return config, bundled, origins
+    return config, ran, bundled, origins
 end
 
 # Points the sources of a configuration at existing files, using the bundled copies for missing originals.
@@ -426,12 +447,10 @@ function load_and_apply_csv!(filepath::AbstractString)
     manager.csv_cache = nothing  # a newer file replaces a staged one
     empty!(manager.source_failures)
     parsed, raw = _read_csv(filepath)
-    bundled_config, bundled, origins = _run_bundled_sources(parsed, filepath)
-    # The bundled files are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
+    bundled_config, ran, bundled, origins = _run_bundled_sources(parsed, filepath)
+    # The files that ran are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
     # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
-    runs = String[i <= length(origins) && isfile(origins[i]) ? abspath(origins[i]) : bundled[i]
-                  for i in eachindex(bundled) if !isempty(bundled[i])]
-    sources = isnothing(bundled_config) ? runs : unique([_relocate_sources(bundled_config.sources, bundled, origins); runs])
+    sources = isnothing(bundled_config) ? ran : unique([_relocate_sources(bundled_config.sources, bundled, origins); ran])
 
     new_dims, new_max = manager.allowed_dims, manager.max_params
     dims = get(get(parsed, "Config", Dict()), "Dimensions", nothing)
@@ -516,7 +535,12 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
     cfg = get(parsed, "Config", Dict())
     for (scope, target) in (("Resolution_Base", manager.resolution_base), ("Resolution_Ref", manager.resolution_ref))
         for (k, v) in get(cfg, scope, Dict())
-            v isa Real && (target[Symbol(k)] = Int(v))
+            n = v isa Real && isinteger(v) ? Int(v) : nothing
+            if _valid_resolution(n)
+                target[Symbol(k)] = n
+            else
+                @warn "Ignoring the $scope row $k = $(repr(v)): a resolution is a number of points from 1 to $(MAX_RESOLUTION)."
+            end
         end
     end
 

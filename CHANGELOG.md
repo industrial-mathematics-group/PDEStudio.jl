@@ -23,6 +23,19 @@ What has changed since the last release. Released versions are described in the
 - **Resolution page with particle styles:** only the references (particles are shown as computed).
 
 ### Fixed
+- **A loaded export runs as it was exported.** If its bundled sources differ from their originals (an original or an
+  included helper was edited, moved or deleted since the export), all bundled copies run from `<name>_sources/` and
+  become the configuration's sources, so a new export reproduces the old one; before, the edited originals ran (for
+  helpers included by relative path) while the old copies were bundled again. The status line names the changed files.
+  With unchanged originals the copies run as the originals, which stay the sources, as before. A missing copy whose
+  original ran is a source now too (the next export bundles it).
+- **Time resolution 1** (`set_resolution!(:t, 1)`, a CSV row) made all data with time fail to load; it shows the last
+  snapshot now. Resolutions are whole numbers from 1 to 100000 everywhere: `set_resolution!` throws otherwise, CSV rows
+  outside that range are ignored with a warning, the Resolution page accepts 1 (e.g. for particles without extent
+  along an axis, as PDEStudioCore advises).
+- **Nearly constant data on an axis with offset tick labels** (`scale_offset`) or a custom `tick_format`: variations
+  below 1e-6 relative are drawn instead of flattened (those labels show them); with the default labels they stay flat.
+- **Advanced tab:** a Char literal `'"'` before `<empty>` in a vector no longer breaks applying the shown value.
 - **Data with axes the window doesn't have** (e.g. a time axis `:iteration` without `set_allowed_dims!`) was dropped
   silently: an empty plot, "Simulation finished" and the sliders of the previous configuration. Now the status line
   names the missing axes, the old data is cleared and *Run Simulation* rebuilds the window with them.
@@ -106,6 +119,9 @@ What has changed since the last release. Released versions are described in the
   bundled files are now sources of the loaded configuration.
 
 ### Changed
+- **Default display resolutions in space: 100 points for the data, 200 for references** (were 200 and 400; time
+  stays at 50 and 100): 3-D data with time was infeasible with the old defaults. Raise them in *Files → Resolution ›*
+  or with `set_resolution!` where needed.
 - **Time axis of data drawn with a grid style** (grid data, particle data scattered to the grid): the display
   resolution of a time axis (*Files → Resolution ›*, `set_resolution!`) is the most stored snapshots shown; the data is
   no longer interpolated in time. All snapshots are shown up to it, otherwise that many, evenly spread. Cost: the

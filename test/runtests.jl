@@ -322,6 +322,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         set_save_path!(mktempdir())
         reset_manager!()
         set_stat_preset!("hyperbolic")
+        set_resolution!(:x, 200)   # the stored grid (N = 200): only time is resampled here
         # exact data stored every `every` steps (201, 51, 11 snapshots; the display shows at most 50): every drawn
         # time is a stored snapshot, and the reference is evaluated at exactly these times
         for every in (1, 4, 20)
@@ -338,6 +339,22 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             @test exact_error(dn) < 1e-10 && exact_error(dr) < 1e-10
             @test length(dn.stats[:l2error]) == length(dn.axes[2])          # statistics over time follow the snapshots
         end
+        # a resolution of 1: a time axis shows its last stored snapshot (data and reference); 1 point is allowed for every
+        # axis (PDEStudioCore advises it for particles without extent along an axis), 0 and huge values are refused
+        cfg = SimulationConfig(create_param_dict(:N => 200, :dt => 0.01, :every => 4, :sim_func_name => :exact_sparse_1d),
+                               create_method_dict(:num => create_param_dict(), :analytical_solution => create_param_dict()),
+                               [:num, :analytical_solution]; reference = :exact_sparse_factory)
+        stored = load_sim_data(PDEStudioCore.generate_tasks(cfg)[1], Val(:raw)).axes[2]
+        set_resolution!(:t, 1)
+        pd = PDEStudio.update_plot_data_collection!(Dict{Symbol, PDEStudio.AbstractPlotData}(), cfg, [:num, :analytical_solution])
+        @test pd[:num].data[1].axes[2] == [last(stored)] && pd[:analytical_solution].data[1].axes[2] == [last(stored)]
+        set_resolution!(:t, 50)
+        set_resolution!(:y, 1)
+        @test PDEStudio.get_resolution(:y) == 1
+        @test_throws ArgumentError set_resolution!(:x, 0)
+        @test_throws ArgumentError set_resolution!(:x, 100_001)
+        @test PDEStudio.get_resolution(:x) == 200                                # (unchanged by the refused values)
+        @test PDEStudio._default_resolution(:x, false) == 100 && PDEStudio._default_resolution(:x, true) == 200
         # particle data drawn with a grid style: the stored times too (all 4, or 50 of 80), with the snapshot of each
         for many in (false, true)
             cfg = SimulationConfig(create_param_dict(:N => 40, :many => many, :sim_func_name => :particles_uneven_1d),
@@ -363,6 +380,17 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
     end
 
+    @testset "Resolution rows of CSV files are validated" begin
+        reset_manager!()
+        csv = joinpath(mktempdir(), "res.csv")
+        write(csv, "Category,Scope,Parameter,Value\nConfig,Resolution_Base,x,0\nConfig,Resolution_Base,t,1\n" *
+                   "Config,Resolution_Ref,x,2.5\nConfig,Resolution_Ref,t,80\n")
+        @test_logs (:warn, r"Ignoring the Resolution_Base row x") (:warn, r"Ignoring the Resolution_Ref row x") match_mode = :any PDEStudio.load_and_apply_csv!(csv)
+        @test PDEStudio.get_resolution(:t) == 1 && PDEStudio.get_resolution(:t; is_ref = true) == 80
+        @test PDEStudio.get_resolution(:x) == 100 && PDEStudio.get_resolution(:x; is_ref = true) == 200
+        reset_manager!()
+    end
+
     @testset "Hand-written CSV: spaces after the commas, unknown scopes" begin
         path = joinpath(mktempdir(), "hand.csv")
         write(path, "Category, Scope, Parameter, Value\nSimulation, Shared, N, 40\nSimulation, Config, defaults, [:upwind]\n" *
@@ -378,6 +406,58 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             Dict("Scene" => Dict("plot" => Dict()), "Scenes" => Dict(), "UI" => Dict("x_axis" => Dict())))
         @test_logs PDEStudio._warn_unknown_scopes(Dict("Scene" => Dict("Plot" => Dict()), "Simulation" => Dict("upwind" => Dict()),
                                                        "UI" => Dict("x_axis" => Dict(), "lines_1d" => Dict())))
+    end
+
+    @testset "Bundled sources: an export runs as it was exported" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        srcdir = mktempdir()
+        # a configuration file including a helper by relative path; both are listed as sources, so both are bundled
+        function write_sources(n)
+            write(joinpath(srcdir, "helper.jl"), "helper_N() = $n\n")
+            write(joinpath(srcdir, "cfg.jl"), """
+                include("helper.jl")
+                SimulationConfig(create_param_dict(:N => helper_N(), :sim_func_name => :advection_solver_1d),
+                                 create_method_dict(:m => create_param_dict()), [:m];
+                                 sources = [joinpath(@__DIR__, "helper.jl")])
+                """)
+        end
+        N() = PDEStudio.manager.active_config.shared[:N]
+        bundled_N(csv_dir) = parse(Int, match(r"helper_N\(\) = (\d+)", read(joinpath(csv_dir, "exp_sources", "helper.jl"), String))[1])
+        write_sources(24)
+        PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
+        out1 = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out1, Dict("Save Type" => "test"))
+        # unchanged originals: the copies run as the originals, which stay the sources (later edits are picked up)
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
+        @test N() == 24 && isempty(PDEStudio.manager.source_note)
+        @test realpath(joinpath(srcdir, "helper.jl")) in realpath.(PDEStudio.manager.active_config.sources)
+        # the included helper was edited since the export: the exported version runs (also its helper), the copies
+        # are the sources, the status line says so, and a re-export reproduces the first export
+        write_sources(25)
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
+        @test N() == 24 && occursin("changed since the export", PDEStudio.manager.source_note)
+        @test all(s -> startswith(realpath(s), realpath(joinpath(out1, "exp_sources"))), PDEStudio.manager.active_config.sources)
+        out2 = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out2, Dict("Save Type" => "test"))
+        @test bundled_N(out2) == 24
+        rm(srcdir; recursive = true)                       # without the originals the second export still reproduces
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out2, "exp.csv"))
+        @test N() == 24 && isempty(PDEStudio.manager.source_failures)
+        # a missing copy whose original exists: the original runs and is a source (the next export bundles it)
+        mkpath(srcdir)
+        write_sources(24)
+        rm(joinpath(out1, "exp_sources", "cfg.jl"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
+        @test N() == 24 && realpath(joinpath(srcdir, "cfg.jl")) in realpath.(PDEStudio.manager.active_config.sources)
+        out3 = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out3, Dict("Save Type" => "test"))
+        @test isfile(joinpath(out3, "exp_sources", "cfg.jl"))
+        reset_manager!()
     end
 
     @testset "Bundled config file ending with a function" begin
@@ -452,6 +532,10 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             @test PDEStudio._parse_raw(PDEStudio._raw_text(v)) == (true, v)
         end
         @test PDEStudio._empty_literals("(\"<empty>\", <empty>)") == "(\"<empty>\", \"\")"   # quoted text stays
+        # a Char literal '"' doesn't open a text, and `x'` (an adjoint) is no Char literal
+        @test PDEStudio._parse_raw(PDEStudio._raw_text(Any['"', ""])) == (true, Any['"', ""])
+        @test PDEStudio._empty_literals("Any['\\'', <empty>]") == "Any['\\'', \"\"]"
+        @test PDEStudio._empty_literals("x' * <empty>") == "x' * \"\""
         shown = PDEStudio._editor_display(["", "a"])
         @test PDEStudio._parse_editor_input(shown, ["q"]) == ["", "a"]
         @test PDEStudio._valid_editor_value(shown, Dict(:tags => ["q"]), :tags, ["", "a"])
@@ -480,6 +564,14 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64)
             @test hi - lo ≥ 2e-3 && lo < minimum(v) && hi > maximum(v)
         end
+        # ... unless the axis labels resolve it (a `scale_offset` or a custom tick format): then only round-off is flat
+        v = 1 .+ 1e-9 .* sin.(range(0, 2π, length = 50))
+        lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64,
+                                                      fine_labels = true)
+        @test (maximum(v) - minimum(v)) / (hi - lo) > 0.9
+        @test PDEStudio._fine_labels(Dict(:scale_offset => 1.0, :tick_format => "default"))
+        @test PDEStudio._fine_labels(Dict(:scale_offset => 0.0, :tick_format => "{:.12f}"))
+        @test !PDEStudio._fine_labels(Dict(:scale_offset => 0.0, :tick_format => "default"))
         @test PDEStudio.calculate_padded_axis_range((0.0, 1.0), 0.1, false) == (-0.05, 1.05)
         @test PDEStudio.calculate_padded_axis_range((0.0, 0.0), 0.1, false) == (-0.1, 0.1)
         # style values the renderer can't draw are refused by the editor
@@ -1594,7 +1686,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         w[Symbol("editor_row_", i, "_text")].stored_string[] = "abc"
         @test PDEStudio.get_resolution(:x) == 300 && occursin("whole number", w[:status][])
         w[Symbol("editor_row_", i, "_button")].clicks[] += 1   # ↺ restores the default
-        @test PDEStudio.get_resolution(:x) == 200
+        @test PDEStudio.get_resolution(:x) == 100
         j = findfirst(isequal((:t, true)), manager.editor_row_keys)
         @test w[Symbol("editor_row_", j, "_text")].displayed_string[] == string(PDEStudio.get_resolution(:t; is_ref = true))
         click_button!(:editor_back)

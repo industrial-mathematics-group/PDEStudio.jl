@@ -407,7 +407,9 @@ function _handle_load(path::AbstractString)
                  "(save a preset first to keep the current settings).", :warn)
     else
         # a failing bundled source has its own warning in the status line; keep it visible
-        isempty(manager.source_failures) && _status!("Loaded $(basename(path)). Run Simulation to apply it.", :ok)
+        note = manager.source_note
+        isempty(manager.source_failures) && _status!("Loaded $(basename(path))" * (isempty(note) ? "" : " ($note)") *
+                                                     ". Run Simulation to apply it.", isempty(note) ? :ok : :warn)
         load_btn.buttoncolor[] = :lightgreen
         notify(manager.flags[:Simulation])  # recolours the Run button (it may still be orange from a staged file)
     end
@@ -996,6 +998,15 @@ function _empty_literals(s::AbstractString)
             i = nextind(s, i, 7)
             continue
         end
+        if !quoted && c == '\'' && _char_literal_start(s, i)
+            # a Char literal (`'"'`, `'\''`): copied as it is, its quote doesn't open a text
+            j = nextind(s, i)
+            j <= lastindex(s) && s[j] == '\\' && (j = nextind(s, j))   # an escaped character
+            j = j <= lastindex(s) ? something(findnext(==('\''), s, nextind(s, j)), lastindex(s)) : lastindex(s)
+            print(out, SubString(s, i, j))
+            i = nextind(s, j)
+            continue
+        end
         if quoted && escaped
             escaped = false
         elseif quoted && c == '\\'
@@ -1007,6 +1018,15 @@ function _empty_literals(s::AbstractString)
         i = nextind(s, i)
     end
     return String(take!(out))
+end
+
+# Whether the `'` at `i` opens a Char literal (after an identifier, a closing bracket or a quote it is an adjoint).
+function _char_literal_start(s::AbstractString, i::Int)
+    k = prevind(s, i)
+    while k >= firstindex(s) && isspace(s[k])
+        k = prevind(s, k)
+    end
+    return k < firstindex(s) || !(isletter(s[k]) || isdigit(s[k]) || s[k] in ('_', ')', ']', '}', '\'', '!'))
 end
 
 # Flags or triggers whatever an editor change requires.
@@ -1648,7 +1668,6 @@ end
 # --- Files tab: the resolution of the data and the references -----------------------------------------------------
 
 # Points per dimension the studio resamples to; the time dimension is coarser (see `_sync_resolution_dims!`).
-_default_resolution(dim::Symbol, is_ref::Bool) = is_ref ? (dim === :t ? 100 : 400) : (dim === :t ? 50 : 200)
 
 # The rows of the resolution page: every dimension for the data, then for the references.
 # Particle data is shown as it is: in the Lagrangian mode only the references (evaluated on a grid) have a resolution.
@@ -1677,8 +1696,8 @@ function _set_resolution_from_ui!(item, s::AbstractString)
     dim, is_ref = item
     txt = strip(s)
     n = txt == "default" ? _default_resolution(dim, is_ref) : tryparse(Int, txt)
-    if isnothing(n) || !(2 <= n <= 100_000)
-        _report(:warn, "The resolution is a whole number of points (2 to 100000), not '$(_short(String(txt), 20))'.")
+    if isnothing(n) || !_valid_resolution(n)
+        _report(:warn, "The resolution is a whole number of points (1 to $(MAX_RESOLUTION)), not '$(_short(String(txt), 20))'.")
     else
         set_resolution!(dim, n; is_ref = is_ref)
         manager.flags[:Simulation][] = true
