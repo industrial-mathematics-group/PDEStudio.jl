@@ -1,0 +1,495 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_ecUDnv
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_zM5P0J/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_zM5P0J/exp.csv
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_Mfvwfc/helper.jl)
+[ Info: Executing bundled source: config.jl (as /tmp/jl_Mfvwfc/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_pO4tIB/exp2.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_pO4tIB/exp2.csv
+[ Info: Executing bundled source: helper.jl
+[ Info: Executing bundled source: config.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_avrVUX/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_avrVUX/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_pr4n0R/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_scXC8K/exp2.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_scXC8K/exp2.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_pr4n0R/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_ycPGzf/exp3.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_scXC8K/exp2.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_pr4n0R/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_ycPGzf/exp3.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_pr4n0R/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_xRB1h6/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_xRB1h6/exp.csv
+[ Info: Executing bundled source: config.jl (as /tmp/jl_hDg7Nt/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_xRB1h6/exp.csv
+[ Info: Executing bundled source: config.jl (as /tmp/jl_hDg7Nt/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_xRB1h6/exp.csv
+[ Info: Executing bundled source: config.jl (as /tmp/jl_hDg7Nt/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_u7jNdB/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_u7jNdB/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_1pvHVM/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_u7jNdB/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_1pvHVM/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_Ei8EM0/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_Ei8EM0/exp.csv
+[ Info: Executing bundled source: helper.jl
+[ Info: Executing bundled source: config.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_Ei8EM0/exp.csv
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_jp7g4S/orig/helper.jl)
+[ Info: Executing bundled source: config.jl (as /tmp/jl_jp7g4S/orig/config.jl)
+┌ Error: Running the bundled source config.jl failed
+│   exception =
+│    LoadError: SystemError: opening file "/tmp/jl_jp7g4S/orig/helper.jl": No such file or directory
+│    Stacktrace:
+│      [1] include(mapexpr::Function, mod::Module, _path::String)
+│        @ Base ./Base.jl:310
+│      [2] top-level scope
+│        @ /tmp/jl_jp7g4S/orig/config.jl:1
+│      [3] eval(m::Module, e::Any)
+│        @ Core ./boot.jl:489
+│      [4] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+│        @ Base ./loading.jl:3064
+│      [5] include_string
+│        @ ./loading.jl:3074 [inlined]
+│      [6] _include_as(mod::Module, file::String, as::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:263
+│      [7] _run_bundled_sources(parsed::Dict{String, Dict{String, Dict{String, Any}}}, filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:309
+│      [8] load_and_apply_csv!(filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:429
+│      [9] load!(csv::String)
+│        @ Main ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:10
+│     [10] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+│     [11] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [12] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:94 [inlined]
+│     [13] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [14] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:102 [inlined]
+│     [15] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [16] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [17] _start()
+│        @ Base ./client.jl:577
+│    in expression starting at /tmp/jl_jp7g4S/orig/config.jl:1
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:311
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_D03MbY/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_D03MbY/exp.csv
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_6ovhSv/helper.jl)
+[ Info: Executing bundled source: config.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_C7z8Ld/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_C7z8Ld/exp.csv
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_u7Yz6h/helper.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_u7Yz6h/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_0WzIim/exp2.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_0WzIim/exp2.csv
+[ Info: Executing bundled source: helper.jl
+[ Info: Executing bundled source: cfg.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_MSFB6O/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_MSFB6O/exp.csv
+[ Info: Executing bundled source: exp_source_1.jl (as /tmp/jl_ujJyR8/helper.jl)
+[ Info: Executing bundled source: exp_source_2.jl (as /tmp/jl_ujJyR8/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_MSFB6O/exp.csv
+[ Info: Executing bundled source: exp_source_1.jl (as /tmp/jl_ujJyR8/helper.jl)
+[ Info: Executing bundled source: exp_source_2.jl (as /tmp/jl_ujJyR8/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_MSFB6O/exp.csv
+[ Info: Executing bundled source: exp_source_1.jl
+[ Info: Executing bundled source: exp_source_2.jl
+┌ Error: Running the bundled source exp_source_2.jl failed
+│   exception =
+│    LoadError: SystemError: opening file "/tmp/jl_MSFB6O/helper.jl": No such file or directory
+│    Stacktrace:
+│      [1] include(mapexpr::Function, mod::Module, _path::String)
+│        @ Base ./Base.jl:310
+│      [2] top-level scope
+│        @ /tmp/jl_MSFB6O/exp_source_2.jl:1
+│      [3] eval(m::Module, e::Any)
+│        @ Core ./boot.jl:489
+│      [4] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+│        @ Base ./loading.jl:3064
+│      [5] include_string
+│        @ ./loading.jl:3074 [inlined]
+│      [6] _include_as(mod::Module, file::String, as::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:263
+│      [7] _run_bundled_sources(parsed::Dict{String, Dict{String, Dict{String, Any}}}, filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:309
+│      [8] load_and_apply_csv!(filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:429
+│      [9] load!(csv::String)
+│        @ Main ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:10
+│     [10] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+│     [11] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [12] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:136 [inlined]
+│     [13] macro expansion
+│        @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+│     [14] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:151 [inlined]
+│     [15] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [16] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [17] _start()
+│        @ Base ./client.jl:577
+│    in expression starting at /tmp/jl_MSFB6O/exp_source_2.jl:1
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:311
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_1Bp7bf/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_1Bp7bf/exp.csv
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_SaBqnp/helper.jl)
+[ Info: Executing bundled source: config.jl (as /tmp/jl_SaBqnp/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_Dk6yw2/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_Dk6yw2/exp.csv
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_WWw0mJ/helper.jl)
+[ Info: Executing bundled source: config.jl (as /tmp/jl_WWw0mJ/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/oldsrc/src/ConfigIO.jl:376
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_hoXjpA/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_hoXjpA/exp.csv
+[ Info: Executing bundled source: helper.jl (as /tmp/jl_l0hWzn/helper.jl)
+[ Info: Executing bundled source: config.jl (as /tmp/jl_l0hWzn/config.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_2fNkit/exp2.csv
+ERROR: LoadError: Some tests did not pass: 23 passed, 12 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:23
+A load1: (N = 25, note = "(old code)", failures = String[], sources = ["/tmp/jl_Mfvwfc/helper.jl", "/tmp/jl_Mfvwfc/config.jl"])
+
+A: 9fa97ea probe_reexport_helper (edited included helper): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:30
+  Expression: r.N == 24
+   Evaluated: 25 == 24
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:25 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:30 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+A export2 N = 25 bundled helper: helper_N() = 25
+
+A: 9fa97ea probe_reexport_helper (edited included helper): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:34
+  Expression: occursin("24", read(joinpath(out2, "exp2_sources", "helper.jl"), String))
+   Evaluated: occursin("24", "helper_N() = 25\n")
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:25 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:34 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+A load2 (originals gone): (N = 25, note = "(old code)", failures = String[], sources = ["/tmp/jl_pO4tIB/exp2_sources/helper.jl", "/tmp/jl_pO4tIB/exp2_sources/config.jl"])
+
+A: 9fa97ea probe_reexport_helper (edited included helper): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:37
+  Expression: r.N == 24 && isempty(r.failures)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:25 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:37 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+B load1: (N = 16, note = "(old code)", failures = String[], sources = ["/tmp/jl_pr4n0R/cfg.jl"])
+
+B: 03e98ab probe_reexport_origin (edited top-level file): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:49
+  Expression: occursin(":version => 1", read(joinpath(out2, "exp2_sources", "cfg.jl"), String))
+   Evaluated: occursin(":version => 1", "ic_v(x) = x\nSimulationConfig(create_param_dict(:N => 16, :version => 2, :ic => ic_v, :sim_func_name => :advection_solver_1d), create_method_dict(:m => create_param_dict()), [:m])\n")
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:41 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:49 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+B load export2: (N = 16, note = "(old code)", failures = String[], sources = ["/tmp/jl_pr4n0R/cfg.jl"])
+
+B: 03e98ab probe_reexport_origin (edited top-level file): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:52
+  Expression: P.manager.active_config.shared[:version] == 1 && isempty(r.note)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:41 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:52 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+B load export2 (export1 gone): (N = 16, note = "(old code)", failures = String[], sources = ["/tmp/jl_pr4n0R/cfg.jl"])
+
+B: 03e98ab probe_reexport_origin (edited top-level file): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:57
+  Expression: P.manager.active_config.shared[:version] == 1 && isempty(r.failures)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:41 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:57 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+B load export3 (export1 gone): (N = 16, note = "(old code)", failures = String[], sources = ["/tmp/jl_pr4n0R/cfg.jl"])
+
+B: 03e98ab probe_reexport_origin (edited top-level file): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:59
+  Expression: P.manager.active_config.shared[:version] == 1 && isempty(r.failures)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:41 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:59 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+C unchanged: (N = 24, note = "(old code)", failures = String[], sources = ["/tmp/jl_hDg7Nt/config.jl"])
+C config edited: (N = 24, note = "(old code)", failures = String[], sources = ["/tmp/jl_hDg7Nt/config.jl"])
+C unlisted helper edited: (N = 30, note = "(old code)", failures = String[], sources = ["/tmp/jl_hDg7Nt/config.jl"])
+D unchanged: (N = 24, note = "(old code)", failures = String[], sources = ["/tmp/jl_1pvHVM/cfg.jl"])
+D cfg edited: (N = 24, note = "(old code)", failures = String[], sources = ["/tmp/jl_1pvHVM/cfg.jl"])
+E moved: (N = 24, note = "(old code)", failures = String[], sources = ["/tmp/jl_Ei8EM0/exp_sources/helper.jl", "/tmp/jl_Ei8EM0/exp_sources/config.jl"])
+
+E: originals moved (folder renamed) / deleted file, folder kept: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:99
+  Expression: r.N == 24 && (isempty(r.failures) && occursin("gone", r.note))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:94 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:99 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+E helper original deleted, folder kept: (N = 24, note = "(old code)", failures = ["config.jl: SystemError: opening file \"/tmp/jl_jp7g4S/orig/helper.jl\": No such fi…"], sources = ["/tmp/jl_Ei8EM0/exp_sources/helper.jl", "/tmp/jl_jp7g4S/orig/config.jl"])
+
+E: originals moved (folder renamed) / deleted file, folder kept: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:103
+  Expression: r.N == 24 && isempty(r.failures)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:94 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:103 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+F: (N = 25, note = "(old code)", failures = String[], sources = ["/tmp/jl_6ovhSv/helper.jl"])
+G: (N = 99, note = "(old code)", failures = String[], sources = ["/tmp/jl_u7Yz6h/helper.jl", "/tmp/jl_u7Yz6h/cfg.jl"])
+
+G: config ending with a function, edited original: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:129
+  Expression: r.N == 24 && all((s->begin
+                #= /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:129 =#
+                startswith(s, realpath(out1)) || startswith(s, out1)
+            end), r.sources)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:118 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:129 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+G gen2 alone: (N = 104, note = "(old code)", failures = String[], sources = ["/tmp/jl_0WzIim/exp2_sources/helper.jl", "/tmp/jl_0WzIim/exp2_sources/cfg.jl"])
+
+G: config ending with a function, edited original: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:132
+  Expression: r.N == 24 && isempty(r.failures)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:118 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:132 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+H bundled row: SubString{String}["Metadata,General,bundled_sources,\"String[\"\"exp_sources/helper.jl\"\", \"\"exp_sources/config.jl\"\"]\""]
+H unchanged: (N = 24, note = "(old code)", failures = String[], sources = ["/tmp/jl_ujJyR8/helper.jl", "/tmp/jl_ujJyR8/config.jl"])
+H helper edited: (N = 25, note = "(old code)", failures = String[], sources = ["/tmp/jl_ujJyR8/helper.jl", "/tmp/jl_ujJyR8/config.jl"])
+H no origins: (N = 24, note = "(old code)", failures = ["exp_source_2.jl: SystemError: opening file \"/tmp/jl_MSFB6O/helper.jl\": No such file or…"], sources = ["/tmp/jl_MSFB6O/exp_source_1.jl", "/tmp/jl_MSFB6O/exp_source_2.jl"])
+I bundled config is a symlink: true
+I helper edited (via link): (N = 25, note = "(old code)", failures = String[], sources = ["/tmp/jl_SaBqnp/helper.jl", "/tmp/jl_SaBqnp/config.jl"])
+
+I: symlinked original: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:163
+  Expression: r.N == 24
+   Evaluated: 25 == 24
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:24
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:155 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_bundle_cases.jl:163 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+J original converted to CRLF: (N = 24, note = "(old code)", failures = String[], sources = ["/tmp/jl_WWw0mJ/helper.jl", "/tmp/jl_WWw0mJ/config.jl"])
+K: (N = 25, note = "(old code)", failures = String[], sources = ["/tmp/jl_l0hWzn/helper.jl", "/tmp/jl_l0hWzn/config.jl"])
+K export2 files: ["config.jl", "helper.jl"]
+Test Summary:                                                                   | Pass  Fail  Total  Time
+bundle cases                                                                    |   23    12     35  2.8s
+  A: 9fa97ea probe_reexport_helper (edited included helper)                     |    2     3      5  2.0s
+  B: 03e98ab probe_reexport_origin (edited top-level file)                      |    4     4      8  0.1s
+  C: helper included but NOT listed in sources                                  |    3            3  0.0s
+  D: data file read relative to @__DIR__ (docs: rule 4)                         |    3            3  0.0s
+  E: originals moved (folder renamed) / deleted file, folder kept               |    1     2      3  0.4s
+  F: mixed: config copy missing, helper original edited                         |    1            1  0.0s
+  G: config ending with a function, edited original                             |    2     2      4  0.1s
+  H: older export (<export>_source_<i>.jl next to the CSV, with source_origins) |    3            3  0.2s
+  I: symlinked original                                                         |    1     1      2  0.0s
+  J: CRLF                                                                       |    1            1  0.0s
+  K: absolute source path in the config, edited helper                          |    2            2  0.1s
+RNG of the outermost testset: Random.Xoshiro(0xeba1e5ff3898e275, 0x3b2f0f8d0027e49f, 0x2df1ce0263ffa9a1, 0x7ade4dfeb4003ca4, 0xdefc3ca9191088f3)

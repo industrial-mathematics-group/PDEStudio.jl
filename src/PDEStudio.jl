@@ -140,6 +140,8 @@ Base.@kwdef mutable struct PlotManager
     allowed_styles::Vector{Symbol} = Symbol[]                                 # plot styles the data allows (empty: all)
     pending_code_load::String = ""                                            # file that runs code (path#content hash), waiting for a second Load
     source_failures::Vector{String} = String[]                                # bundled sources that failed in the last load
+    source_note::String = ""                                                  # e.g. "cfg.jl changed since the export: …"
+    source_origins::Dict{String, String} = Dict{String, String}()             # bundled copy => original (`_origin_of`)
     preset_kind::Symbol = :simulation                                         # presets listed in the Files tab
     preset_name::Symbol = Symbol("")                                          # preset file open in the Files tab
     preset_file_rows::Vector{Vector{String}} = Vector{String}[]               # its rows [Category, Scope, Parameter, Value]
@@ -196,8 +198,8 @@ end
 # Makes sure every allowed dimension has a display resolution (the time axis gets coarser defaults).
 function _sync_resolution_dims!()
     for d in manager.allowed_dims
-        get!(manager.resolution_base, d, d === :t ? 50 : 200)
-        get!(manager.resolution_ref, d, d === :t ? 100 : 400)
+        get!(manager.resolution_base, d, _default_resolution(d, false))
+        get!(manager.resolution_ref, d, _default_resolution(d, true))
     end
     return nothing
 end
@@ -222,19 +224,30 @@ them up to `val`, otherwise `val` of them, evenly spread); a reference uses the 
 most `val` of them with `is_ref = true`).
 """
 function set_resolution!(dim::Symbol, val::Int; is_ref::Bool=false)
+    _valid_resolution(val) || throw(ArgumentError(
+        "a resolution is a number of points from 1 to $(MAX_RESOLUTION), got $val"))
     target = is_ref ? manager.resolution_ref : manager.resolution_base
     target[dim] = val
 end
 
+const MAX_RESOLUTION = 100_000
+# A display resolution: 1 point is allowed for every axis (a flat particle cloud along an axis; a time axis then
+# shows its last snapshot).
+_valid_resolution(n) = n isa Integer && 1 <= n <= MAX_RESOLUTION
+# The default display resolution of a dimension (data / references); time axes are coarser.
+_default_resolution(dim::Symbol, is_ref::Bool) = is_ref ? (dim === :t ? 100 : 200) : (dim === :t ? 50 : 100)
+# `k` indices evenly spread over `1:n`, the last one included (the last one alone for `k == 1`).
+_spread_indices(n::Integer, k::Integer) = k == 1 ? [n] : unique(round.(Int, range(1, n, length = min(k, n))))
+
 """
     get_resolution(dim::Symbol; is_ref::Bool=false)
 
-Retrieves the active UI resolution for a given dimension, automatically falling back to sensible defaults (200 for numerical, 400 for analytical) if the dimension was dynamically generated during a sweep.
+Retrieves the active UI resolution for a given dimension, automatically falling back to the defaults (100 for the data, 200 for references; 50 and 100 for `:t`) if the dimension was dynamically generated during a sweep.
 """
 function get_resolution(dim::Symbol; is_ref::Bool=false)
     target = is_ref ? manager.resolution_ref : manager.resolution_base
     # Fallback default if a completely new dimension is requested dynamically
-    return get(target, dim, is_ref ? 400 : 200)
+    return get(target, dim, _default_resolution(dim, is_ref))
 end
 
 """
@@ -365,7 +378,16 @@ function simulation_trigger()
         end
 
         @info "Running dynamic calculations directly from active config..."
-        elapsed = @elapsed run_all_simulations(curr_config; calculate_stats = true, force_overwrite = false)
+        elapsed = try
+            @elapsed _run_simulations(curr_config; calculate_stats = true, force_overwrite = false)
+        catch e
+            # (e.g. a source file that fails or is gone; failures of single runs are logged by PDEStudioCore)
+            e isa InterruptException && rethrow()
+            @error "Running the simulations failed" exception = (e, catch_backtrace())
+            msg = e isa LoadError ? sprint(showerror, e.error) : sprint(showerror, e)
+            _status!("Running failed: $(_short(first(split(msg, '\n')), 110))", :error)
+            return
+        end
 
         # Data with axes the window doesn't have (e.g. a time axis `:iteration`) would be dropped: the next click on
         # "Run Simulation" rebuilds the window with them (like a CSV that changes the dimensions).

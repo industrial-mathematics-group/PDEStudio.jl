@@ -1,0 +1,31 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: UI and Layout have been directly reset to defaults.
+
+  1 dependency had output during precompilation:
+┌ PDEStudio → PDEStudioWGLMakieExt
+│  [Output was shown above]
+└  
+Running 5 test groups in up to 5 processes (1 thread(s) each)
+
+============================== test group `browser`: passed in 9.1 s
+Test Summary:                 | Broken  Total  Time
+PDEStudio: Browser (WGLMakie) |      1      1  0.1s
+
+============================== test group `helpers`: passed in 29.2 s
+Test Summary:      | Pass  Total   Time
+PDEStudio: Helpers |  185    185  20.4s
+
+============================== test group `editors`: passed in 73.9 s
+Test Summary:                       | Pass  Total     Time
+PDEStudio: UI Rendering Integration |  476    476  1m04.8s
+
+============================== test group `plots-1`: passed in 81.0 s
+Test Summary:                       | Pass  Total     Time
+PDEStudio: UI Rendering Integration |  104    104  1m12.0s
+
+============================== test group `plots-2`: passed in 84.5 s
+Test Summary:                       | Pass  Total     Time
+PDEStudio: UI Rendering Integration |   59     59  1m15.6s
+Test Summary: | Pass  Total  Time
+PDEStudio     |    5      5  0.0s
+exit 0

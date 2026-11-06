@@ -400,14 +400,19 @@ function _handle_load(path::AbstractString)
         load_btn.buttoncolor[] = :lightcoral
         return nothing
     end
+    # a failing bundled source has its own warning in the status line; keep it visible
+    note = manager.source_note
     if structural
         load_btn.buttoncolor[] = :orange
         run_btn.buttoncolor[] = :orange
-        _status!("$(basename(path)) changes the dimensions or slider count: Run Simulation rebuilds the window " *
-                 "(save a preset first to keep the current settings).", :warn)
+        # (the note of a loaded export first: it would be cut off after this text)
+        isempty(manager.source_failures) && _status!(isempty(note) ?
+            "$(basename(path)) changes the dimensions or slider count: Run Simulation rebuilds the window " *
+            "(save a preset first to keep the current settings)." :
+            "Loaded $(basename(path)) ($note). Run Simulation rebuilds the window for it.", :warn)
     else
-        # a failing bundled source has its own warning in the status line; keep it visible
-        isempty(manager.source_failures) && _status!("Loaded $(basename(path)). Run Simulation to apply it.", :ok)
+        isempty(manager.source_failures) && _status!("Loaded $(basename(path))" * (isempty(note) ? "" : " ($note)") *
+                                                     ". Run Simulation to apply it.", isempty(note) ? :ok : :warn)
         load_btn.buttoncolor[] = :lightgreen
         notify(manager.flags[:Simulation])  # recolours the Run button (it may still be orange from a staged file)
     end
@@ -996,6 +1001,15 @@ function _empty_literals(s::AbstractString)
             i = nextind(s, i, 7)
             continue
         end
+        if !quoted && c == '\'' && _char_literal_start(s, i)
+            # a Char literal (`'"'`, `'\''`): copied as it is, its quote doesn't open a text
+            j = nextind(s, i)
+            j <= lastindex(s) && s[j] == '\\' && (j = nextind(s, j))   # an escaped character
+            j = j <= lastindex(s) ? something(findnext(==('\''), s, nextind(s, j)), lastindex(s)) : lastindex(s)
+            print(out, SubString(s, i, j))
+            i = nextind(s, j)
+            continue
+        end
         if quoted && escaped
             escaped = false
         elseif quoted && c == '\\'
@@ -1008,6 +1022,27 @@ function _empty_literals(s::AbstractString)
     end
     return String(take!(out))
 end
+
+# Whether the `'` at `i` opens a Char literal (after an identifier, a closing bracket or a quote it is an adjoint,
+# after a keyword such as `in` a Char).
+function _char_literal_start(s::AbstractString, i::Int)
+    k = prevind(s, i)
+    while k >= firstindex(s) && isspace(s[k])
+        k = prevind(s, k)
+    end
+    k < firstindex(s) && return true
+    _ident_char(c) = isletter(c) || isdigit(c) || c in ('_', '!')
+    if _ident_char(s[k])
+        j = k
+        while prevind(s, j) >= firstindex(s) && _ident_char(s[prevind(s, j)])
+            j = prevind(s, j)
+        end
+        return SubString(s, j, k) in _KEYWORDS_BEFORE_VALUES
+    end
+    return !(s[k] in (')', ']', '}', '\''))
+end
+const _KEYWORDS_BEFORE_VALUES = ("in", "isa", "return", "where", "if", "elseif", "while", "do", "else", "for", "begin",
+                                 "let", "try", "global", "local", "const")
 
 # Flags or triggers whatever an editor change requires.
 function _after_editor_change!(cat, scope, key, target)
@@ -1647,9 +1682,6 @@ end
 
 # --- Files tab: the resolution of the data and the references -----------------------------------------------------
 
-# Points per dimension the studio resamples to; the time dimension is coarser (see `_sync_resolution_dims!`).
-_default_resolution(dim::Symbol, is_ref::Bool) = is_ref ? (dim === :t ? 100 : 400) : (dim === :t ? 50 : 200)
-
 # The rows of the resolution page: every dimension for the data, then for the references.
 # Particle data is shown as it is: in the Lagrangian mode only the references (evaluated on a grid) have a resolution.
 _resolution_items() = manager.mode[] === :lagrangian ? Any[(d, true) for d in manager.allowed_dims] :
@@ -1677,8 +1709,8 @@ function _set_resolution_from_ui!(item, s::AbstractString)
     dim, is_ref = item
     txt = strip(s)
     n = txt == "default" ? _default_resolution(dim, is_ref) : tryparse(Int, txt)
-    if isnothing(n) || !(2 <= n <= 100_000)
-        _report(:warn, "The resolution is a whole number of points (2 to 100000), not '$(_short(String(txt), 20))'.")
+    if isnothing(n) || !_valid_resolution(n)
+        _report(:warn, "The resolution is a whole number of points (1 to $(MAX_RESOLUTION)), not '$(_short(String(txt), 20))'.")
     else
         set_resolution!(dim, n; is_ref = is_ref)
         manager.flags[:Simulation][] = true

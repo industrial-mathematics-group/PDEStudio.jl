@@ -1,0 +1,118 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_EQ4OQl
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_ltEH2Y/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_ltEH2Y/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: h.jl (as /tmp/jl_FAleEf/A/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_FAleEf/A/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_vM1zq3/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_vM1zq3/exp.csv
+┌ Warning: Loading exp.csv: the original h.jl is gone: the exported one ran; the original cfg.jl is gone: the exported one ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: h.jl
+[ Info: Executing bundled source: cfg.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_YfkTor/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_YfkTor/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: h.jl (as /tmp/jl_FAleEf/A/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_FAleEf/A/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_YfkTor/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_YfkTor/exp.csv
+┌ Warning: Loading exp.csv: h.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: h.jl (as /tmp/jl_FAleEf/A/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_FAleEf/A/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_60qbvT/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_60qbvT/exp.csv
+[ Info: Executing bundled source: h.jl (as /tmp/jl_8D5Exh/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_8D5Exh/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_60qbvT/exp.csv
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_797MWB/exp2.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_797MWB/exp2.csv
+┌ Warning: Loading exp2.csv: h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:347
+[ Info: Executing bundled source: h.jl (as /tmp/jl_8D5Exh/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_8D5Exh/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:429
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_jQYTtv/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_jQYTtv/exp.csv
+[ Info: Executing bundled source: h.jl (as /tmp/jl_ZMvXML/h.jl)
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_ZMvXML/cfg.jl)
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+ERROR: LoadError: Some tests did not pass: 5 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_chain.jl:18
+gen1 load (A edited): (N = 1, note = "h.jl changed since the export: the exported version ran", failures = String[])
+  E2 origins: ["/tmp/jl_FAleEf/A/h.jl", "/tmp/jl_FAleEf/A/cfg.jl"]
+gen2 load (A moved, E1 deleted): (N = 1, note = "the original h.jl is gone: the exported one ran; the original cfg.jl is gone: the exported one ran", failures = String[])
+  E3 origins: ["/tmp/jl_FAleEf/A/h.jl", "/tmp/jl_FAleEf/A/cfg.jl"]
+gen3 load (A recreated with 4): (N = 1, note = "h.jl changed since the export: the exported version ran", failures = String[])
+gen3 re-exported over itself: (N = 1, note = "h.jl changed since the export: the exported version ran", failures = String[]) origins ["/tmp/jl_FAleEf/A/h.jl", "/tmp/jl_FAleEf/A/cfg.jl"]
+load D/exp (from A): (N = 1, note = "", failures = String[])
+  D/exp origins now: ["/tmp/jl_J1lpJt/h.jl", "/tmp/jl_J1lpJt/cfg.jl"]
+  loaded the bundled cfg.jl: N = 50
+  E/exp2 origins: ["/tmp/jl_8D5Exh/h.jl", "/tmp/jl_8D5Exh/cfg.jl"]   (content is B's)
+
+stale entry: a loaded bundle is overwritten by another export, then its file is loaded as .jl: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_chain.jl:46
+  Expression: all((x->begin
+            #= /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_chain.jl:46 =#
+            startswith(x, B) || startswith(x, D)
+        end), o)
+   Evaluated: all(var"#8#9"{String, String}("/tmp/jl_60qbvT", "/tmp/jl_J1lpJt"), ["/tmp/jl_8D5Exh/h.jl", "/tmp/jl_8D5Exh/cfg.jl"])
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_chain.jl:19
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_chain.jl:36 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3b/probes/probe_chain.jl:46 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+  load E/exp2: (N = 50, note = "h.jl changed since the export: the exported version ran; cfg.jl changed since the export: the exported version ran", failures = String[])
+  D/exp bundled: ["cfg.jl", "h.jl"] origins ["/tmp/jl_ZMvXML/h.jl", "/tmp/jl_ZMvXML/cfg.jl"]
+  load from another working dir with an unrelated h.jl: (N = 1, note = "", failures = String[]) sources = ["/tmp/jl_0LoenB/h.jl", "/tmp/jl_jQYTtv/exp_sources/h.jl", "/tmp/jl_jQYTtv/exp_sources/cfg.jl"]
+Test Summary:                                                                                   | Pass  Fail  Total  Time
+chain                                                                                           |    5     1      6  2.2s
+  3+ generations, originals edited / moved / recreated                                          |    5            5  1.6s
+  stale entry: a loaded bundle is overwritten by another export, then its file is loaded as .jl |          1      1  0.6s
+  relative sources entry and an unrelated file of that name in the working directory            |                 0  0.0s
+RNG of the outermost testset: Random.Xoshiro(0xf70c8c08ce427f7b, 0xf913683241adc56c, 0x3ec80a6cb7b129d0, 0x67a32fceb6d29781, 0xf1a547662983c556)

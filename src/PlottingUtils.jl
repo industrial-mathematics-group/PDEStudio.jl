@@ -295,16 +295,16 @@ function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFl
     is_locked = manager.camera_locked[]
     
     if !is_locked
-        final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision) 
-        final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision) 
+        final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision, fine_labels = _fine_labels(ui_x))
+        final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision, fine_labels = _fine_labels(ui_y))
         try limits!(ax, final_xlims..., final_ylims...) catch; end
     else
         # Safety net: If camera is locked but the current limits are invalid for a log scale, 
         # force an override to prevent a hard Makie crash.
         curr_lims = ax.finallimits[]
         if (use_log_x && curr_lims.origin[1] <= 0) || (use_log_y && curr_lims.origin[2] <= 0)
-            final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision) 
-            final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision) 
+            final_xlims = calculate_padded_axis_range(raw_xlims, ui_x[:padding], use_log_x; precision, fine_labels = _fine_labels(ui_x))
+            final_ylims = calculate_padded_axis_range(raw_ylims, ui_y[:padding], use_log_y; precision, fine_labels = _fine_labels(ui_y))
             try limits!(ax, final_xlims..., final_ylims...) catch; end
         end
     end
@@ -509,15 +509,17 @@ end
 const _AXIS_MIN_RTOL = 1e-6
 
 """
-    calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool; precision = Float64)
+    calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool; precision = Float64,
+                                fine_labels = false)
 
 Computes the padding around raw data limits, safely handling both linear and logarithmic coordinate spaces. A range
 that is constant up to the round-off of the data's floating-point type `precision` (relative width up to
-`100 eps(precision)`), or narrower than the tick labels can resolve (relative width 1e-6), gets a relative width of
-1e-3 instead, so the noise doesn't fill the axis with repeated tick labels.
+`100 eps(precision)`), or narrower than the default tick labels can resolve (relative width 1e-6), gets a relative
+width of 1e-3 instead, so the noise doesn't fill the axis with repeated tick labels. With `fine_labels` (the axis has a
+`scale_offset`, whose offset labels resolve such deviations) only round-off is drawn flat.
 """
 function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is_log_scale::Bool;
-                                     precision::Type{<:AbstractFloat} = Float64)
+                                     precision::Type{<:AbstractFloat} = Float64, fine_labels::Bool = false)
     min_raw, max_raw = raw_limits
     if isnothing(min_raw) || isnothing(max_raw) || !isfinite(min_raw) || !isfinite(max_raw)
         return is_log_scale ? (0.1, 1.0) : (0.0, 1.0)
@@ -532,13 +534,19 @@ function calculate_padded_axis_range(raw_limits::Tuple, padding_factor::Real, is
         # A field constant up to the round-off of its type (e.g. a constant Float32 state), or varying by less than the
         # tick labels can show (`_AXIS_MIN_RTOL`), gets the relative range of the colour ranges, so noise doesn't fill
         # the axis with repeated tick labels; larger small variations stay visible; an exact zero keeps ±0.1.
+        # With labels that resolve small deviations (`fine_labels`: a `scale_offset`) only round-off is flattened.
         min_raw == max_raw == 0 && return (-0.1, 0.1)
-        lo, hi = _pad_degenerate_range(min_raw, max_raw; rtol = max(100 * eps(precision), _AXIS_MIN_RTOL))
+        rtol = fine_labels ? 100 * eps(precision) : max(100 * eps(precision), _AXIS_MIN_RTOL)
+        lo, hi = _pad_degenerate_range(min_raw, max_raw; rtol)
         (lo, hi) == (min_raw, max_raw) || return (lo, hi)
         pad = (max_raw - min_raw) * padding_factor / 2.0
         return (min_raw - pad, max_raw + pad)
     end
 end
+
+# Whether the tick labels of an axis resolve deviations far below the value (`set_axis_styles!`): offset labels
+# (`1.0 + 5.0e-10`). A custom tick format doesn't count, it may show fewer digits than the default labels.
+_fine_labels(ui) = get(ui, :scale_offset, 0.0) != 0
 
 """
     _safe_extrema(data_slices)

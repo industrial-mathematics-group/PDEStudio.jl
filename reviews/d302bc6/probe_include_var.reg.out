@@ -1,0 +1,51 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_Ana35K
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing cfg.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:516
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_QAYMxo/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_QAYMxo/exp.csv
+[ Info: Executing bundled source: cfg.jl (as /tmp/jl_lase6x/cfg.jl)
+┌ Error: Running the bundled source cfg.jl failed
+│   exception =
+│    LoadError: TypeError: non-boolean (PDEStudio._BundledInclude) used in boolean context
+│    Stacktrace:
+│      [1] resolution(; include_boundary::Bool, include::Bool)
+│        @ Main /tmp/jl_lase6x/cfg.jl:2
+│      [2] top-level scope
+│        @ /tmp/jl_lase6x/cfg.jl:3
+│      [3] eval(m::Module, e::Any)
+│        @ Core ./boot.jl:489
+│      [4] include_string(mapexpr::PDEStudio.var"#_include_as##0#_include_as##1"{String, Dict{String, String}, typeof(identity)}, mod::Module, code::String, filename::String)
+│        @ Base ./loading.jl:3064
+│      [5] _include_as(mod::Module, file::String, as::String, copies::Dict{String, String}, mapexpr::typeof(identity))
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:266
+│      [6] _include_as(mod::Module, file::String, as::String, copies::Dict{String, String})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:262
+│      [7] _run_bundled_sources(parsed::Dict{String, Dict{String, Dict{String, Any}}}, filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:450
+│      [8] load_and_apply_csv!(filepath::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:569
+│      [9] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-ps3c/probes/probe_include_var.jl:18
+│     [10] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [11] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [12] _start()
+│        @ Base ./client.jl:577
+│    in expression starting at /tmp/jl_lase6x/cfg.jl:3
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3c/repo/src/ConfigIO.jl:452
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 1 run, 0 cached, 0 without output, 0 failed.
+[ Info: Batch simulation run complete!
+.jl load: N = 21
+export load (nothing edited): failures = ["cfg.jl: TypeError: non-boolean (PDEStudio._BundledInclude) used in boolean co…"], note = ""
+   N = 21 (from the CSV if the source failed)
+Run: ok   resolution() now = 21
+exit 0

@@ -1,0 +1,31 @@
+[ Info: UI and Layout have been directly reset to defaults.
+ok   "Any['\"', <empty>]"               -> "Any['\"', \"\"]"
+ok   "Any['\\'', <empty>]"              -> "Any['\\'', \"\"]"
+ok   "Any['\\\\', <empty>]"             -> "Any['\\\\', \"\"]"
+ok   "Any['\\u00e9', <empty>]"          -> "Any['\\u00e9', \"\"]"
+ok   "Any['é', '\"', <empty>]"          -> "Any['é', '\"', \"\"]"
+ok   "x' * <empty>"                     -> "x' * \"\""
+ok   "A' * <empty>"                     -> "A' * \"\""
+ok   "[1 2]' , <empty>"                 -> "[1 2]' , \"\""
+ok   "(x)'' , <empty>"                  -> "(x)'' , \"\""
+ok   "x.' , <empty>"                    -> "x.' , <empty>"
+ok   "Any[\"it's\", <empty>]"           -> "Any[\"it's\", \"\"]"
+ok   "Any[\"a'\\\"b\", <empty>]"        -> "Any[\"a'\\\"b\", \"\"]"
+ok   "Any[', <empty>]"                  -> "Any[', <empty>]"
+ok   "Any[<empty>, ']"                  -> "Any[\"\", ']"
+ok   "'"                                -> "'"
+ok   "Any['\"']"                        -> "Any['\"']"
+ok   "Any[1, '\"'] , \"<empty>\""       -> "Any[1, '\"'] , \"<empty>\""
+ok   "Any[:a, '\"', <empty>]"           -> "Any[:a, '\"', \"\"]"
+ok   "Any[2'\"', <empty>]"              -> "Any[2'\"', <empty>]"
+ok   "Any[f('\"'), <empty>]"            -> "Any[f('\"'), \"\"]"
+ok   "Any[x ? '\"' : <empty>]"          -> "Any[x ? '\"' : \"\"]"
+ok   "Any[a in '\"', <empty>]"          -> "Any[a in '\"', \"\"]"
+Any['"', ""]                       shown "Any['\"', <empty>]" -> (true, Any['"', ""])
+Any['\'', ""]                      shown "Any['\\'', <empty>]" -> (true, Any['\'', ""])
+Any['\\', ""]                      shown "Any['\\\\', <empty>]" -> (true, Any['\\', ""])
+Any['é', '"', ""]                  shown "Any['é', '\"', <empty>]" -> (true, Any['é', '"', ""])
+Any["it's", ""]                    shown "Any[\"it's\", <empty>]" -> (true, Any["it's", ""])
+Any['"', "<empty>", ""]            shown "Any['\"', \"<empty>\", <empty>]" -> (true, Any['"', "<empty>", ""])
+Test Summary: | Pass  Total  Time
+char literals |   28     28  0.5s

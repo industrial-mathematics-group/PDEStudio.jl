@@ -1,0 +1,98 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_IBQaRV
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_8qh3XP/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 0: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_5f0QOA/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_jSFC6C/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 2.5: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_OykAu6/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_4CASQR/res.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_8d3Q0U/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 100001: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_caNJJ6/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = -5: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_lrLbt9/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 1.0e20: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_KnZpso/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = 99999999999999999999: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_NK1K4D/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = "abc": a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_IrIAbK/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = true: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_8hvwLD/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = Inf: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_rauQXJ/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Base row x = NaN: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3b/repo/src/ConfigIO.jl:574
+[ Info: No simulation data found. Loading as a visual preset.
+0                      parsed as 0 (Int64) -> x = 100
+1                      parsed as 1 (Int64) -> x = 1
+2.5                    parsed as 2.5 (Float64) -> x = 100
+1e3                    parsed as 1000.0 (Float64) -> x = 1000
+100000                 parsed as 100000 (Int64) -> x = 100000
+100001                 parsed as 100001 (Int64) -> x = 100
+-5                     parsed as -5 (Int64) -> x = 100
+1e20                   parsed as 1.0e20 (Float64) -> x = 100
+99999999999999999999   parsed as 99999999999999999999 (Int128) -> x = 100
+abc                    parsed as "abc" (String) -> x = 100
+true                   parsed as true (Bool) -> x = 100
+Inf                    parsed as Inf (Float64) -> x = 100
+NaN                    parsed as NaN (Float64) -> x = 100
+Test Summary:       | Pass  Total  Time
+CSV resolution rows |   13     13  1.2s
+_spread_indices(1, 1) = [1]
+_spread_indices(5, 1) = [5]
+_spread_indices(1, 5) = [1]
+_spread_indices(5, 5) = [1, 2, 3, 4, 5]
+_spread_indices(5, 2) = [1, 5]
+_spread_indices(100, 3) = [1, 50, 100]
+_spread_indices(3, 100) = [1, 2, 3]
+Test Summary:   | Pass  Total  Time
+_spread_indices |    1      1  0.0s
