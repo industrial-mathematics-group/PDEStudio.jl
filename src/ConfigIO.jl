@@ -75,9 +75,29 @@ end
 
 const _RESERVED_SIM_SCOPES = ("Shared", "Sweep", "Config")
 
-# Text parameters that would read back as something else ("1e3", "Float64", "Nothing") are written quoted, so a
-# simulation parameter keeps its type (and its data-file hash) through a CSV round trip.
-_csv_text(v) = (v isa AbstractString && !isempty(v) && !isequal(_parse_csv_value(v), v)) ? repr(String(v)) : v
+# Text parameters that would read back as something else ("1e3", "Float64", "Nothing") are written quoted, and numbers
+# and static vectors whose type `val2str` doesn't write are written with it (see `_typed_text`), so a simulation
+# parameter keeps its type (and its data-file hash, which is computed from `val2str`) through a CSV round trip.
+function _csv_text(v)
+    v isa AbstractString && return (!isempty(v) && !isequal(_parse_csv_value(v), v)) ? repr(String(v)) : v
+    return _needs_type(v) ? _typed_text(v) : v
+end
+
+# Values `val2str` writes without their type: `Float32`/`Float16` numbers (as `1.5`, read back as `Float64`) and
+# static vectors (as `Float64[…]`, read back as `Vector`), also inside tuples and untyped vectors.
+_needs_type(v) = v isa Union{Float32, Float16} || v isa SVector || (v isa Tuple && any(_needs_type, v)) ||
+                 (v isa AbstractVector && !isconcretetype(eltype(v)) && any(_needs_type, v))
+
+# The literal of `v` with these types (`1.5f0`, `Float16(1.5)`, `SA{Float64}[1.0, 2.0]`), which `str2val` reads back;
+# everything else as `val2str` writes it.
+function _typed_text(v)
+    _needs_type(v) || return val2str(v; top_level = false)
+    v isa Union{Float32, Float16} && return repr(v)
+    elements = join(map(_typed_text, collect(v)), ", ")
+    v isa SVector && return "SA{$(eltype(v))}[$elements]"
+    v isa Tuple && return length(v) == 1 ? "($elements,)" : "($elements)"
+    return (eltype(v) === Any ? "Any" : string(eltype(v))) * "[$elements]"
+end
 
 """
     _add_simulation_rows!(rows, config::SimulationConfig)
@@ -105,7 +125,7 @@ function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
     add_row!(rows, "Simulation", "Config", "reference", isnothing(config.reference) ? "none" : string(config.reference))
     add_row!(rows, "Simulation", "Config", "postprocess", isnothing(config.postprocess) ? "none" : string(config.postprocess))
     for (k, v) in _sorted_pairs(config.varied)
-        add_row!(rows, "Simulation", "Sweep", k, v)
+        add_row!(rows, "Simulation", "Sweep", k, _needs_type(v) ? _typed_text(v) : v)
     end
     return rows
 end
@@ -120,6 +140,24 @@ function _parse_csv_value(s::AbstractString)
     return str2val(txt)
 end
 
+# The column numbers of `Category, Scope, Parameter, Value` in the rows of a studio CSV (header names stripped, so a
+# hand-written header with spaces after the commas works); an ArgumentError for any other header.
+function _csv_columns(row, filepath::AbstractString)
+    names = Dict(strip(string(n)) => i for (i, n) in enumerate(propertynames(row)))
+    cols = map(c -> get(names, c, nothing), ("Category", "Scope", "Parameter", "Value"))
+    any(isnothing, cols) && throw(ArgumentError("$(basename(filepath)) is no studio CSV: its header must be " *
+                                                "Category, Scope, Parameter, Value"))
+    return cols
+end
+
+# The text of a value cell: an unquoted value is stripped (`…, Upwind scheme` written by hand), a quoted one keeps its
+# spaces (the studio's writer quotes such texts). `text` holds the file's text, read only when a value needs it.
+function _csv_value_text(val::String, filepath::AbstractString, text::Ref)
+    val == strip(val) && return val
+    isnothing(text[]) && (text[] = read(filepath, String))
+    return occursin('"' * replace(val, '"' => "\"\"") * '"', text[]) ? val : String(strip(val))
+end
+
 """
     _read_csv(filepath)
 
@@ -129,12 +167,15 @@ texts (used where text must stay text, e.g. labels and string-valued UI options)
 function _read_csv(filepath::AbstractString)
     parsed = Dict{String, Dict{String, Dict{String, Any}}}()
     raw = Dict{String, Dict{String, Dict{String, String}}}()
+    cols = nothing
+    text = Ref{Union{Nothing, String}}(nothing)
     for row in CSV.Rows(filepath)
+        # Hand-written files may have spaces after the commas (`Category, Scope, Parameter, Value`): the column names
+        # and the key cells are stripped.
+        isnothing(cols) && (cols = _csv_columns(row, filepath))
         # CSV.Rows yields lazy string types; plain `String`s are needed by the parser (and as dict keys)
-        cat = String(coalesce(row.Category, ""))
-        scope = String(coalesce(row.Scope, ""))
-        param = String(coalesce(row.Parameter, ""))
-        val_str = String(coalesce(row.Value, ""))
+        cat, scope, param = (String(strip(String(coalesce(row[c], "")))) for c in cols[1:3])
+        val_str = _csv_value_text(String(coalesce(row[cols[4]], "")), filepath, text)
         (isempty(cat) || isempty(param)) && continue
         get!(Dict{String, Any}, get!(Dict{String, Dict{String, Any}}, parsed, cat), scope)[param] = _parse_csv_value(val_str)
         get!(Dict{String, String}, get!(Dict{String, Dict{String, String}}, raw, cat), scope)[param] = val_str
@@ -234,8 +275,8 @@ folder exists, otherwise from the bundle folder; a missing copy is replaced by i
 
 A source that fails doesn't abort the load: the error is reported (log and status line) and the parameters come
 from the CSV, so the solver functions must then be defined some other way (e.g. by loading their package).
-Returns `(config, bundled, origins)`: the `SimulationConfig` returned by the last file if every file ran (otherwise
-`nothing`), the absolute paths of the bundled copies (`""` for missing files) and the original paths (if recorded).
+Returns `(config, bundled, origins)`: the `SimulationConfig` returned by the last file (or by the function without
+arguments it ends with, as for [`load_config_file!`](@ref)) if every file ran (otherwise `nothing`), the absolute paths of the bundled copies (`""` for missing files) and the original paths (if recorded).
 """
 function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     meta = get(get(parsed, "Metadata", Dict()), "General", Dict())
@@ -273,6 +314,16 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
             last_result = nothing
         end
         push!(bundled, copy)
+    end
+    # A file may end with a function that returns the configuration (as `load_config_file!` accepts)
+    if isempty(failures) && last_result isa Function
+        try
+            last_result = Base.invokelatest(last_result)
+        catch e
+            @error "The function returned by the bundled source $(basename(string(last(names)))) failed" exception = (e, catch_backtrace())
+            push!(failures, "$(basename(string(last(names)))): $(_short(first(split(sprint(showerror, e), '\n')), 70))")
+            last_result = nothing
+        end
     end
     if !isempty(failures)
         _status!("Source files of $(basename(filepath)) failed; the parameters come from the CSV, define the solvers " *
@@ -376,8 +427,11 @@ function load_and_apply_csv!(filepath::AbstractString)
     empty!(manager.source_failures)
     parsed, raw = _read_csv(filepath)
     bundled_config, bundled, origins = _run_bundled_sources(parsed, filepath)
-    sources = isnothing(bundled_config) ? filter(!isempty, bundled) :
-              _relocate_sources(bundled_config.sources, bundled, origins)
+    # The bundled files are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
+    # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
+    runs = String[i <= length(origins) && isfile(origins[i]) ? abspath(origins[i]) : bundled[i]
+                  for i in eachindex(bundled) if !isempty(bundled[i])]
+    sources = isnothing(bundled_config) ? runs : unique([_relocate_sources(bundled_config.sources, bundled, origins); runs])
 
     new_dims, new_max = manager.allowed_dims, manager.max_params
     dims = get(get(parsed, "Config", Dict()), "Dimensions", nothing)
@@ -433,8 +487,32 @@ configuration (`config` if given, e.g. returned by a bundled source, otherwise b
 the plot style, UI overrides, layout, axes and slider positions, camera, labels and exploration options.
 `raw` holds the raw cell texts (see `_read_csv`); `sources` replaces the configuration's source files.
 """
+# Categories and scopes of the studio CSV format (other categories, e.g. of a newer version, are ignored).
+const _CSV_SCOPES = Dict("Metadata" => ("General", "Preset"), "Git" => nothing, "Julia" => nothing,
+                         "Scene" => ("Plot", "Layout", "Camera", "Labels", "Exploration"), "UI" => nothing,
+                         "Simulation" => nothing, "Config" => ("Dimensions", "Resolution_Base", "Resolution_Ref"))
+
+# Warns about categories and scopes the studio doesn't read (typos in hand-written files, e.g. `Scene, plot`).
+function _warn_unknown_scopes(parsed::Dict)
+    for (cat, scopes) in parsed
+        if !haskey(_CSV_SCOPES, cat)
+            @warn "Unknown CSV category '$cat' ignored (categories: $(join(sort!(collect(keys(_CSV_SCOPES))), ", ")))."
+            continue
+        end
+        known = _CSV_SCOPES[cat]
+        for scope in keys(scopes)
+            ok = cat == "UI" ? haskey(MASTER_UI_DICT, _ui_template_scope(Symbol(scope))) :
+                 isnothing(known) || scope in known
+            ok || @warn "Unknown scope '$scope' of the CSV category '$cat' ignored" *
+                        (isnothing(known) ? "." : " (scopes: $(join(known, ", "))).")
+        end
+    end
+    return nothing
+end
+
 function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sources = String[])
     @info "Applying parsed CSV configuration..."
+    _warn_unknown_scopes(parsed)
     cfg = get(parsed, "Config", Dict())
     for (scope, target) in (("Resolution_Base", manager.resolution_base), ("Resolution_Ref", manager.resolution_ref))
         for (k, v) in get(cfg, scope, Dict())
@@ -472,7 +550,14 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
         scope = Symbol(scope_str)
         for (k_str, v) in dict
             key = Symbol(k_str)
-            set_ui_opt!(scope, key, _coerce_ui_value(scope, key, v, _raw_value(raw, "UI", scope_str, k_str)))
+            val = _coerce_ui_value(scope, key, v, _raw_value(raw, "UI", scope_str, k_str))
+            # values the plot can't be drawn with are refused, as in the editor (the current value stays)
+            reason = _invalid_ui_reason(key, val)
+            if !isnothing(reason)
+                @warn "Ignoring UI, $scope_str, $k_str = $(repr(val)) from the file: not a valid $reason."
+                continue
+            end
+            set_ui_opt!(scope, key, val)
         end
     end
 
@@ -613,8 +698,8 @@ end
     get_all_git_infos(start_path::String = "."; max_depth = 3)
 
 Searches the filesystem below `start_path` (at most `max_depth` levels, skipping hidden, `build`, `node_modules` and
-`docs` folders) for local Git repositories. Returns the commit hash, summary, and total commit count of each for
-research reproducibility tracking.
+`docs` folders) for local Git repositories. Returns the commit hash, summary, total commit count and whether the
+working tree has uncommitted changes to tracked files (`git_dirty`; untracked files don't count) of each for research reproducibility tracking.
 """
 function get_all_git_infos(start_path::String = "."; max_depth::Int = 3)
     git_infos = Dict{String, Dict{String, Any}}()
@@ -625,7 +710,9 @@ function get_all_git_infos(start_path::String = "."; max_depth::Int = 3)
             git_infos[basename(root)] = Dict{String, Any}(
                 "git_commit_hash" => string(LibGit2.GitHash(commit)),
                 "git_commit_summary" => LibGit2.summary(commit),
-                "git_commit_count" => try parse(Int, readchomp(`git -C $root rev-list --count HEAD`)) catch; -1 end
+                "git_commit_count" => try parse(Int, readchomp(`git -C $root rev-list --count HEAD`)) catch; -1 end,
+                # uncommitted changes: the commit alone doesn't reproduce the state
+                "git_dirty" => LibGit2.isdirty(repo)
             )
         catch
             # Not a valid repository (or no commits yet): skipped.
@@ -654,8 +741,10 @@ function get_julia_info(git_repo_names::Vector{String})
     end
     info["Main_Project"] = top_deps
 
+    # Repository folders are named like their packages, usually with a `.jl` suffix (`PDEStudio.jl` holds `PDEStudio`)
+    repo_packages = Set(replace(basename(n), r"\.jl$" => "") for n in git_repo_names)
     for (uuid, pkg) in deps
-        if pkg.name in git_repo_names
+        if pkg.name in repo_packages
             sub_deps = Dict{String, Any}()
             for (dep_name, dep_uuid) in pkg.dependencies
                 if haskey(deps, dep_uuid)

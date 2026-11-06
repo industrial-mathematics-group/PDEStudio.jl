@@ -1,0 +1,6 @@
+== /workspace/julia/PDEStudioDev/PDEStudio.jl
+set_resolution!(:y, 1): ArgumentError: the resolution of :y must be a whole number of points from 2 to 100000, got 1
+┌ Warning: Could not load the data of Dict{Symbol, Any}(:sim_func_name => :line_parts)
+set ok = false; loaded: nothing
+== /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/ps/oldsrc
+set ok = true; loaded: (200, 1, 50)

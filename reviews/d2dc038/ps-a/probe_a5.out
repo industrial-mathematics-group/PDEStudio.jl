@@ -1,0 +1,79 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Module save root path set to: /tmp/jl_xCQaiS
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 2 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (200, 50) (linear in space, nearest in time)...
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio /workspace/julia/PDEStudioDev/PDEStudio.jl/src/ConfigIO.jl:362
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Info: after the second click
+│   status() = "Loaded config.jl. Run Simulation to apply it."
+└   manager.active_config.shared[:N] = 99
+┌ Info: no-space wrap
+│   split(s, '\n') =
+│    2-element Vector{SubString{String}}:
+│     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx" ⋯ 19 bytes ⋯ "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+│     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx" ⋯ 19 bytes ⋯ "xxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+│   length.(split(s, '\n')) =
+│    2-element Vector{Int64}:
+│     76
+└     76
+┌ Info: leading space wrap
+│   split(s2, '\n') =
+│    2-element Vector{SubString{String}}:
+│     ""
+└     "yyyyyyyyyyyyyyyyyyyyyyyyyyyyy" ⋯ 19 bytes ⋯ "yyyyyyyyyyyyyyyyyyyyyyyyyyy…"
+ERROR: LoadError: Some tests did not pass: 2 passed, 2 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a5.jl:2
+
+ps-a probe 5: what the load confirmation covers: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a5.jl:20
+  Expression: occursin("click Load again", status())
+   Evaluated: occursin("click Load again", "Loaded config.jl. Run Simulation to apply it.")
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a5.jl:3
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a5.jl:20 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+ps-a probe 5: what the load confirmation covers: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a5.jl:29
+  Expression: !(isempty(first(split(s2, '\n'))))
+   Evaluated: !(isempty(""))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a5.jl:3
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a5.jl:29 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                   | Pass  Fail  Total   Time
+ps-a probe 5: what the load confirmation covers |    2     2      4  10.8s
+RNG of the outermost testset: Random.Xoshiro(0xa020d96c9b26fb47, 0xd30d78568164fe4e, 0xd39f02914a8f9725, 0x2361ed716986e01b, 0x3311cd6076d40aa7)

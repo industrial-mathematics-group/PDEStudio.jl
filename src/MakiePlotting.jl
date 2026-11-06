@@ -92,6 +92,8 @@ function set_sim_config!(config::SimulationConfig; snapshot::Bool = true)
     haskey(manager.flags, :Simulation) && (manager.flags[:Simulation][] = true)
 
     for m_sym in keys(config.methods)
+        startswith(string(m_sym), '#') &&
+            @warn "Method '$m_sym' starts with #, like the editor's own pages (#order, #methods); rename it to edit it in the Methods tab."
         if m_sym !== :shared && !haskey(manager.labels, m_sym)
             set_label!(m_sym, is_reference_method(m_sym) ? frontend_key(m_sym) : string(m_sym))
         end
@@ -546,6 +548,13 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
                 # Disabled sliders (range [0.0]: axis or compare target) keep their last real position
                 if widget isa Makie.Slider && length(widget.range[]) > 1
                     val = widget.value[]
+                    pending = get(manager.pending_sliders, w_key, nothing)
+                    if !isnothing(pending)
+                        rng = widget.range[]
+                        # moved away from the clamped loaded position: the user's choice replaces the loaded one
+                        val == rng[findmin(x -> abs(x - first(pending)), rng)[2]] && continue
+                        delete!(manager.pending_sliders, w_key)
+                    end
                     manager.slider_cache[w_key] = Float64(val)
                     manager.plot_cache[k] = val
                 end
@@ -570,7 +579,13 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
 
     manager.listeners[:UI] = on(manager.triggers[:UI]) do _
         @with_lock :UI begin
-            _handle_ui_trigger!(Val(T), master_fig, plot_layout, axes, has_colorbar, u_sel)
+            try
+                _handle_ui_trigger!(Val(T), master_fig, plot_layout, axes, has_colorbar, u_sel)
+            catch e
+                # (like the plot step: an exception must not escape into the click handler or the renderloop)
+                @error "Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour " *
+                       "range, levels) and click 'Update Plot' again." exception = (e, catch_backtrace())
+            end
         end
     end
     

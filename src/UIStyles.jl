@@ -89,7 +89,11 @@ frontend_key(s) = string(s)  # numbers, `nothing`, … (e.g. menu values that ar
 
 Helper function that uses `frontend_key` to automatically generate a formatted Makie dropdown tuple: `("Nice String", :key)`.
 """
-menu_opt(sym::Symbol) = (frontend_key(sym), sym)
+menu_opt(sym::Symbol) = _menu_label_ok((frontend_key(sym), sym))
+
+# A menu option whose label is empty (an empty display name) gets the name of its key instead (an empty label makes
+# Makie's Menu overflow the stack when it opens).
+_menu_label_ok(opt) = opt isa Tuple && length(opt) == 2 && isempty(strip(string(opt[1]))) ? (string(opt[2]), opt[2]) : opt
 
 is_surface(T::Symbol) = contains(String(T),"surface")
 
@@ -330,6 +334,7 @@ function set_plot_preset!()
     # 2. Reset Layout and Sliders safely
     apply_layout_options!(base_layout)
     empty!(manager.slider_cache)
+    empty!(manager.pending_sliders)
     
     # 3. Reset Camera
     manager.camera_cache = Dict{Symbol, Any}()
@@ -377,10 +382,13 @@ function apply_plot_preset!(::Val{:publication})
     set_ui_opt!(:axis_general, :title_size, 22)
     set_ui_opt!(:axis_general, :ticklabel_size, 16)
     
-    set_ui_opt!(:x_axis, :padding, 0.0)
-    set_ui_opt!(:x_axis, :label_offset, 5.0)
-    set_ui_opt!(:y_axis, :label_offset, 5.0)
-    set_ui_opt!(:z_axis, :label_offset, 5.0)
+    # every axis variant (`x_axis` alone would be the one of the style shown, see `_ui_template_scope`)
+    for scope in (:x_axis_1d, :x_axis_nd)
+        set_ui_opt!(scope, :padding, 0.0)
+    end
+    for scope in UI_AXIS_SCOPES
+        set_ui_opt!(scope, :label_offset, 5.0)
+    end
 
     set_ui_opt!(:plot_style, :line_width, 2.5)
     set_ui_opt!(:plot_style, :dashed_lines, false)
@@ -402,10 +410,11 @@ function apply_plot_preset!(::Val{:heatmap})
         :compare_link   => :fully_coupled
     ))
     
-    set_ui_opt!(:x_axis, :label_offset, 10.0)
-    set_ui_opt!(:y_axis, :label_offset, 10.0)
-    set_ui_opt!(:x_axis, :padding, 0.0)
-    set_ui_opt!(:y_axis, :padding, 0.0)
+    # the axis variant of the heatmap (`x_axis` would be that of the style shown before, e.g. the 1D lines)
+    set_ui_opt!(:x_axis_nd, :label_offset, 10.0)
+    set_ui_opt!(:y_axis_nd, :label_offset, 10.0)
+    set_ui_opt!(:x_axis_nd, :padding, 0.0)
+    set_ui_opt!(:y_axis_nd, :padding, 0.0)
     set_ui_opt!(:plot_style, :bottom_margin, 20)
 end
 
@@ -421,9 +430,10 @@ function apply_plot_preset!(::Val{:component})
 end
 
 function apply_plot_preset!(::Val{:compact3d})
-    set_ui_opt!(:x_axis, :label_offset, 5.0)
-    set_ui_opt!(:y_axis, :label_offset, 5.0)
-    set_ui_opt!(:z_axis, :label_offset, 15.0)
+    # the axes of the 3D styles, whatever style is shown
+    set_ui_opt!(:x_axis_nd, :label_offset, 5.0)
+    set_ui_opt!(:y_axis_nd, :label_offset, 5.0)
+    set_ui_opt!(:z_axis_3d, :label_offset, 15.0)
     set_ui_opt!(:axis_general, :legend_pos, :td)
 end
 

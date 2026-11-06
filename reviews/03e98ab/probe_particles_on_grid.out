@@ -1,0 +1,13 @@
+P.manager.mode[] = :eulerian
+ESimData time axis: [0.0, 0.02040816326530612, 0.04081632653061224, 0.061224489795918366, 0.08163265306122448, 0.10204081632653061] … (50 times)
+labelled t = 0.30612244897959184, drawn snapshot value (= its time) = 0.20000000000000004
+
+particles on a grid: drawn times are stored times: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_particles_on_grid.jl:20
+  Expression: issubset(d.axes[2], [0.0, 0.1, 0.2, 1.0])
+   Evaluated: issubset([0.0, 0.02040816326530612, 0.04081632653061224, 0.061224489795918366, 0.08163265306122448, 0.10204081632653061, 0.12244897959183673, 0.14285714285714285, 0.16326530612244897, 0.1836734693877551  …  0.8163265306122449, 0.8367346938775511, 0.8571428571428571, 0.8775510204081632, 0.8979591836734694, 0.9183673469387755, 0.9387755102040817, 0.9591836734693877, 0.9795918367346939, 1.0], [0.0, 0.1, 0.2, 1.0])
+  Stacktrace:
+Test Summary:                                     | Fail  Total  Time
+particles on a grid: drawn times are stored times |    1      1  1.8s
+RNG of the outermost testset: Random.Xoshiro(0x0fb3b563dc17ea0e, 0x00f81ef7db14c8df, 0x44869f455689d465, 0x4712bf5105e2494a, 0x5ac069dd47376baa)
+ERROR: LoadError: Some tests did not pass: 0 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round3/ps/probe_particles_on_grid.jl:9

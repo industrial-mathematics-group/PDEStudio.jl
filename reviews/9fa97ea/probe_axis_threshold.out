@@ -1,0 +1,13 @@
+[ Info: UI and Layout have been directly reset to defaults.
+F64 1+1e-6 sin (w 2e-6)          limits (0.999998950539, 1.00000104946)  data/axis = 0.952
+F64 1+6e-7 sin (w 1.2e-6)        limits (0.999999370324, 1.00000062968)  data/axis = 0.952
+F64 1+4e-7 sin (w 8e-7)          limits (0.998999599806, 1.00100040019)  data/axis = 0.0004
+F64 1+1e-12 sin                  limits (0.998999999999, 1.001)  data/axis = 9.99e-10
+F64 -1+1e-6 sin                  limits (-1.00000104946, -0.999998950539)  data/axis = 0.952
+F64 1e5+0.2 sin (w 4e-6)         limits (99999.7901079, 100000.209892)  data/axis = 0.952
+F64 1e-9 sin (around 0)          limits (-1.04946052701e-09, 1.04946052701e-09)  data/axis = 0.952
+F64 1e-8+1e-14 sin               limits (9.99998950539e-09, 1.00000104946e-08)  data/axis = 0.952
+F32 1+1e-5 sin (w 2e-5)          limits (0.999989485741, 1.00001051426)  data/axis = 0.952
+F32 1+5e-6 sin (w 1e-5)          limits (0.998994988203, 1.0010050118)  data/axis = 0.00498
+F64 1+1e-9 sin, scale_offset 1   limits (0.998999999, 1.001000001)  data/axis = 9.99e-07
+same, axis fitted to data        limits (0.999999998951, 1.00000000105)  data/axis = 0.952

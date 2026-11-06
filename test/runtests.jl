@@ -140,6 +140,33 @@ function exact_advection_factory(params::ParamDict)
     return (x -> exact_advection(x))
 end
 
+# The exact transport solution stored every `every`-th time step (sparse output)
+function exact_sparse_1d(params::ParamDict)
+    N, dt, every = params[:N], params[:dt], params[:every]
+    x = collect(range(0.0, step = 2π / N, length = N))
+    t = collect(0.0:dt*every:2.0)
+    return create_sim_data(x, [SVector(sin(xi - ti) + 2.0) for xi in x, ti in t], t, params; time_dim = :t, dims = :x)
+end
+exact_sparse_factory(params) = (xt -> SVector(sin(xt[1] - xt[2]) + 2.0))
+
+# Particles at rest stored at uneven times (4, or 80 for `many`), carrying u = t
+function particles_uneven_1d(params::ParamDict)
+    t = params[:many] ? collect(range(0.0, 1.0, length = 80)) .^ 2 : [0.0, 0.1, 0.2, 1.0]
+    x0 = collect(range(0.0, 1.0, length = 40))
+    return create_sim_data([[SVector(p) for p in x0] for _ in t], [[SVector(ti) for _ in x0] for ti in t], t, params; time_dim = :t)
+end
+
+# The exact transport solution up to the final time `T_end` (a swept parameter that changes the domain)
+function exact_transport_1d(params::ParamDict)
+    N, cfl, T_end = params[:N], params[:cfl], params[:T_end]
+    dx = 2π / N
+    dt = cfl * dx
+    x = collect(range(0.0, step = dx, length = N))
+    t = collect(range(0.0, step = dt, length = ceil(Int, T_end / dt) + 1))
+    u = [SVector{1, Float64}(sin(xi - ti) + 2.0) for xi in x, ti in t]
+    return create_sim_data(x, u, t, params; time_dim = :t, dims = :x)
+end
+
 # ==============================================================================
 # --- EXPERIMENT: 1D Lagrangian Particle Tracking ---
 # ==============================================================================
@@ -267,6 +294,200 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test reread.methods[:upwind][:scheme] == "upwind"
         @test reread.defaults == [:upwind]
         @test reread.varied[:cfl] == [0.2, 0.4]
+
+        # Float32 / Float16 numbers and static vectors keep their type (and the hash stays the same)
+        typed = Dict{Symbol, Any}(:f32 => 1.5f0, :f16 => Float16(0.1), :inf32 => Inf32, :svec => SVector(1.0, 2.0),
+                                  :sv32 => SVector(0.1f0, 2.0f0), :tup => (1.5f0, 2), :anyv => Any[1.5f0, "a"],
+                                  :vec_sv => [SVector(1.0, 2.0)], :f64 => 0.1, :text => "SA{Float64}[1.0]")
+        cfg = SimulationConfig(ParamDict(typed...), create_method_dict(:m => create_param_dict(:dt => 0.5f0)), [:m];
+                               varied = create_varied_dict(:cfl => Any[0.2f0, 0.4f0]))
+        rows = PDEStudio._CSVRows()
+        PDEStudio._add_simulation_rows!(rows, cfg)
+        PDEStudio._write_rows(path, rows)
+        back = PDEStudio.csv_to_simulation_config(PDEStudio.parse_csv_to_dict(path))
+        for (k, v) in typed
+            @test isequal(back.shared[k], v) && typeof(back.shared[k]) == typeof(v)
+        end
+        @test back.methods[:m][:dt] === 0.5f0 && isequal(back.varied[:cfl], Any[0.2f0, 0.4f0])
+        @test all(v -> v isa Float32, back.varied[:cfl])
+        data_hash(c) = calculate_hash(get_clean_params(assemble_params(c.shared, c.methods, :m)))
+        @test data_hash(back) == data_hash(cfg)
+        # files written before keep reading as they did
+        write(path, "Category,Scope,Parameter,Value\nSimulation,Shared,dt,1.5\nSimulation,Shared,v,\"Float64[1.0, 2.0]\"\n")
+        old = PDEStudio.csv_to_simulation_config(PDEStudio.parse_csv_to_dict(path))
+        @test old.shared[:dt] === 1.5 && old.shared[:v] == [1.0, 2.0] && old.shared[:v] isa Vector{Float64}
+    end
+
+    @testset "Drawn times: stored snapshots and references at the data's times" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        set_stat_preset!("hyperbolic")
+        # exact data stored every `every` steps (201, 51, 11 snapshots; the display shows at most 50): every drawn
+        # time is a stored snapshot, and the reference is evaluated at exactly these times
+        for every in (1, 4, 20)
+            cfg = SimulationConfig(create_param_dict(:N => 200, :dt => 0.01, :every => every, :sim_func_name => :exact_sparse_1d),
+                                   create_method_dict(:num => create_param_dict(), :analytical_solution => create_param_dict()),
+                                   [:num, :analytical_solution]; reference = :exact_sparse_factory)
+            run_all_simulations(cfg; calculate_stats = true)
+            pd = PDEStudio.update_plot_data_collection!(Dict{Symbol, PDEStudio.AbstractPlotData}(), cfg, [:num, :analytical_solution])
+            dn, dr = pd[:num].data[1], pd[:analytical_solution].data[1]
+            stored = load_sim_data(PDEStudioCore.generate_tasks(cfg)[1], Val(:raw)).axes[2]
+            @test length(dn.axes[2]) == min(length(stored), 50) && issubset(dn.axes[2], stored)
+            @test dr.axes[2] == dn.axes[2]
+            exact_error(d) = maximum(k -> maximum(abs.(getindex.(d.u[:, k], 1) .- (sin.(d.axes[1] .- d.axes[2][k]) .+ 2))), axes(d.u, 2))
+            @test exact_error(dn) < 1e-10 && exact_error(dr) < 1e-10
+            @test length(dn.stats[:l2error]) == length(dn.axes[2])          # statistics over time follow the snapshots
+        end
+        # particle data drawn with a grid style: the stored times too (all 4, or 50 of 80), with the snapshot of each
+        for many in (false, true)
+            cfg = SimulationConfig(create_param_dict(:N => 40, :many => many, :sim_func_name => :particles_uneven_1d),
+                                   create_method_dict(:num => create_param_dict()), [:num])
+            run_all_simulations(cfg; calculate_stats = true)
+            d = PDEStudio.update_plot_data_collection!(Dict{Symbol, PDEStudio.AbstractPlotData}(), cfg, [:num])[:num].data[1]
+            stored = load_sim_data(PDEStudioCore.generate_tasks(cfg)[1], Val(:raw)).t
+            @test d isa ESimData && length(d.axes[2]) == min(length(stored), 50) && issubset(d.axes[2], stored)
+            @test all(k -> all(v -> v[1] ≈ d.axes[2][k], d.u[:, k]), axes(d.u, 2))   # u = t of the snapshot shown
+            @test length(d.stats[:mass]) == length(d.axes[2])
+        end
+        # particle data stored at uneven times: the reference at exactly these times, at most 100 of many
+        t = [0.0, 0.1, 0.2, 1.0]
+        x0 = collect(range(0.0, 1.0, length = 5))
+        params = create_param_dict(:N => 5)
+        num = create_sim_data([[SVector(p + ti) for p in x0] for ti in t], [[SVector(1.0) for _ in x0] for _ in t], t, params; time_dim = :t)
+        time_factory(p) = (x -> SVector(x[end]))                    # u(x, t) = t
+        ref = PDEStudio._make_reference(time_factory, params, num.domain, Val(:lagrangian), PDEStudio._time_axis(num))
+        @test ref.t == num.t && all(n -> all(v -> v[1] == t[n], ref.u[n]), eachindex(t))
+        many = collect(range(0.0, 1.0, length = 1001))
+        ref = PDEStudio._make_reference(time_factory, params, num.domain, Val(:lagrangian), many)
+        @test length(ref.t) == 100 && issubset(ref.t, many)
+        reset_manager!()
+    end
+
+    @testset "Hand-written CSV: spaces after the commas, unknown scopes" begin
+        path = joinpath(mktempdir(), "hand.csv")
+        write(path, "Category, Scope, Parameter, Value\nSimulation, Shared, N, 40\nSimulation, Config, defaults, [:upwind]\n" *
+                    "UI, labels, title, \"  padded  \"\nScene, Labels, upwind, Upwind scheme \n")
+        parsed, raw = PDEStudio._read_csv(path)
+        @test parsed["Simulation"]["Shared"]["N"] == 40 && parsed["Simulation"]["Config"]["defaults"] == [:upwind]
+        @test raw["UI"]["labels"]["title"] == "  padded  "                 # a quoted text keeps its spaces
+        @test raw["Scene"]["Labels"]["upwind"] == "Upwind scheme"          # an unquoted one is stripped
+        @test PDEStudio.csv_to_simulation_config(parsed).shared[:N] == 40
+        write(path, "Category,Scope,Value\nSimulation,Shared,40\n")
+        @test_throws ArgumentError PDEStudio._read_csv(path)
+        @test_logs (:warn, r"Unknown scope 'plot'") (:warn, r"Unknown CSV category 'Scenes'") match_mode = :any PDEStudio._warn_unknown_scopes(
+            Dict("Scene" => Dict("plot" => Dict()), "Scenes" => Dict(), "UI" => Dict("x_axis" => Dict())))
+        @test_logs PDEStudio._warn_unknown_scopes(Dict("Scene" => Dict("Plot" => Dict()), "Simulation" => Dict("upwind" => Dict()),
+                                                       "UI" => Dict("x_axis" => Dict(), "lines_1d" => Dict())))
+    end
+
+    @testset "Bundled config file ending with a function" begin
+        set_save_path!(mktempdir())
+        dir = mktempdir()
+        write(joinpath(dir, "fn_cfg.jl"), """
+            initial_condition(x) = sin(x) + 2.0
+            fn_cfg() = SimulationConfig(create_param_dict(:N => 16, :ic => initial_condition, :sim_func_name => :advection_solver_1d),
+                                        create_method_dict(:m => create_param_dict()), [:m])
+            fn_cfg
+            """)
+        PDEStudio.load_config_file!(joinpath(dir, "fn_cfg.jl"))
+        @test PDEStudio.manager.active_config.shared[:ic] isa Function
+        @test PDEStudio.save_params_to_csv("exp", dir, Dict("Save Type" => "test"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(dir, "exp.csv"))
+        @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
+        # an export of the reloaded export bundles the file again (for a file ending with a configuration too)
+        write(joinpath(dir, "plain_cfg.jl"), """
+            ic2(x) = x
+            SimulationConfig(create_param_dict(:N => 16, :ic => ic2, :sim_func_name => :advection_solver_1d),
+                             create_method_dict(:m => create_param_dict()), [:m])
+            """)
+        for (i, first_export) in enumerate((joinpath(dir, "exp.csv"), nothing))
+            out1, out2 = mktempdir(), mktempdir()
+            if isnothing(first_export)
+                reset_manager!()
+                PDEStudio.load_config_file!(joinpath(dir, "plain_cfg.jl"))
+                @test PDEStudio.save_params_to_csv("exp", out1, Dict("Save Type" => "test"))
+                first_export = joinpath(out1, "exp.csv")
+            end
+            reset_manager!()
+            PDEStudio.load_and_apply_csv!(first_export)
+            @test PDEStudio.save_params_to_csv("exp2", out2, Dict("Save Type" => "test"))
+            @test haskey(PDEStudio.parse_csv_to_dict(joinpath(out2, "exp2.csv"))["Metadata"]["General"], "bundled_sources")
+            reset_manager!()
+            PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv"))
+            @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
+        end
+        reset_manager!()
+    end
+
+    @testset "Provenance: dependencies of local packages" begin
+        # a repository folder `<Name>.jl` records the dependencies of the package `<Name>`
+        info = PDEStudio.get_julia_info(["PDEStudio.jl"])
+        @test haskey(info, "PDEStudio") && haskey(info["PDEStudio"], "PDEStudioCore")
+        # the Git rows say whether a repository had uncommitted changes
+        root = mktempdir()
+        repo_dir = joinpath(root, "Demo.jl")
+        mkpath(repo_dir)
+        write(joinpath(repo_dir, "a.txt"), "1")
+        git(args...) = run(`git -C $repo_dir -c user.name=test -c user.email=test@example.com -c commit.gpgsign=false $args`)
+        git("init", "-q"); git("add", "a.txt"); git("commit", "-q", "-m", "first")
+        @test PDEStudio.get_all_git_infos(root)["Demo.jl"]["git_dirty"] == false
+        write(joinpath(repo_dir, "a.txt"), "2")
+        @test PDEStudio.get_all_git_infos(root)["Demo.jl"]["git_dirty"] == true
+    end
+
+    @testset "Status line, raw values and menu order" begin
+        n = PDEStudio.STATUS_LINE_CHARS
+        @test length(first(split(PDEStudio._wrap_status(repeat("word ", 30)), '\n'))) <= n
+        # multibyte characters (→, ü, ·) before the cut: the line ends at a space, within n characters
+        msg = "Shared → description = Größere Auflösung für die Dämpfungsstudie mit Überschall-Strömungen und Rändern"
+        lines = split(PDEStudio._wrap_status(msg), '\n')
+        @test length(lines[1]) <= n && startswith(msg, lines[1] * " ")
+        @test length(first(split(PDEStudio._wrap_status("Geschwindigkeit · Dämpfung → Größe ▲▼ "^4), '\n'))) <= n
+        # the Advanced tab: what it shows for an empty text can be applied again, and <empty> is accepted
+        @test PDEStudio._raw_text("") == "\"\"" && PDEStudio._parse_raw(PDEStudio._raw_text("")) == (true, "")
+        @test PDEStudio._parse_raw("<empty>") == (true, "") && PDEStudio._parse_raw("abc")[1] == false
+        # ... also inside vectors and tuples (shown as `String[<empty>, "a"]`), on the raw and the normal pages
+        for v in (["", "a"], ("", 1), Any["", :b])
+            @test PDEStudio._parse_raw(PDEStudio._raw_text(v)) == (true, v)
+        end
+        @test PDEStudio._empty_literals("(\"<empty>\", <empty>)") == "(\"<empty>\", \"\")"   # quoted text stays
+        shown = PDEStudio._editor_display(["", "a"])
+        @test PDEStudio._parse_editor_input(shown, ["q"]) == ["", "a"]
+        @test PDEStudio._valid_editor_value(shown, Dict(:tags => ["q"]), :tags, ["", "a"])
+        # menus whose order means something keep it (no sort by label: Component 1, 2, …, 10, 11)
+        fig = Figure()
+        m = Menu(fig[1, 1], options = Any[("Component 1", 1)])
+        PDEStudio.update_menu_safe!(m, Any[("Component $i", i) for i in 1:11]; fallbacks = [1], sort = false)
+        @test [o[2] for o in m.options[]] == 1:11
+        PDEStudio.update_menu_safe!(m, Any[("Density", 1), ("Momentum", 2), ("Energy", 3)]; fallbacks = [1], sort = false)
+        @test [o[2] for o in m.options[]] == 1:3
+    end
+
+    @testset "Axis limits and style values" begin
+        # 1D axis limits of a field that is constant up to Float32 noise: a usable range instead of the noise
+        u = Float64.(1.4f0 .+ Float32.(1e-7 .* sin.(10 .* range(0, 1, length = 50))))
+        lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([u]), 0.05, false; precision = Float32)
+        @test hi - lo ≥ 2e-3 * 1.4 && lo < minimum(u) && hi > maximum(u)
+        # ... while a real small variation of Float64 data fills the axis (the threshold follows the data's eps)
+        v = 1 .+ 1e-6 .* sin.(range(0, 2π, length = 50))
+        lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64)
+        @test (maximum(v) - minimum(v)) / (hi - lo) > 0.9
+        # ... but a variation the tick labels can't show (below 1e-6 relative, e.g. round-off of a conserved mass)
+        # is drawn as constant instead of under repeated tick labels
+        for a in (1e-7, 1e-12)
+            v = 1 .+ a .* sin.(range(0, 2π, length = 50))
+            lo, hi = PDEStudio.calculate_padded_axis_range(PDEStudio._safe_extrema([v]), 0.05, false; precision = Float64)
+            @test hi - lo ≥ 2e-3 && lo < minimum(v) && hi > maximum(v)
+        end
+        @test PDEStudio.calculate_padded_axis_range((0.0, 1.0), 0.1, false) == (-0.05, 1.05)
+        @test PDEStudio.calculate_padded_axis_range((0.0, 0.0), 0.1, false) == (-0.1, 0.1)
+        # style values the renderer can't draw are refused by the editor
+        @test !PDEStudio._valid_ui_value(:colors, Any[]) && !PDEStudio._valid_ui_value(:markers, Any[])
+        @test !PDEStudio._valid_ui_value(:line_styles, Any[]) && !PDEStudio._valid_ui_value(:levels, 1)
+        @test !PDEStudio._valid_ui_value(:color_range, Any[1.0]) && !PDEStudio._valid_ui_value(:color_range, Any[:a, :b])
+        @test PDEStudio._valid_ui_value(:color_range, Any[]) && PDEStudio._valid_ui_value(:color_range, [0.0, 1.0])
+        @test PDEStudio._valid_ui_value(:levels, 2) && PDEStudio._valid_ui_value(:markers, [:circle])
     end
 end
 
@@ -530,6 +751,23 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         manager.widgets[:export_text].stored_string[] = export_base * ".gif"
         click_button!(:export_button)
         @test isfile(export_base * ".gif")
+
+        # 8. A frame rate of NaN is refused by the editor and, set from code, reported by the export; a failed export
+        #    releases the render listeners of its export figure
+        @test_logs (:warn, r"not a valid frame rate") match_mode = :any type_into!(:animation_FPS, "NaN")
+        @test manager.ui[:export][:animation_FPS] == 10
+        n_listeners() = Dict(k => length(manager.triggers[k].listeners) for k in (:Plot, :Slider, :PlotData, :UI))
+        n0 = n_listeners()
+        manager.ui[:export][:animation_FPS] = NaN
+        manager.widgets[:export_text].stored_string[] = export_base * "_nan.mp4"
+        @test_logs (:warn, r"Not exported: animation_FPS") match_mode = :any click_button!(:export_button)
+        @test !isfile(export_base * "_nan.mp4") && n_listeners() == n0
+        manager.ui[:export][:animation_FPS] = 10
+        blocker = joinpath(export_dir, "blocker")              # a file: no folder can be made below it
+        write(blocker, "")
+        manager.widgets[:export_text].stored_string[] = joinpath(blocker, "sub", "x.png")
+        @test_logs (:error, r"Export Failed") match_mode = :any click_button!(:export_button)
+        @test n_listeners() == n0
     end
     # =========================================================================
     # --- CSV PIPELINE & PRESETS ---
@@ -851,6 +1089,48 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         press_preset!(:api_look, :b)
         @test startswith(w[:editor_title][], "Preset: api_look  (1/")   # a look preset has many rows: ◀ ▶ pages
         @test any(r -> r[1] == "UI", manager.preset_file_rows)
+        # ◀ ▶ turn the pages of a preset file ...
+        keys1 = copy(manager.editor_row_keys)
+        click_button!(:editor_next)
+        @test startswith(w[:editor_title][], "Preset: api_look  (2/") && manager.editor_row_keys != keys1
+        click_button!(:editor_prev)
+        @test startswith(w[:editor_title][], "Preset: api_look  (1/") && manager.editor_row_keys == keys1
+
+        # 6. A preset whose file was removed leaves the list (and Edit › says so, instead of "built in")
+        open_presets!(:simulation)
+        save_sim_preset("gone"; description = "will be deleted")
+        @test :gone in manager.editor_row_keys
+        rm(joinpath(sim_preset_dir(), "gone.csv"))
+        @test_logs (:warn, r"was removed") press_preset!(:gone, :b)
+        @test !(:gone in manager.editor_row_keys) && !occursin("built in", w[:status][])
+        rm(joinpath(sim_preset_dir(), "copied.csv"))
+        open_presets!(:simulation)
+        @test !(:copied in manager.editor_row_keys) && !haskey(manager.sim_presets, :copied)
+
+        # A hand-written preset with spaces after the commas opens like the others; a file that isn't a studio CSV
+        # can't be applied or opened, which the status line says (nothing escapes from the click handler)
+        write(joinpath(sim_preset_dir(), "spaced.csv"), "Category, Scope, Parameter, Value\nSimulation, Shared, N, 40\n")
+        write(joinpath(sim_preset_dir(), "broken.csv"), "a,b\n1,2\n")
+        open_presets!(:simulation)
+        press_preset!(:spaced, :b)
+        @test w[:editor_title][] == "Preset: spaced" && manager.preset_file_rows == [["Simulation", "Shared", "N", "40"]]
+        open_presets!(:simulation)
+        @test_logs (:error, r"Applying the preset failed") match_mode = :any press_preset!(:broken, :a)
+        @test occursin("no studio CSV", w[:status][]) && w[:status_color][] == PDEStudio.STATUS_COLORS[:error]
+        @test_logs (:error, r"Opening the preset failed") match_mode = :any press_preset!(:broken, :b)
+        @test w[:editor_title][] == "Simulation presets" && occursin("no studio CSV", w[:status][])
+        rm(joinpath(sim_preset_dir(), "spaced.csv"))
+        rm(joinpath(sim_preset_dir(), "broken.csv"))
+
+        # ... and of a list with more presets than rows
+        for k in 1:PDEStudio.EDITOR_ROWS
+            save_sim_preset("many_$(lpad(k, 2, '0'))")
+        end
+        open_presets!(:simulation)
+        @test w[:editor_title][] == "Simulation presets  (1/2)"
+        keys1 = copy(manager.editor_row_keys)
+        click_button!(:editor_next)
+        @test w[:editor_title][] == "Simulation presets  (2/2)" && isdisjoint(manager.editor_row_keys, keys1)
     end
 
     # =========================================================================
@@ -996,6 +1276,27 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test occursin("Upload one configuration", status())
         @test isnothing(PDEStudio.receive_upload!(Pair{String, Vector{UInt8}}[])) && occursin("Nothing was uploaded", status())
         @test PDEStudio.receive_upload!(["../../evil/x.csv" => bytes(plain_csv)]) == joinpath(PDEStudio.upload_dir(), "x", "x.csv")
+        # the confirmation is for the content: another upload under the same name asks again ...
+        code(N) = "SimulationConfig(create_param_dict(:N => $N, :sim_func_name => :advection_solver_1d), " *
+                  "create_method_dict(:upwind => create_param_dict(:scheme => \"upwind\")), [:upwind])\n"
+        set_sim_config!(fn_file)
+        PDEStudio.receive_upload!(["same.jl" => Vector{UInt8}(code(26))])
+        @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 30
+        PDEStudio.receive_upload!(["same.jl" => Vector{UInt8}(code(33))])
+        @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 30
+        click_button!(:load_config_button)
+        @test manager.active_config.shared[:N] == 33
+        # ... and so does a file that changed on disk between the two clicks
+        local_file = joinpath(root, "local.jl")
+        write(local_file, code(27))
+        PDEStudio._show_editor_text!(w[:export_text], local_file)   # (as typed or browsed)
+        click_button!(:load_config_button)
+        @test occursin("click Load again", status())
+        write(local_file, code(28))
+        click_button!(:load_config_button)
+        @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 33
+        click_button!(:load_config_button)
+        @test manager.active_config.shared[:N] == 28
 
         # 7. Browse… in a browser opens its picker instead of FILE_DIALOG (a screen that has one)
         picker = PickerScreen(Ref(0))
@@ -1306,7 +1607,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         type_into!(:upwind, "Upwind scheme")
         @test manager.labels[:upwind] == "Upwind scheme"
         press_row!(:upwind)                                    # ↺: the built-in name
-        @test manager.labels[:upwind] == PDEStudio.frontend_key(:upwind) || manager.labels[:upwind] == "upwind"
+        @test manager.labels[:upwind] == "Upwind"
         show_editor_page!(:ui, :labels)
         @test w[:editor_title][] == "Plot" && :title in manager.editor_row_keys
         type_into!(:title, "My run")
@@ -1527,6 +1828,9 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # 6. The method list: Edit ›, ✕ deletes (also from the active methods), a new method is added (inactive)
         show_editor_page!(:advanced, PDEStudio.ADV_METHODS)
         @test shown_now(:method_add_button)
+        w[:method_add_name].stored_string[] = "#order"                # the name of the drawing-order page: refused
+        @test_logs (:warn, r"reserved name") click_button!(:method_add_button)
+        @test !haskey(config.methods, Symbol("#order"))
         w[:method_add_name].stored_string[] = "new_scheme"
         click_button!(:method_add_button)
         @test haskey(config.methods, :new_scheme) && !(:new_scheme in config.defaults)
@@ -1611,10 +1915,24 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         yield()
         @test manager.ui[:labels][:title] == ""
         @test manager.ui[:plot_style][:line_width] == 2.5
+        # publication sets every axis variant, compact3d those of the 3D styles (whatever style is shown)
+        @test all(s -> manager.ui[s][:label_offset] == 5.0, PDEStudio.UI_AXIS_SCOPES)
+        @test manager.ui[:x_axis_1d][:padding] == 0.0 && manager.ui[:x_axis_nd][:padding] == 0.0
+        set_plot_preset!()
+        yield()
+        x1d_offset = manager.ui[:x_axis_1d][:label_offset]
+        set_plot_preset!(:compact3d)
+        yield()
+        @test manager.ui[:x_axis_nd][:label_offset] == 5.0 && manager.ui[:y_axis_nd][:label_offset] == 5.0
+        @test manager.ui[:x_axis_1d][:label_offset] == x1d_offset
         
+        y1d_padding = manager.ui[:y_axis_1d][:padding]
         set_plot_preset!(:heatmap)
         yield()
         @test manager.layout_cache[:plot_style] == :heatmap_flat
+        # its axis options go to the axes of the heatmap, not to those of the style shown before (1D lines)
+        @test manager.ui[:x_axis_nd][:label_offset] == 10.0 && manager.ui[:y_axis_nd][:padding] == 0.0
+        @test manager.ui[:y_axis_1d][:padding] == y1d_padding
         
         set_plot_preset!(:compact3d)
         yield()
@@ -1888,6 +2206,246 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
 
         set_allowed_dims!((:x, :y, :z, :t))
         set_mode!(:eulerian)
+    end
+
+    # Play Anim / Stop, Lock Camera, menus that follow labels and order, and a configuration with fewer methods
+    ingroup("plots-1") && @testset "Animation, camera, menus and fewer methods" begin
+        reset_plotter!()
+        set_mode!(:eulerian)
+        fig = launch_plotter()
+        display(fig)
+        w() = manager.widgets
+        status() = replace(w()[:status][], '\n' => ' ')
+        shared = create_param_dict(:cfl => 0.5, :N => 20, :sim_func_name => :advection_solver_1d)
+        one = SimulationConfig(shared, create_method_dict(:upwind => create_param_dict(:scheme => "upwind")), [:upwind])
+        set_sim_config!(one)
+        click_button!(:run_button)
+        show_tab!(:plot)
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
+
+        # 1. Play Anim drives the slider of the animation target, Stop stops it; a plot axis can't be animated
+        at = w()[:anim_target]
+        at.i_selected[] = findfirst(o -> o[2] === :t, at.options[])
+        t_slider = w()[get(manager.reverse_map, :t, :t)]
+        v0 = t_slider.value[]
+        manager.ui[:export][:animation_time] = 1.0
+        click_button!(:play_anim_button)
+        @test manager.is_animating[] && w()[:play_anim_button].label[] == "Stop Anim"
+        sleep(0.6)
+        @test t_slider.value[] != v0
+        click_button!(:play_anim_button)
+        @test !manager.is_animating[] && isnothing(manager.animation_timer[]) && w()[:play_anim_button].label[] == "Play Anim"
+        v1 = t_slider.value[]
+        sleep(0.3)
+        @test t_slider.value[] == v1
+        at.i_selected[] = something(findfirst(o -> o[2] === :x, at.options[]), 1)
+        click_button!(:play_anim_button)
+        @test !manager.is_animating[]
+        # ... and it needs a positive frame rate and duration (warned, the button stays "Play Anim")
+        at.i_selected[] = findfirst(o -> o[2] === :t, at.options[])
+        for (key, bad) in ((:animation_FPS, 0), (:animation_time, 0.0))
+            good = manager.ui[:export][key]
+            manager.ui[:export][key] = bad
+            @test_logs (:warn, r"Can't animate") click_button!(:play_anim_button)
+            @test !manager.is_animating[] && isnothing(manager.animation_timer[]) && occursin("positive numbers", status())
+            @test w()[:play_anim_button].label[] == "Play Anim"
+            manager.ui[:export][key] = good
+        end
+
+        # 2. Lock Camera
+        click_button!(:lock_camera_button)
+        @test manager.camera_locked[] && w()[:lock_camera_button].label[] == "Camera: Locked"
+        click_button!(:lock_camera_button)
+        @test !manager.camera_locked[] && isempty(manager.camera_cache) && w()[:lock_camera_button].label[] == "Lock Camera"
+
+        # 3. Renaming a variable (UI → Labels → Variables) relabels the axis menus
+        click_button!(:layout_apply)
+        @test !manager.flags[:Layout][] && !manager.flags[:Plot][]
+        show_editor_page!(:ui, :variables)
+        type_into!(:x, "Space")
+        @test any(o -> o == ("Space", :x), w()[:x_axis].options[])
+        @test !manager.flags[:Layout][] && !manager.flags[:Plot][]   # (only names changed: nothing to apply)
+        show_editor_page!(:ui, :components)
+        type_into!(:component_1, "Density")
+        @test w()[:component].options[][1] == ("Density", 1) && !manager.flags[:Plot][]
+        type_into!(:component_1, "default")
+        show_editor_page!(:ui, :variables)
+        type_into!(:x, "<empty>")                                   # `<empty>` is the empty text, as on other pages
+        @test manager.labels[:x] == ""
+        @test any(o -> o == ("x", :x), w()[:x_axis].options[])      # a menu shows the key for an empty name
+        type_into!(:x, "default")
+        @test !any(o -> o[1] == "Space", w()[:x_axis].options[])
+        show_tab!(:plot)
+
+        # 4. Two methods and a sweep
+        two = SimulationConfig(shared, create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
+                                                          :upwind2 => create_param_dict(:scheme => "upwind", :N => 30)),
+                               [:upwind, :upwind2]; varied = create_varied_dict(:cfl => [0.4, 0.5]))
+        set_sim_config!(two)
+        click_button!(:run_button)
+        # the compare targets keep their order (not sorted by label)
+        @test [o[2] for o in w()[:compare_target].options[]] == [:none, :methods, :component, :time, :cfl]
+
+        # 5. Compare = methods, then a configuration with fewer active methods (not run yet): plot updates still work
+        click_menu!(w()[:compare_target], :methods)
+        click_button!(:layout_apply)
+        @test length(manager.caches) == 2
+        set_sim_config!(one)
+        logger = Test.TestLogger(min_level = Base.CoreLogging.Error)
+        Base.CoreLogging.with_logger(logger) do
+            show_editor_page!(:ui, :x_axis_1d)
+            press_row!(:log_scale)                    # an option that replots
+            press_row!(:log_scale)
+            show_tab!(:plot)
+            set_close_to!(w()[:t], 1.0)
+            yield()
+        end
+        @test isempty(logger.logs)
+        click_menu!(w()[:compare_target], :none)
+        click_button!(:run_button)
+        @test length(manager.caches) == 1 && haskey(manager.caches[1], :upwind)
+    end
+
+    # What is drawn: references on the domain and at the times of the data, titles with the drawn time, slider
+    # positions restored from a CSV over other data, reference lines, style values
+    ingroup("plots-1") && @testset "Drawn data: references, times, titles and restored sliders" begin
+        reset_plotter!()
+        set_mode!(:eulerian)
+        fig = launch_plotter()
+        display(fig)
+        w() = manager.widgets
+        cfg = SimulationConfig(create_param_dict(:cfl => 0.5, :N => 40, :sim_func_name => :advection_solver_1d),
+                               create_method_dict(:analytical_solution => create_param_dict(),
+                                                  :upwind => create_param_dict(:scheme => "upwind")),
+                               [:upwind, :analytical_solution]; varied = create_varied_dict(:cfl => [0.2, 0.4, 0.5]),
+                               reference = :exact_advection_factory)
+        set_sim_config!(cfg)
+        click_button!(:run_button)
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
+        cfl_slider() = w()[manager.reverse_map[:cfl]]
+        nearest(a, v) = a[findmin(x -> abs(x - v), a)[2]]
+
+        # 1. The numerical curve, the reference and the title show the same time at every slider position
+        set_close_to!(cfl_slider(), 0.2)
+        yield()
+        pdn, pdr = manager.plot_data[][:upwind], manager.plot_data[][:analytical_solution]
+        k = findfirst(==(0.2), pdn.active_param_values[1])
+        dn, dr = pdn.data[k], pdr.data[k]
+        @test dr.axes[2] == dn.axes[2]                 # the reference is evaluated at the times of the data
+        for ts in (0.3, 0.598, 1.0, 1.73)
+            set_close_to!(w()[:t], ts)
+            yield()
+            t_drawn = nearest(dn.axes[2], w()[:t].value[])
+            @test nearest(dr.axes[2], w()[:t].value[]) == t_drawn
+            @test occursin("Time (T) = $(PDEStudio._fmt_value(t_drawn))", manager.plot_titles[1])
+            ca = manager.caches[1][:analytical_solution]
+            @test maximum(abs.(ca.obs_u[] .- (sin.(ca.obs_x[] .- t_drawn) .+ 2))) < 1e-5
+        end
+
+        # 2. Reference lines don't stack listeners on the axis limits (one UI step per slider drag frame)
+        ax = first(c for c in fig.content if c isa Axis)
+        manager.ui[:plot_style][:reference] = Any[-1.0]
+        manager.triggers[:UI][] += 1
+        yield()
+        n0 = length(ax.finallimits.listeners)
+        for _ in 1:20
+            manager.triggers[:UI][] += 1
+            yield()
+        end
+        @test length(ax.finallimits.listeners) - n0 < 3
+        @test count(p -> haskey(p, :label) && p.label[] == "Reference Lines", ax.scene.plots) == 1
+        manager.ui[:plot_style][:reference] = Any[]
+
+        # 3. Style values the renderer can't draw are refused by the editor; filled contours draw with levels = 1
+        show_editor_page!(:ui, :contour_f)
+        @test_logs (:warn, r"not a valid number of contour levels") type_into!(:levels, "1")
+        @test manager.ui[:plot_style][:levels] == 15
+        show_tab!(:plot)
+        manager.ui[:plot_style][:levels] = 1           # e.g. from a hand-written file
+        logger = Test.TestLogger(min_level = Base.CoreLogging.Error)
+        Base.CoreLogging.with_logger(logger) do
+            click_menu!(w()[:plot_style], :contour_f)
+            set_axes_for_dim!(2)
+        end
+        @test isempty(logger.logs) && manager.active_plot_type === :contour_f
+        manager.ui[:plot_style][:levels] = 15
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
+        # ... the same values from a file (CSV, look preset) are ignored with a warning, the current values stay
+        bad = joinpath(mktempdir(), "bad_style.csv")
+        write(bad, "Category,Scope,Parameter,Value\nUI,plot_style,color_range,\"[1.0]\"\nUI,plot_style,colors,Any[]\n" *
+                   "UI,plot_style,line_styles,Any[]\nUI,plot_style,line_width,4.0\n")
+        before = deepcopy(manager.ui[:plot_style])
+        @test_logs (:warn, r"color_range") (:warn, r"colors") (:warn, r"line_styles") match_mode = :any PDEStudio.load_and_apply_csv!(bad)
+        @test manager.ui[:plot_style][:color_range] == before[:color_range] && manager.ui[:plot_style][:colors] == before[:colors]
+        @test manager.ui[:plot_style][:line_styles] == before[:line_styles] && manager.ui[:plot_style][:line_width] == 4.0
+        # ... and a value that gets in anyway (set from code) doesn't throw out of the UI step
+        manager.ui[:plot_style][:color_range] = Any[1.0]
+        logger = Test.TestLogger(min_level = Base.CoreLogging.Error)
+        Base.CoreLogging.with_logger(logger) do
+            click_menu!(w()[:plot_style], :heatmap_flat)
+            set_axes_for_dim!(2)
+        end
+        @test isempty(logger.logs) && manager.active_plot_type === :heatmap_flat
+        manager.ui[:plot_style][:color_range] = Any[]
+        manager.ui[:plot_style][:line_width] = before[:line_width]
+        click_menu!(w()[:plot_style], :lines_1d)
+        set_axes_for_dim!(1)
+
+        # 4. A CSV loaded while other data is shown restores its slider positions after Run Simulation
+        set_close_to!(cfl_slider(), 0.4)
+        yield()
+        dir = mktempdir()
+        @test PDEStudio.save_params_to_csv("state", dir, Dict("Save Type" => "test"))
+        other = deepcopy(cfg)
+        other.varied[:cfl] = [0.1, 0.15]
+        set_sim_config!(other)
+        click_button!(:run_button)
+        @test cfl_slider().range[] == [0.1, 0.15]
+        PDEStudio.load_and_apply_csv!(joinpath(dir, "state.csv"))
+        yield()
+        click_button!(:run_button)
+        @test cfl_slider().range[] == [0.2, 0.4, 0.5] && cfl_slider().value[] == 0.4
+        @test isempty(manager.pending_sliders)
+        # ... a position outside the range of the file's own data doesn't stay pending: moving the slider drops it,
+        # and without a move the next run applies it (clamped)
+        beyond = joinpath(dir, "beyond.csv")
+        write(beyond, "Category,Scope,Parameter,Value\nScene,Plot,t,5.0\n")
+        PDEStudio.load_and_apply_csv!(beyond)
+        @test haskey(manager.pending_sliders, :t) && w()[:t].value[] == last(w()[:t].range[])
+        set_close_to!(w()[:t], 0.5)
+        yield()
+        @test !haskey(manager.pending_sliders, :t)
+        set_sim_config!(other)
+        click_button!(:run_button)
+        @test abs(w()[:t].value[] - 0.5) < 0.05
+        PDEStudio.load_and_apply_csv!(beyond)
+        click_button!(:run_button)
+        @test isempty(manager.pending_sliders) && w()[:t].value[] == last(w()[:t].range[])
+
+        # 5. A sweep that changes the domain (final time): each reference covers the domain of its own sweep point
+        tcfg = SimulationConfig(create_param_dict(:cfl => 0.5, :N => 40, :T_end => 1.0, :sim_func_name => :exact_transport_1d),
+                                create_method_dict(:analytical_solution => create_param_dict(), :transport => create_param_dict()),
+                                [:transport, :analytical_solution]; varied = create_varied_dict(:T_end => [1.0, 2.0]),
+                                reference = :exact_advection_factory)
+        set_sim_config!(tcfg)
+        click_button!(:run_button)
+        set_axes_for_dim!(1)
+        pdn, pdr = manager.plot_data[][:transport], manager.plot_data[][:analytical_solution]
+        for k in 1:2
+            @test pdr.data[k].axes[2] == pdn.data[k].axes[2]
+            @test extrema(pdr.data[k].axes[1]) == (pdn.data[k].domain.mins[1], pdn.data[k].domain.maxs[1])
+        end
+        set_close_to!(w()[manager.reverse_map[:T_end]], 2.0)
+        yield()
+        set_close_to!(w()[:t], last(w()[:t].range[]))
+        yield()
+        t_drawn = nearest(pdn.data[2].axes[2], w()[:t].value[])
+        @test t_drawn > 2.0
+        ca = manager.caches[1][:analytical_solution]
+        @test maximum(abs.(ca.obs_u[] .- (sin.(ca.obs_x[] .- t_drawn) .+ 2))) < 1e-5   # (the data is exact too)
     end
 
     # The built-in examples of PDEStudioCore (the quick start of the README) load and run in the studio

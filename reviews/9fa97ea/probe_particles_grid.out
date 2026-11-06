@@ -1,0 +1,27 @@
+Test Summary:           | Pass  Total  Time
+parts_1d nt=4 f32=false |    8      8  4.5s
+Test Summary:            | Pass  Total  Time
+parts_1d nt=30 f32=false |    8      8  0.0s
+Test Summary:            | Pass  Total  Time
+parts_1d nt=80 f32=false |    8      8  0.1s
+Test Summary:             | Pass  Total  Time
+parts_1d nt=400 f32=false |    8      8  0.1s
+Test Summary:           | Pass  Total  Time
+parts_2d nt=4 f32=false |    8      8  3.4s
+Test Summary:          | Pass  Total  Time
+parts_2d nt=4 f32=true |    8      8  4.1s
+Test Summary:            | Pass  Total  Time
+parts_2d nt=50 f32=false |    8      8  0.1s
+Test Summary:           | Pass  Total  Time
+parts_2d nt=50 f32=true |    8      8  0.1s
+Test Summary:            | Pass  Total  Time
+parts_2d nt=51 f32=false |    8      8  0.2s
+Test Summary:           | Pass  Total  Time
+parts_2d nt=51 f32=true |    8      8  0.2s
+Test Summary:             | Pass  Total  Time
+parts_2d nt=120 f32=false |    8      8  0.1s
+Test Summary:            | Pass  Total  Time
+parts_2d nt=120 f32=true |    8      8  0.1s
+static: (200,) domain time_dim = nothing
+Test Summary:    | Pass  Total  Time
+static particles |    1      1  0.5s

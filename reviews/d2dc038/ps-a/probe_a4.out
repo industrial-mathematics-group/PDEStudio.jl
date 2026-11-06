@@ -1,0 +1,74 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :mass keeping dimensions: time
+[ Info: Registered statistic :l1norm keeping dimensions: time
+[ Info: Registered statistic :l2norm keeping dimensions: time
+[ Info: Registered statistic :wave_height keeping dimensions: time
+[ Info: Registered statistic :l1error keeping dimensions: time
+[ Info: Registered statistic :l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l2error keeping dimensions: time
+[ Info: Registered statistic :relative_l1error keeping dimensions: time
+[ Info: Registered statistic :relative_mass keeping dimensions: time
+[ Info: Registered statistic :spacetime_relative_mass keeping dimensions: Symbol[]
+[ Info: Registered statistic :mass_error keeping dimensions: time
+[ Info: Registered statistic :mass_signed_error keeping dimensions: time
+[ Info: Successfully loaded stat preset: hyperbolic
+[ Info: Module save root path set to: /tmp/jl_w0Oiy9
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 2 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 33) to (200, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_200x50 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (20, 14) to (200, 50) (linear in space, nearest in time)...
+┌ Info: sweep now
+│   manager.active_config.varied =
+│    Dict{Symbol, Vector} with 1 entry:
+│      :cfl => Any[]
+└   status() = "Sweep → cfl = Any[]. Run Simulation to apply."
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl has no values: the Cartesian product is empty, so no task is generated.
+└ @ PDEStudioCore ~/.julia/packages/PDEStudioCore/rlCCx/src/Simulations.jl:133
+[ Info: No numerical simulations to run.
+[ Info: Running Simulation and Mapping UI...
+┌ Info: after run
+└   status() = "Simulation finished in 0.0 s (1 methods)."
+┌ Info: methods
+│   collect(keys(manager.active_config.methods)) =
+│    3-element Vector{Symbol}:
+│     :upwind
+│     :lax_friedrichs
+│     Symbol("#order")
+└   (w[:editor_title])[] = "#order  (raw)"
+┌ Info: Edit › of #order shows
+└   (w[:editor_title])[] = "Drawing order (top first)"
+ERROR: LoadError: Some tests did not pass: 2 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a4.jl:2
+
+Advanced: a sweep with one value / a method named like a sentinel: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a4.jl:40
+  Expression: (w[:editor_title])[] != "Drawing order (top first)"
+   Evaluated: "Drawing order (top first)" != "Drawing order (top first)"
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a4.jl:3
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a4.jl:25 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/ps-a/probe_a4.jl:40 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                                       | Pass  Fail  Total   Time
+ps-a probe 4                                                        |    2     1      3  11.6s
+  Advanced sweep: an empty vector                                   |    2            2   1.3s
+  Advanced: a sweep with one value / a method named like a sentinel |          1      1   1.0s
+RNG of the outermost testset: Random.Xoshiro(0xbe8d4cbbb07c4468, 0xc8aa48140ae75a51, 0x93c9e41ddc6a6e31, 0x331520bbeaebf698, 0x61117eb08bba3878)
