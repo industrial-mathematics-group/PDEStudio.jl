@@ -48,8 +48,9 @@ under their own file names. Loading that CSV runs the copies again to restore th
 *   the configuration's sources are the originals that are unchanged and the copies of the others: *Run Simulation*
     includes them again in the same way, and a new export bundles them (recording the originals), so it reproduces
     the old one. (With PDEStudioCore versions before `run_all_simulations(...; load_sources = false)`, *Run
-    Simulation* includes the sources as they are: once an original was edited all copies are the sources, and they
-    run from `<name>_sources/`, where only bundled files are found.);
+    Simulation* includes the sources as they are: once an original was edited or is gone, all copies are the
+    sources, and they run from `<name>_sources/`, where only bundled files are found. An `include` by absolute path,
+    or of the original of a missing copy, then runs the edited original.);
 *   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
 *   if a copy fails, the load does not stop: the **parameters come from the CSV**, and the status line names the file
     and the error. *Run Simulation* includes the sources again, so restore what the file needs (e.g. a missing helper)

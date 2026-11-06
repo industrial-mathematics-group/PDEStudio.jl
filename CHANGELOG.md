@@ -31,7 +31,8 @@ What has changed since the last release. Released versions are described in the
   again. The status line names originals edited or gone since the export, also when a load changes the window. A
   missing copy whose original ran is a source now too (the next export bundles it). *Run Simulation* needs
   PDEStudioCore's `run_all_simulations(...; load_sources = false)` for this; with older versions all copies are the
-  sources once an original was edited, and Run includes them from the bundle folder (only bundled files are found).
+  sources once an original was edited or is gone, and Run includes them from the bundle folder (only bundled files
+  are found).
 - **Run Simulation** shows an error in the status line (e.g. a source file that fails) instead of failing silently.
 - **Symlinked sources** are bundled as files: before, the bundle held the link, so it followed later edits.
 - **Time resolution 1** (`set_resolution!(:t, 1)`, a CSV row) made all data with time fail to load; it shows the last

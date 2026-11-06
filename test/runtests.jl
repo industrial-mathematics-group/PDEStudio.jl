@@ -561,7 +561,8 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         set_save_path!(mktempdir())
         srcdir = mktempdir()
         # every form includes the listed helper `h.jl`, which is edited after the export: the copy must run
-        forms = ["include(\"h.jl\")", "include(identity, \"h.jl\")", "Base.include(@__MODULE__, \"h.jl\")",
+        forms = ["include(\"h.jl\")", "kwget(; v) = v; kwget(; v = include(\"h.jl\"))", "global g_h = include(\"h.jl\")",
+                 "include(identity, \"h.jl\")", "Base.include(@__MODULE__, \"h.jl\")",
                  "foreach(include, [\"h.jl\"])", "include.([\"h.jl\"])", "@static if true include(\"h.jl\") end",
                  "(() -> include(\"h.jl\"))()",
                  # a baremodule with its own `include` (the definition stays as it is)
@@ -583,13 +584,16 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             ok || @info "Include form failed" form PDEStudio.manager.source_failures
             @test ok
         end
-        # code that names a variable, keyword or field `include` keeps its value (nothing edited)
+        # code that names a variable, keyword or field `include` keeps its value (nothing edited), and includes in
+        # keyword values are redirected
         write(joinpath(srcdir, "h.jl"), "form_N() = 1\n")
         write(joinpath(srcdir, "cfg.jl"), """
             include("h.jl")
             kw(; include::Bool = true) = include ? 1 : 0
             n = kw() + (let include = 2; include end) + sum(include for include in 1:2) + (; include = 1).include +
-                length(@NamedTuple{include::Bool}((true,)))
+                length(@NamedTuple{include::Bool}((true,))) + (let; (include, b) = (0, 0); include end) +
+                (@isdefined(include) ? 0 : 1)
+            global g_include = include
             SimulationConfig(create_param_dict(:N => form_N() + n, :sim_func_name => :advection_solver_1d),
                              create_method_dict(:m => create_param_dict()), [:m]; sources = [joinpath(@__DIR__, "h.jl")])
             """)
@@ -601,10 +605,10 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
         @test isempty(PDEStudio.manager.source_failures) && PDEStudio.manager.active_config.shared[:N] == 9
-        # the origin of a copy applies to an export only while the copy has the content it was loaded with, also for
-        # large files (same-length edits); a copy edited after the load still runs in place of its original at Run
+        # a copy edited after the load still runs in place of its original (at Run and in the next export); loaded as a
+        # `.jl` file it runs as itself
         big = joinpath(srcdir, "big.jl")
-        write(big, "big_N() = 3\n" * "#" * "x"^40_000 * "\n" * "SimulationConfig(create_param_dict(:N => big_N(), " *
+        write(big, "big_N() = 3\n" * "SimulationConfig(create_param_dict(:N => big_N(), " *
                    ":sim_func_name => :advection_solver_1d), create_method_dict(:m => create_param_dict()), [:m])\n")
         reset_manager!()
         PDEStudio.load_config_file!(big)
@@ -616,7 +620,9 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         copy = joinpath(out, "exp_sources", "big.jl")
         @test PDEStudio._origin_of(copy) == abspath(big)
         write(copy, replace(read(copy, String), "big_N() = 3" => "big_N() = 5"))
-        @test isnothing(PDEStudio._origin_of(copy)) && PDEStudio._origin_of(copy; unchanged = false) == abspath(big)
+        @test PDEStudio._origin_of(copy) == abspath(big)
+        PDEStudio.load_config_file!(copy)
+        @test isnothing(PDEStudio._origin_of(copy)) && PDEStudio.manager.active_config.shared[:N] == 5
         reset_manager!()
     end
 
@@ -1465,7 +1471,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test_logs (:error, r"failed") match_mode=:any set_sim_config!(csv)
         @test !isempty(manager.source_failures) && occursin("helper.jl", manager.source_failures[1])
         @test manager.active_config.shared[:N] == 24
-        @test occursin("define the solvers", status())
+        @test occursin("Restore what they need", status())
         # ... and Run Simulation, which includes the sources again, says why it can't run
         click_button!(:run_button)
         @test wait_status(s -> occursin("Running failed", s) && occursin("helper.jl", s); timeout = 60)
