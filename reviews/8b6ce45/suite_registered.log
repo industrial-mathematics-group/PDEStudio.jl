@@ -1,0 +1,25 @@
+[ Info: UI and Layout have been directly reset to defaults.
+Running 5 test groups in up to 5 processes (1 thread(s) each)
+
+============================== test group `browser`: passed in 9.1 s
+Test Summary:                 | Broken  Total  Time
+PDEStudio: Browser (WGLMakie) |      1      1  0.1s
+
+============================== test group `helpers`: passed in 28.2 s
+Test Summary:      | Pass  Total   Time
+PDEStudio: Helpers |  195    195  19.4s
+
+============================== test group `editors`: passed in 69.9 s
+Test Summary:                       | Pass  Total     Time
+PDEStudio: UI Rendering Integration |  476    476  1m01.3s
+
+============================== test group `plots-1`: passed in 77.5 s
+Test Summary:                       | Pass  Total     Time
+PDEStudio: UI Rendering Integration |  104    104  1m08.8s
+
+============================== test group `plots-2`: passed in 81.0 s
+Test Summary:                       | Pass  Total     Time
+PDEStudio: UI Rendering Integration |   59     59  1m12.4s
+Test Summary: | Pass  Total  Time
+PDEStudio     |    5      5  0.0s
+exit=0
