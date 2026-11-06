@@ -39,15 +39,16 @@ A configuration that comes from a Julia file (listed in its `sources`, which loa
 **bundled with every export**: the files of `sources` are copied into `<name>_sources/` next to the exported CSV,
 under their own file names. Loading that CSV runs the copies again to restore the solvers:
 
-*   **the export runs as it was exported:** the copies run, also if an original was edited since, and they are the
-    configuration's sources, so a new export reproduces the old one (it records the original files as their origin).
-    The status line names originals that were edited or are gone;
-*   the copies run **as if they were the original files** while the originals' folder exists: `@__DIR__` and relative
-    `include`s find the files next to the originals (helpers that aren't in `sources`, data files), and an `include`
-    of a file in `sources` runs its bundled copy. Files that aren't in `sources` are not bundled, so they run as
-    they are now;
-*   if an original's folder is gone (the originals were moved or deleted), its copy runs from `<name>_sources/`,
-    where it finds the other bundled files, but not the files that aren't bundled;
+*   **the export runs as it was exported:** the copies run, also if an original was edited since. The status line
+    names originals that were edited or are gone;
+*   the copies run **as if they were the original files**: `@__DIR__` and relative `include`s find the files next to
+    the originals (helpers that aren't in `sources`, data files), and an `include` of a file in `sources` (also
+    `include(f, path)`, `Base.include`, `foreach(include, files)`) runs its bundled copy. Files that aren't in
+    `sources` are not bundled, so they run as they are now, and are missing if the originals' folder is gone;
+*   the configuration's sources are the originals that are unchanged and the copies of the others: *Run Simulation*
+    includes them again in the same way, and a new export bundles them (recording the originals), so it reproduces
+    the old one. (With PDEStudioCore versions before `run_all_simulations(...; load_sources = false)`, *Run
+    Simulation* includes the copies of edited originals from `<name>_sources/`, where only bundled files are found.);
 *   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
 *   if a copy fails, the load does not stop: the **parameters come from the CSV**, the status line names the file and
     the error, and the solver functions have to be defined before *Run Simulation* (e.g. by loading their package).

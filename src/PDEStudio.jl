@@ -89,6 +89,9 @@ A single instance exists (`PDEStudio.manager`); [`reset_manager!`](@ref) returns
 state and [`reset_plotter!`](@ref) closes the window. The `locks` are re-entrancy guards for the
 synchronous observable cascades (see [`@with_lock`](@ref)), not thread locks.
 """
+# The original a bundled copy of a source runs in place of, and the content it ran with (`manager.source_origins`).
+const _SourceOrigin = @NamedTuple{origin::String, digest::UInt64}
+
 Base.@kwdef mutable struct PlotManager
     # --- UI dictionaries, widgets and the trigger hierarchy ---
     ui::Dict{Symbol, Dict{Symbol, Any}} = Dict{Symbol, Dict{Symbol, Any}}()     # active UI style scopes
@@ -141,7 +144,7 @@ Base.@kwdef mutable struct PlotManager
     pending_code_load::String = ""                                            # file that runs code (path#content hash), waiting for a second Load
     source_failures::Vector{String} = String[]                                # bundled sources that failed in the last load
     source_note::String = ""                                                  # e.g. "cfg.jl changed since the export: …"
-    source_origins::Dict{String, String} = Dict{String, String}()             # bundled copy => original (for exports)
+    source_origins::Dict{String, _SourceOrigin} = Dict{String, _SourceOrigin}()  # bundled copy => original (`_origin_of`)
     preset_kind::Symbol = :simulation                                         # presets listed in the Files tab
     preset_name::Symbol = Symbol("")                                          # preset file open in the Files tab
     preset_file_rows::Vector{Vector{String}} = Vector{String}[]               # its rows [Category, Scope, Parameter, Value]
@@ -378,7 +381,16 @@ function simulation_trigger()
         end
 
         @info "Running dynamic calculations directly from active config..."
-        elapsed = @elapsed run_all_simulations(curr_config; calculate_stats = true, force_overwrite = false)
+        elapsed = try
+            @elapsed _run_simulations(curr_config; calculate_stats = true, force_overwrite = false)
+        catch e
+            # (e.g. a source file that fails or is gone; failures of single runs are logged by PDEStudioCore)
+            e isa InterruptException && rethrow()
+            @error "Running the simulations failed" exception = (e, catch_backtrace())
+            msg = e isa LoadError ? sprint(showerror, e.error) : sprint(showerror, e)
+            _status!("Running failed: $(_short(first(split(msg, '\n')), 110))", :error)
+            return
+        end
 
         # Data with axes the window doesn't have (e.g. a time axis `:iteration`) would be dropped: the next click on
         # "Run Simulation" rebuilds the window with them (like a CSV that changes the dimensions).

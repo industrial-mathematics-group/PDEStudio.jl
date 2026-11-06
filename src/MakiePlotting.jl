@@ -380,7 +380,7 @@ end
 # Runs `config` (cached) and sets the data kind and the dimensions its data needs before the window is built.
 function _prepare_for_config!(config::SimulationConfig, style)
     @info "Running the configuration before opening the studio (the results are cached)..."
-    run_all_simulations(config; calculate_stats = true, force_overwrite = false)
+    _run_simulations(config; calculate_stats = true, force_overwrite = false)
     data = _template_data(config)
     isnothing(data) && return nothing
     # the style decides the data (particles or grid); without one, particle data opens in a particle style

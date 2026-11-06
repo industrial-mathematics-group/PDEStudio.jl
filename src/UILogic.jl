@@ -400,15 +400,17 @@ function _handle_load(path::AbstractString)
         load_btn.buttoncolor[] = :lightcoral
         return nothing
     end
+    # a failing bundled source has its own warning in the status line; keep it visible
+    note = manager.source_note
     if structural
         load_btn.buttoncolor[] = :orange
         run_btn.buttoncolor[] = :orange
-        note = manager.source_note
-        _status!("$(basename(path)) changes the dimensions or slider count: Run Simulation rebuilds the window " *
-                 "(save a preset first to keep the current settings)." * (isempty(note) ? "" : " ($note)"), :warn)
+        # (the note of a loaded export first: it would be cut off after this text)
+        isempty(manager.source_failures) && _status!(isempty(note) ?
+            "$(basename(path)) changes the dimensions or slider count: Run Simulation rebuilds the window " *
+            "(save a preset first to keep the current settings)." :
+            "Loaded $(basename(path)) ($note). Run Simulation rebuilds the window for it.", :warn)
     else
-        # a failing bundled source has its own warning in the status line; keep it visible
-        note = manager.source_note
         isempty(manager.source_failures) && _status!("Loaded $(basename(path))" * (isempty(note) ? "" : " ($note)") *
                                                      ". Run Simulation to apply it.", isempty(note) ? :ok : :warn)
         load_btn.buttoncolor[] = :lightgreen

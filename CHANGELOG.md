@@ -23,12 +23,16 @@ What has changed since the last release. Released versions are described in the
 - **Resolution page with particle styles:** only the references (particles are shown as computed).
 
 ### Fixed
-- **A loaded export runs as it was exported.** Its bundled copies run and become the configuration's sources, so a new
-  export reproduces the old one; before, an edited helper included by relative path ran in place of its copy, and
-  the edited originals were bundled again. The copies still run in place of their originals while their folder
-  exists (files that aren't bundled, such as unlisted helpers and data files, are found there), and an `include` of
-  a bundled file runs its copy. The status line names originals edited or gone since the export, also when a load
-  changes the window. A missing copy whose original ran is a source now too (the next export bundles it).
+- **A loaded export runs as it was exported**, at the load and at *Run Simulation*: the bundled copies run in place of
+  their originals (files that aren't bundled, such as unlisted helpers and data files, are found next to them), and
+  an `include` of a bundled file runs its copy (`include(path)`, `include(f, path)`, `Base.include`, `include` as a
+  value). Copies of edited originals are the configuration's sources, so a new export reproduces the old one;
+  before, an edited helper included by relative path ran in place of its copy, and the edited originals were bundled
+  again. The status line names originals edited or gone since the export, also when a load changes the window. A
+  missing copy whose original ran is a source now too (the next export bundles it). *Run Simulation* needs
+  PDEStudioCore's `run_all_simulations(...; load_sources = false)` for this; with older versions it includes the
+  copies of edited originals from the bundle folder.
+- **Run Simulation** shows an error in the status line (e.g. a source file that fails) instead of failing silently.
 - **Symlinked sources** are bundled as files: before, the bundle held the link, so it followed later edits.
 - **Time resolution 1** (`set_resolution!(:t, 1)`, a CSV row) made all data with time fail to load; it shows the last
   snapshot now. Resolutions are whole numbers from 1 to 100000 everywhere: `set_resolution!` throws otherwise, CSV

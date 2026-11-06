@@ -258,61 +258,140 @@ files next to the original that aren't bundled (helpers it includes, data files)
 task-local source path that `Base.include` uses.)
 """
 function _include_as(mod::Module, file::AbstractString, as::AbstractString,
-                     copies::Dict{String, String} = Dict{String, String}())
+                     copies::Dict{String, String} = Dict{String, String}(), mapexpr = identity)
     tls = task_local_storage()
     previous = get(tls, :SOURCE_PATH, nothing)
     tls[:SOURCE_PATH] = as
     try
-        return Base.include_string(ex -> _redirect_includes(ex, dirname(as), copies), mod, read(file, String), as)
+        return Base.include_string(ex -> _redirect_includes(mapexpr(ex), dirname(as), copies), mod, read(file, String), as)
     finally
         isnothing(previous) ? delete!(tls, :SOURCE_PATH) : (tls[:SOURCE_PATH] = previous)
     end
 end
 
-# Replaces the `include(path)` calls of code that runs in `dir` by `_bundled_include`, which runs the bundled copy of
-# a file in `copies` and includes any other file as usual (redirecting its `include`s in the same way).
-function _redirect_includes(ex, dir::AbstractString, copies::Dict{String, String})
-    (ex isa Expr && !isempty(copies)) || return ex
-    ex.head in (:quote, :inert) && return ex
-    if ex.head === :call && length(ex.args) == 2 && ex.args[1] === :include &&
-       !(ex.args[2] isa Expr && ex.args[2].head in (:..., :parameters))
-        return Expr(:call, _bundled_include, Expr(:macrocall, Symbol("@__MODULE__"), LineNumberNode(0)), dir,
-                    _redirect_includes(ex.args[2], dir, copies), copies)
-    end
-    return Expr(ex.head, (_redirect_includes(a, dir, copies) for a in ex.args)...)
+# `include` and `Base.include` for code that runs in `dir`: a file in `copies` (original path => bundled copy) runs
+# its copy as the original, any other file runs as usual, its `include`s redirected in the same way.
+struct _BundledInclude
+    mod::Module
+    dir::String
+    copies::Dict{String, String}
 end
+(inc::_BundledInclude)(path::AbstractString) = _bundled_include(inc.mod, inc.dir, path, inc.copies, identity)
+(inc::_BundledInclude)(mapexpr::Function, path::AbstractString) =
+    _bundled_include(inc.mod, inc.dir, path, inc.copies, mapexpr)
+struct _BundledBaseInclude
+    dir::String
+    copies::Dict{String, String}
+end
+(inc::_BundledBaseInclude)(mod::Module, path::AbstractString) = _bundled_include(mod, inc.dir, path, inc.copies, identity)
+(inc::_BundledBaseInclude)(mapexpr::Function, mod::Module, path::AbstractString) =
+    _bundled_include(mod, inc.dir, path, inc.copies, mapexpr)
 
-function _bundled_include(mod::Module, dir::AbstractString, path::AbstractString, copies::Dict{String, String})
+function _bundled_include(mod::Module, dir::AbstractString, path::AbstractString, copies::Dict{String, String},
+                          mapexpr)
     file = normpath(isabspath(path) ? path : joinpath(dir, path))
     copy = get(copies, file, nothing)
-    isnothing(copy) || return _include_as(mod, copy, file, copies)
-    return Base.include(ex -> _redirect_includes(ex, dirname(file), copies), mod, file)
+    isnothing(copy) || return _include_as(mod, copy, file, copies, mapexpr)
+    return Base.include(ex -> _redirect_includes(mapexpr(ex), dirname(file), copies), mod, file)
+end
+
+# Replaces `include` (calls such as `include("h.jl")` and `include(f, "h.jl")`, and `include` as a value, as in
+# `foreach(include, files)` or `include.(files)`) and `Base.include` in code that runs in `dir` by `_BundledInclude`
+# / `_BundledBaseInclude`. Definitions are kept (`include(p) = …` of a baremodule, an argument named `include`).
+const _NO_VALUE_HEADS = (:global, :local, :import, :using, :export, :public, :struct, :abstract, :primitive, :quote,
+                         :inert)
+function _redirect_includes(ex, dir::AbstractString, copies::Dict{String, String})
+    isempty(copies) && return ex
+    ex === :include && return Expr(:call, _BundledInclude, _MODULE_EXPR, dir, copies)
+    ex isa Expr || return ex
+    ex == _BASE_INCLUDE && return Expr(:call, _BundledBaseInclude, dir, copies)
+    ex.head in _NO_VALUE_HEADS && return ex
+    redirect(a) = _redirect_includes(a, dir, copies)
+    # (kept: the signature of a definition, the name of an assigned variable or keyword, the name of a module)
+    kept = ex.head in (:function, :macro, :->, :kw) ||
+           (ex.head === :(=) && (ex.args[1] isa Symbol || _is_signature(ex.args[1]))) ? 1 :
+           ex.head === :module ? 2 : 0
+    return Expr(ex.head, (i <= kept ? a : redirect(a) for (i, a) in enumerate(ex.args))...)
+end
+_is_signature(ex) = ex isa Expr && ex.head in (:call, :where, :(::))
+const _MODULE_EXPR = Expr(:macrocall, GlobalRef(Base, Symbol("@__MODULE__")), LineNumberNode(0))
+const _BASE_INCLUDE = Expr(:., :Base, QuoteNode(:include))
+
+# The original a bundled copy runs in place of (`manager.source_origins`), while the copy still has the content it
+# had when it was loaded; `nothing` otherwise.
+function _origin_of(copy::AbstractString)
+    entry = get(manager.source_origins, abspath(copy), nothing)
+    (isnothing(entry) || !isfile(copy) || hash(read(copy)) != entry.digest) && return nothing
+    return entry.origin
+end
+
+"""
+    _include_sources(sources)
+
+Includes the source files of a configuration before a run, as loading its export ran them: a bundled copy runs in place
+of its original (see `_run_bundled_sources`), and `include`s of the originals of the bundled copies run the copies.
+The rest is included as PDEStudioCore's `run_all_simulations` does.
+"""
+function _include_sources(sources::AbstractVector{<:AbstractString})
+    copies = Dict{String, String}()
+    for src in sources
+        origin = _origin_of(src)
+        isnothing(origin) || (copies[normpath(origin)] = abspath(src))
+    end
+    for src in sources
+        path = abspath(src)
+        isfile(path) || throw(ArgumentError("source file not found: $path"))
+        origin = _origin_of(path)
+        if isnothing(origin)
+            Base.include(ex -> _redirect_includes(ex, dirname(path), copies), get_target_module(), path)
+        else
+            _include_as(get_target_module(), path, origin, copies)
+        end
+    end
+    return nothing
+end
+
+# PDEStudioCore with `run_all_simulations(config; load_sources = false)`: the studio includes the sources itself
+# (`_include_sources`), so a loaded export runs as it loaded. Older versions include them as they are.
+const _CORE_SKIPS_SOURCES = hasmethod(run_all_simulations, Tuple{SimulationConfig}, (:load_sources,))
+
+"""
+    _run_simulations(config; kwargs...)
+
+`run_all_simulations(config; kwargs...)`, with the sources included by `_include_sources` (if PDEStudioCore allows).
+"""
+function _run_simulations(config::SimulationConfig; kwargs...)
+    _CORE_SKIPS_SOURCES || return run_all_simulations(config; kwargs...)
+    _include_sources(config.sources)
+    return run_all_simulations(config; kwargs..., load_sources = false)
 end
 
 """
     _run_bundled_sources(parsed, filepath)
 
 Includes the source files bundled with an exported CSV into the target module (this executes their code). The export
-runs as it was exported: every bundled copy runs, and the copies are the sources of the loaded configuration (the
-next export bundles what ran). A copy runs as its original while the original's folder exists: `@__DIR__` and
-relative `include`s resolve there, so files that aren't bundled (helpers that aren't listed as sources, data files)
-are found, while `include`s of bundled files run their copies. If the folder is gone, the copy runs in the bundle
-folder. A missing copy is replaced by its original if that still exists. If an original was edited since the export,
-or a copy or an original is missing, the status line says so (`manager.source_note`).
+runs as it was exported: every bundled copy runs, in place of its original (`@__DIR__` and relative `include`s resolve
+next to the original, so files that aren't bundled, such as helpers that aren't listed as sources and data files, are
+found there), and `include`s of the originals of bundled files run their copies. Exports without recorded originals
+run in the bundle folder. A missing copy is replaced by its original if that still exists. If an original was edited
+since the export, or a copy or an original is missing, the status line says so (`manager.source_note`).
+
+The sources of the loaded configuration are the originals that are unchanged, and the copies of the others: *Run
+Simulation* includes them again (as the load ran them, see `_include_sources`) and the next export bundles them,
+recording the originals as their origin.
 
 A source that fails doesn't abort the load: the error is reported (log and status line) and the parameters come
 from the CSV, so the solver functions must then be defined some other way (e.g. by loading their package).
-Returns `(config, ran, bundled, origins)`: the `SimulationConfig` returned by the last file (or by the function
-without arguments it ends with, as for [`load_config_file!`](@ref)) if every file ran (otherwise `nothing`), the
-files that ran (the sources of the loaded configuration), the absolute paths of the bundled copies (`""` for missing
-files) and the original paths (if recorded).
+Returns `(config, ran, sources_of)`: the `SimulationConfig` returned by the last file (or by the function without
+arguments it ends with, as for [`load_config_file!`](@ref)) if every file ran (otherwise `nothing`), the sources of the
+files that ran, and the source of each original (original path => source).
 """
 function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     manager.source_note = ""
     meta = get(get(parsed, "Metadata", Dict()), "General", Dict())
     names = get(meta, "bundled_sources", nothing)
     names isa AbstractString && (names = isempty(names) ? String[] : [names])
-    (names isa AbstractVector && !isempty(names)) || return nothing, String[], String[], String[]
+    (names isa AbstractVector && !isempty(names)) || return nothing, String[], Dict{String, String}()
     origins = get(meta, "source_origins", String[])
     origins = origins isa AbstractString ? [origins] : origins
     origins = origins isa AbstractVector ? String[string(o) for o in origins] : String[]
@@ -328,10 +407,8 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     origin(i) = i <= length(origins) ? origins[i] : ""
     copies = Dict{String, String}(normpath(origin(i)) => bundled[i] for i in eachindex(bundled)
                                   if !isempty(bundled[i]) && !isempty(origin(i)))
-    for (orig, copy) in copies
-        manager.source_origins[copy] = orig   # the next export records the original, not the copy
-    end
     notes = String[]
+    unchanged = falses(length(bundled))
     for i in eachindex(bundled)
         isempty(origin(i)) && continue   # (older exports record no originals)
         name = basename(origin(i))
@@ -341,12 +418,15 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
             push!(notes, "the original $name is gone: the exported one ran")
         elseif read(origin(i)) != read(bundled[i])
             push!(notes, "$name changed since the export: the exported version ran")
+        else
+            unchanged[i] = true
         end
     end
-    manager.source_note = join(notes, "; ")
+    manager.source_note = join(unique(notes), "; ")
     isempty(notes) || @warn "Loading $(basename(filepath)): $(manager.source_note)."
 
     ran = String[]
+    sources_of = Dict{String, String}()
     last_result = nothing
     failures = manager.source_failures
     for (i, name) in enumerate(names)
@@ -356,9 +436,16 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
             continue
         end
         file = isempty(copy) ? origin(i) : copy
-        runs_as = !isempty(origin(i)) && isdir(dirname(origin(i))) ? origin(i) : file
+        runs_as = isempty(origin(i)) ? file : origin(i)
+        # the source: the original while it is unchanged (or the copy is missing), otherwise the copy, which the next
+        # run includes in place of the original again
+        source = isempty(copy) || unchanged[i] ? abspath(runs_as) : copy
+        if source == copy && !isempty(origin(i))
+            manager.source_origins[copy] = (origin = origin(i), digest = hash(read(copy)))
+        end
+        isempty(origin(i)) || (sources_of[normpath(origin(i))] = source)
         @info "Executing bundled source: $(basename(file))" * (runs_as == file ? "" : " (as $runs_as)")
-        push!(ran, abspath(file))
+        push!(ran, source)
         try
             last_result = _include_as(get_target_module(), file, runs_as, copies)
         catch e
@@ -383,17 +470,17 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
                  "before running. ($(join(failures, "; ")))", :warn)
     end
     config = isempty(failures) && last_result isa SimulationConfig ? last_result : nothing
-    return config, ran, bundled, origins
+    return config, ran, sources_of
 end
 
-# Points the sources of a configuration returned by bundled files at the files that ran: the bundled copy of a bundled
-# file (also if its original exists), any other file as it is.
-function _relocate_sources(sources::AbstractVector, bundled::Vector{String}, origins::Vector{String})
+# Points the sources of a configuration returned by bundled files at the files that run: the source of a bundled file
+# (see `_run_bundled_sources`), any other file as it is.
+function _relocate_sources(sources::AbstractVector, sources_of::Dict{String, String})
     out = String[]
     for src in sources
-        i = findfirst(o -> normpath(o) == normpath(abspath(src)), origins)
-        if !isnothing(i) && i <= length(bundled) && !isempty(bundled[i])
-            push!(out, bundled[i])
+        source = get(sources_of, normpath(abspath(src)), nothing)
+        if !isnothing(source)
+            push!(out, source)
         elseif isfile(src)
             push!(out, abspath(src))
         else
@@ -479,10 +566,10 @@ function load_and_apply_csv!(filepath::AbstractString)
     manager.csv_cache = nothing  # a newer file replaces a staged one
     empty!(manager.source_failures)
     parsed, raw = _read_csv(filepath)
-    bundled_config, ran, bundled, origins = _run_bundled_sources(parsed, filepath)
+    bundled_config, ran, sources_of = _run_bundled_sources(parsed, filepath)
     # The files that ran are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
     # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
-    sources = isnothing(bundled_config) ? ran : unique([_relocate_sources(bundled_config.sources, bundled, origins); ran])
+    sources = isnothing(bundled_config) ? ran : unique([_relocate_sources(bundled_config.sources, sources_of); ran])
 
     new_dims, new_max = manager.allowed_dims, manager.max_params
     dims = get(get(parsed, "Config", Dict()), "Dimensions", nothing)
@@ -861,7 +948,7 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
                         cp(src_path, dst_path; force = true, follow_symlinks = true)
                     push!(bundled_names, bundled_name)
                     # the copy of a loaded export ran in place of its original, which stays the origin
-                    push!(origins, get(manager.source_origins, abspath(src_path), abspath(src_path)))
+                    push!(origins, something(_origin_of(src_path), abspath(src_path)))
                 else
                     @warn "Source file not found and skipped: $src_path"
                 end
