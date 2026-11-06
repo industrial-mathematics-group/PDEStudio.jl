@@ -1,0 +1,84 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_3duvn0
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_k0GPPH/exp.csv
+[ Info: Loading configuration from CSV: /tmp/jl_k0GPPH/exp.csv
+[ Info: Executing bundled source: helper.jl
+[ Info: Executing bundled source: config.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+┌ Warning: Executing other.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Executing config.jl: loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code).
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:397
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_b4NQwz/exp.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_b4NQwz/exp.csv
+[ Info: Executing bundled source: helper.jl
+[ Info: Executing bundled source: config.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Metadata and Parameters saved to /tmp/jl_dbTPPQ/exp2.csv
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_dbTPPQ/exp2.csv
+[ Info: Executing bundled source: helper.jl
+[ Info: Executing bundled source: 2_helper.jl
+[ Info: Executing bundled source: config.jl
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+ERROR: LoadError: Some tests did not pass: 1 passed, 2 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:20
+status after loading the export: Loaded exp.csv (helper.jl changed since the export: the exported version ran). Run Simulation to apply it.  colour = RGB{Float32}(0.8, 0.4, 0.0)
+status after loading other.jl: Loaded other.jl (helper.jl changed since the export: the exported version ran). Run Simulation to apply it.
+
+status line: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:30
+  Expression: !(occursin("changed since the export", status()))
+   Evaluated: !(occursin("changed since the export", "Loaded other.jl (helper.jl changed since the export: the exported version ran). Run Simulation to apply it."))
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:30 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:22 [inlined]
+   [5] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [6] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:21
+K load 1: N = 24 sources = ["/tmp/jl_i34DpD/helper.jl", "/tmp/jl_b4NQwz/exp_sources/helper.jl", "/tmp/jl_b4NQwz/exp_sources/config.jl"]
+  exp2_sources/2_helper.jl: helper_N() = 24
+  exp2_sources/config.jl: include("helper.jl")
+SimulationConfig(cr
+  exp2_sources/helper.jl: helper_N() = 25
+K export 2 alone: N = 25 failures = String[]
+
+K: absolute source path, two generations: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:47
+  Expression: P.manager.active_config.shared[:N] == 24
+   Evaluated: 25 == 24
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:47 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:34 [inlined]
+   [5] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [6] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_status_line.jl:21
+Test Summary:                              | Pass  Fail  Total  Time
+all                                        |    1     2      3  1.7s
+  status line                              |    1     1      2  1.6s
+  K: absolute source path, two generations |          1      1  0.1s
+RNG of the outermost testset: Random.Xoshiro(0xa829addf947d52b1, 0xd3e8498fdda59c47, 0x8d8759ce9084ac85, 0x433f1a99be4123ff, 0xbe4105cc33cd8218)

@@ -1,0 +1,46 @@
+[ Info: UI and Layout have been directly reset to defaults.
+ERROR: LoadError: Some tests did not pass: 27 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_char_literals.jl:28
+ok   "Any['\"', <empty>]"               -> "Any['\"', \"\"]"
+ok   "Any['\\'', <empty>]"              -> "Any['\\'', \"\"]"
+ok   "Any['\\\\', <empty>]"             -> "Any['\\\\', \"\"]"
+ok   "Any['\\u00e9', <empty>]"          -> "Any['\\u00e9', \"\"]"
+ok   "Any['é', '\"', <empty>]"          -> "Any['é', '\"', \"\"]"
+ok   "x' * <empty>"                     -> "x' * \"\""
+ok   "A' * <empty>"                     -> "A' * \"\""
+ok   "[1 2]' , <empty>"                 -> "[1 2]' , \"\""
+ok   "(x)'' , <empty>"                  -> "(x)'' , \"\""
+ok   "x.' , <empty>"                    -> "x.' , <empty>"
+ok   "Any[\"it's\", <empty>]"           -> "Any[\"it's\", \"\"]"
+ok   "Any[\"a'\\\"b\", <empty>]"        -> "Any[\"a'\\\"b\", \"\"]"
+ok   "Any[', <empty>]"                  -> "Any[', <empty>]"
+ok   "Any[<empty>, ']"                  -> "Any[\"\", ']"
+ok   "'"                                -> "'"
+ok   "Any['\"']"                        -> "Any['\"']"
+ok   "Any[1, '\"'] , \"<empty>\""       -> "Any[1, '\"'] , \"<empty>\""
+ok   "Any[:a, '\"', <empty>]"           -> "Any[:a, '\"', \"\"]"
+ok   "Any[2'\"', <empty>]"              -> "Any[2'\"', <empty>]"
+ok   "Any[f('\"'), <empty>]"            -> "Any[f('\"'), \"\"]"
+ok   "Any[x ? '\"' : <empty>]"          -> "Any[x ? '\"' : \"\"]"
+FAIL "Any[a in '\"', <empty>]"          -> "Any[a in '\"', <empty>]"
+
+char literals: Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_char_literals.jl:33
+  Expression: ok
+  Stacktrace:
+   [1] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+   [2] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_char_literals.jl:33 [inlined]
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-ps3/probes/probe_char_literals.jl:29
+Any['"', ""]                       shown "Any['\"', <empty>]" -> (true, Any['"', ""])
+Any['\'', ""]                      shown "Any['\\'', <empty>]" -> (true, Any['\'', ""])
+Any['\\', ""]                      shown "Any['\\\\', <empty>]" -> (true, Any['\\', ""])
+Any['é', '"', ""]                  shown "Any['é', '\"', <empty>]" -> (true, Any['é', '"', ""])
+Any["it's", ""]                    shown "Any[\"it's\", <empty>]" -> (true, Any["it's", ""])
+Any['"', "<empty>", ""]            shown "Any['\"', \"<empty>\", <empty>]" -> (true, Any['"', "<empty>", ""])
+Test Summary: | Pass  Fail  Total  Time
+char literals |   27     1     28  0.8s
+RNG of the outermost testset: Random.Xoshiro(0x10269558d93c5118, 0x458af4b6ce2c7ee7, 0xa92a7a7293407232, 0x2f8c96e72094aaaf, 0x7b73f80c0814b390)

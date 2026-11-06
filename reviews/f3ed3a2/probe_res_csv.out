@@ -1,0 +1,14 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_y9c1nq
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Loading configuration from CSV: /tmp/jl_Yg9auf/res.csv
+[ Info: Applying parsed CSV configuration...
+┌ Warning: Ignoring the Resolution_Ref row x = 2.5: a resolution is a number of points from 1 to 100000.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-ps3/repo/src/ConfigIO.jl:542
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: UI and Layout have been directly reset to defaults.
+parsed Config: Dict{String, Dict{String, Any}}("Resolution_Base" => Dict("t" => 80, "x" => 1), "Resolution_Ref" => Dict("t" => 1000.0, "x" => 2.5))
+t=80 x=1 ref x=200 ref t=1000
+parsed t=1: Dict{String, Dict{String, Any}}("Resolution_Base" => Dict("t" => 1))
+Test Summary:            | Pass  Total  Time
+resolution rows from CSV |    2      2  0.6s
