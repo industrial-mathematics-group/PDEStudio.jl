@@ -156,6 +156,7 @@ Base.@kwdef mutable struct PlotManager
 
     # --- persistent caches (they outlive a closed window) ---
     camera_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
+    view_context::Any = nothing                                         # what a view set by the API belongs to
     slider_cache::Dict{Symbol, Float64} = Dict{Symbol, Float64}()
     pending_sliders::Dict{Symbol, Tuple{Float64, Int}} =               # loaded slider positions not yet in range
         Dict{Symbol, Tuple{Float64, Int}}()                              #   (value, data_generation when loaded)

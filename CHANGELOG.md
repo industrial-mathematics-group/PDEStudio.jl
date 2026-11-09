@@ -40,6 +40,8 @@ What has changed since the last release. Released versions are described in the
   sources once an original was edited or is gone, and Run includes them from the bundle folder (only bundled files
   are found).
 - **Run Simulation** shows an error in the status line (e.g. a source file that fails) instead of failing silently.
+- **A plot that can't be drawn** (e.g. options the style can't use) says so in the status line; before, only the log
+  showed it.
 - **Symlinked sources** are bundled as files: before, the bundle held the link, so it followed later edits.
 - **Time resolution 1** (`set_resolution!(:t, 1)`, a CSV row) made all data with time fail to load; it shows the last
   snapshot now. Resolutions are whole numbers from 1 to 100000 everywhere: `set_resolution!` throws otherwise, CSV

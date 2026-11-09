@@ -20,8 +20,9 @@ describe_studio()                 # what is shown, as text
 studio_snapshot("heat.png")       # what it looks like, as an image
 ```
 
-With a visible window (GLMakie, or WGLMakie in a browser) the same functions work unchanged, and snapshots are still
-rendered by CairoMakie, without touching the window.
+With a visible window (GLMakie, or WGLMakie in a browser) the same functions work unchanged. A GLMakie window renders
+snapshots itself; without a display, and in a browser, CairoMakie renders them. CairoMakie can't draw volumes: a
+snapshot of a volume plot then shows the empty axes, and the status line says so.
 
 ## Reading what is shown
 
@@ -48,6 +49,11 @@ Controls (studio_set! / studio_press!):
 - [`studio_state`](@ref) returns the same as data: status line, configuration, plot style, the variables on the axes,
   comparison, sliders, and per subplot its title, labels, the shown limits (and the camera angles of 3D plots) and the
   range of the plotted values per method.
+- Styles that show one method (heatmaps, surfaces, filled contours, volumes, …) show the method chosen by
+  `studio_option!(:plot_style, :method_index, i)`; `describe_studio` names it. Compare the methods side by side with
+  `studio_set!(:compare_target => :methods)`.
+- Swept parameters beyond the window's parameter sliders (`set_max_params!`) have no slider: the plots show their
+  first value, and `describe_studio` marks them.
 - [`studio_data`](@ref) returns the plotted numbers themselves (coordinates and values per method), so a program can
   compute with what is shown instead of reading it from an image.
 
@@ -97,10 +103,12 @@ studio_option!(:labels, :title, "Heat equation")
 | [`studio_rotate!`](@ref) | turns the camera of 3D plots by some degrees |
 | [`studio_reset_view!`](@ref) | returns to the automatic view that follows the data |
 
-All of them act on every subplot or on one (`plot = 2`); linked subplots (*Compare Link*) move together, as in the
-window. The view they set stays while sliders move and the data updates (the camera is locked, as with the *Lock
-Camera* button) until [`studio_reset_view!`](@ref). Log-scaled axes zoom and pan on the log scale. Zooming a 3D plot
-narrows its limits, so what lies outside is cut off, as when zooming with the mouse.
+All of them act on every subplot or on one (`plot = 2`); linked 2D subplots (*Compare Link*) move together, as in
+the window. The view they set stays while sliders move and the data updates (the camera is locked, as with the *Lock
+Camera* button), until [`studio_reset_view!`](@ref) or until [`studio_set!`](@ref) changes the plotted variables, the
+plot style or the comparison: the old limits would show the wrong range, so the plots follow the data again. Angles
+are in degrees; log-scaled axes zoom and pan on the log scale. Zooming a 3D plot narrows its limits, so what lies
+outside is cut off, as when zooming with the mouse.
 
 ## An agent's loop
 

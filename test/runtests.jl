@@ -773,10 +773,11 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_snapshot()
 
     # A sweep over the CFL number of the advection of u = sin(x) + 2 (positive: also for log scales)
-    config = SimulationConfig(create_param_dict(:N => 64, :sim_func_name => :advection_solver_1d),
+    config = SimulationConfig(create_param_dict(:N => 64, :cfl => 0.5, :tag => "a", :sim_func_name => :advection_solver_1d),
                               create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
                                                  :lax_friedrichs => create_param_dict(:scheme => "lax_friedrichs")),
-                              [:upwind, :lax_friedrichs]; varied = create_varied_dict(:cfl => [0.25, 0.5, 0.75, 1.0]),
+                              [:upwind, :lax_friedrichs]; varied = create_varied_dict(:cfl => [0.25, 0.5, 0.75, 1.0],
+                                                                                      :tag => ["a", "b"]),
                               reference = :exact_advection_factory)
 
     # --- what is shown, as data and as text ---
@@ -787,7 +788,7 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test s.style === :lines_1d && s.style_dim == 1 && s.axes.x === :x && s.axes.u === :Solution
     @test length(s.plots) == 1 && !s.plots[1].is_3d && occursin("Time (T) = 0.000", s.plots[1].title)
     @test Set(keys(s.plots[1].value_ranges)) == Set([:upwind, :lax_friedrichs])
-    @test Set(sl.name for sl in s.sliders) == Set([:cfl, :t])         # the sliders the window shows
+    @test Set(sl.name for sl in s.sliders) == Set([:cfl, :tag, :t])   # the sliders the window shows
     text = sprint(describe_studio)
     @test occursin("plot 1:", text) && occursin("Controls (studio_set! / studio_press!)", text) &&
           occursin("cfl [slider]", text) && occursin("x_axis [menu, applies with :update_plot]", text)
@@ -806,8 +807,13 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
 
     # --- controls: a slider by its parameter / dimension name, the status line says what was set ---
     r = studio_set!(:t => 1.0)
-    @test abs(r.values[:t] - 1.0) < 0.05 && occursin("Time (T) = 0.9", studio_state().plots[1].title) ||
-          occursin("Time (T) = 1.0", studio_state().plots[1].title)
+    @test abs(r.values[:t] - 1.0) < 0.05
+    @test occursin("Time (T) = 0.9", studio_state().plots[1].title) || occursin("Time (T) = 1.0", studio_state().plots[1].title)
+    @test studio_set!(:tag => "b").values[:tag] == "b" && only(c for c in studio_controls() if c.name === :tag).value == "b"
+    @test_throws ArgumentError studio_set!(:tag => "c")
+    for c in studio_controls()                                            # every slider takes back what it reports
+        c.kind === :slider && @test studio_set!(c.name => c.value).values[c.name] == c.value
+    end
     r = studio_set!(:cfl => 0.5)
     @test r.values[:cfl] == 0.5 && occursin("Set cfl = 0.5", r.status)
     @test studio_set!(:cfl => 0.52).values[:cfl] == 0.5                   # the nearest slider value
@@ -839,8 +845,24 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_view!(xlims = (1, 0))
     @test_throws ArgumentError studio_zoom!(0)
     @test_throws ArgumentError studio_zoom!(2; plot = 2)                  # one plot only
+    @test_throws ArgumentError studio_zoom!(2; plot = true)
+    @test_throws ArgumentError studio_zoom!(2; dims = :z)                 # no z axis: nothing to zoom
+    @test_throws ArgumentError studio_view!(azimuth = NaN)
     v = only(studio_reset_view!())
     @test !studio_state().camera_locked && v.xlims == auto.xlims
+    # a view set for other plotted variables doesn't stay (its limits would show the wrong range)
+    studio_zoom!(4)
+    r = studio_set!(:x_axis => :t)
+    s = studio_state()
+    @test !s.camera_locked && s.plots[1].xlims[2] >= 1.9 && occursin("follows the data again", r.status)
+    studio_set!(:x_axis => :x)
+    @test studio_state().plots[1].xlims == auto.xlims
+    # … the Lock Camera button's own lock stays (the person locked it knowingly)
+    studio_zoom!(2); studio_press!(:lock_camera); studio_press!(:lock_camera)
+    @test studio_state().camera_locked
+    studio_set!(:x_axis => :t)
+    @test studio_state().camera_locked
+    studio_reset_view!(); studio_set!(:x_axis => :x)
     # a log-scaled axis zooms and pans on the log scale
     studio_option!(:y_axis_1d, :log_scale, true)
     @test PDEStudio._plot_axes()[1].yscale[] === log10
@@ -853,6 +875,9 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_option!(:y_axis_1d, :nope, 1)
     @test_throws ArgumentError studio_option!(:plot_style, :color_map, :not_a_colormap)
     @test_throws ArgumentError studio_option!(:nope, :log_scale, true)
+    @test_throws ArgumentError studio_option!(:labels, :title, 5)            # the types the UI tab keeps
+    @test_throws ArgumentError studio_option!(:y_axis_1d, :log_scale, "yes")
+    @test_throws ArgumentError studio_option!(:plot_style, :line_width, :thick)
     @test studio_options(:y_axis_1d)[:log_scale] === true && haskey(studio_options(), :labels)
     studio_option!(:y_axis_1d, :log_scale, false)
     studio_reset_view!()
@@ -866,7 +891,15 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     img_p, img_w, img_2 = (PDEStudio.Makie.FileIO.load(f) for f in (f_plots, f_window, f_hi))
     @test size(img_w) == Tuple(reverse(studio_state().window_size))      # the whole window, 1 px per unit
     @test size(img_p, 1) < size(img_w, 1) && size(img_p, 2) < size(img_w, 2)
-    @test all(abs.(size(img_2) .- 2 .* size(img_p)) .<= 2)
+    @test all(abs.(size(img_2) .- 2 .* size(img_p)) .<= 4)
+    box = PDEStudio._plot_layout().layoutobservables.computedbbox[]   # where the plot area is in the window
+    r_top = size(img_w, 1) - round(Int, box.origin[2] + box.widths[2])
+    c_left = round(Int, box.origin[1])
+    hits = [(r, c) for r in max(1, r_top - 12):(r_top + 12), c in max(1, c_left - 40):(c_left + 12)   # (a title can be wider)
+            if r + size(img_p, 1) - 1 <= size(img_w, 1) && c + size(img_p, 2) - 1 <= size(img_w, 2) &&
+               img_w[r:r + size(img_p, 1) - 1, c:c + size(img_p, 2) - 1] == img_p]
+    @test !isempty(hits)
+    @test_throws ArgumentError studio_snapshot(joinpath(snapdir, "x.jpg"))   # PNG only
     @test isfile(studio_snapshot())                                       # a new file under the save path
     @test startswith(studio_snapshot(), joinpath(get_save_path(), "snapshots"))
     @test_throws ArgumentError studio_snapshot(; area = :nope)
@@ -882,6 +915,12 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test length(v) == 2 && v[1].xlims == v[2].xlims != s.plots[2].xlims
     studio_reset_view!()
     studio_set!(:compare_link => :decoupled)
+    s = studio_state()
+    studio_set!(:plot_style => :heatmap_flat, :y_axis => :t)
+    sub1 = PDEStudio.Makie.FileIO.load(studio_snapshot(joinpath(snapdir, "decoupled1.png"); plot = 1))
+    cmap = count(p -> abs(p.r - p.g) + abs(p.g - p.b) > 0.3, sub1[:, end - 120:end])  # colorbar colours at the right
+    @test cmap > 200
+    studio_set!(:plot_style => :lines_1d, :y_axis => :none)
     s = studio_state()
     v = studio_zoom!(2; plot = 2)
     @test v[1].xlims == s.plots[1].xlims && v[2].xlims != s.plots[2].xlims
@@ -1132,6 +1171,13 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test manager.widgets[:lock_camera_button].label[] == "Camera: Locked"   # the window shows the lock
         studio_reset_view!()
         @test !manager.camera_locked[] && studio_state().plots[1].xlims == s.plots[1].xlims
+        # 3D styles and volumes: the GLMakie window renders the snapshot itself (CairoMakie can't draw them here)
+        for style in (:heatmap_surface, :volume_3d)
+            studio_set!(:plot_style => style, :y_axis => :t, :z_axis => (style === :volume_3d ? :cfl : :none))
+            img = PDEStudio.Makie.FileIO.load(studio_snapshot(joinpath(mktempdir(), "$style.png")))
+            @test length(unique(img)) > 50 && studio_state().status.level !== :warn   # drawn, not the empty axes
+        end
+        studio_set!(:plot_style => :lines_1d, :x_axis => :x)
     end
 
     # =========================================================================

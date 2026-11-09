@@ -53,7 +53,7 @@ function _selected_axes(plot)
     axes = _plot_axes()
     isempty(axes) && throw(ArgumentError("nothing is plotted yet: run a simulation first (`studio_press!(:run)`)"))
     plot === :all && return axes
-    (plot isa Integer && 1 <= plot <= length(axes)) ||
+    (plot isa Integer && !(plot isa Bool) && 1 <= plot <= length(axes)) ||
         throw(ArgumentError("plot = $(repr(plot)): there are $(length(axes)) plot(s); use 1…$(length(axes)) or :all"))
     return Any[axes[plot]]
 end
@@ -66,23 +66,52 @@ end
 
 _is_log(ax, d) = ax isa Axis && (d == 1 ? ax.xscale[] : ax.yscale[]) === log10
 
-function _set_view_limits!(ax, lims)
+function _check_view_limits(ax, lims)
     for (d, (lo, hi)) in enumerate(lims)
         (isfinite(lo) && isfinite(hi) && lo < hi) ||
             throw(ArgumentError("limits ($lo, $hi) of the $("xyz"[d]) axis: two finite numbers, the lower one first"))
         _is_log(ax, d) && lo <= 0 && throw(ArgumentError("the $("xyz"[d]) axis has a log scale: its limits must be positive"))
     end
-    flat = Float64[v for l in lims for v in l]
-    limits!(ax, flat...)
     return nothing
 end
+
+# Applies new limits to the axes (`plan`: axis => limits), after checking all of them (an invalid one changes none).
+function _apply_view!(plan)
+    for (ax, lims) in plan
+        _check_view_limits(ax, lims)
+    end
+    for (ax, lims) in plan
+        limits!(ax, Float64[v for l in lims for v in l]...)
+    end
+    return nothing
+end
+
+# What a view set by the API belongs to: when the plotted variables, the style or the comparison change, the limits
+# of the old view would show the wrong range, so `studio_set!` releases the view (see `_release_stale_view!`).
+_view_context() = (style = manager.widgets[:plot_style].selection[], mode = manager.mode[],
+                   axes = Tuple(_menu_value(k) for k in PLOT_AXIS_OPTIONS),
+                   compare = first(manager.compare_state), plots = length(_plot_axes()))
 
 # Keeps the view the API set: the camera lock (the *Lock Camera* button) re-applies it after every data update.
 function _lock_view!(msg::AbstractString)
     manager.camera_locked[] = true
-    extract_and_store_camera_state!(_plot_layout())
+    extract_and_store_camera_state!(_plot_layout())   # (a new cache: `_api_view_locked` tells it from a later lock)
+    manager.view_context = (context = _view_context(), cache = manager.camera_cache)
     _status!(msg * " (camera locked: `studio_reset_view!()` or Lock Camera releases it)", :info)
     return nothing
+end
+
+# Whether the camera is locked to a view the API set (not relocked by the Lock Camera button since)
+_api_view_locked() = manager.camera_locked[] && !isnothing(manager.view_context) &&
+                     manager.view_context.cache === manager.camera_cache
+
+# After changes of the plotted variables, the style or the comparison: releases a view the API set (it belonged to
+# the old plot). Returns whether it did.
+function _release_stale_view!()
+    _api_view_locked() || return false
+    manager.view_context.context == _view_context() && return false
+    studio_reset_view!()
+    return true
 end
 
 # --- the camera ------------------------------------------------------------------------------------------------
@@ -97,8 +126,9 @@ _limits_arg(v, name) = isnothing(v) ? nothing :
 Sets what the plots show: the limits of their axes (`(lo, hi)` in data coordinates) and, for 3D plots, the camera
 angles in degrees (`azimuth` around the vertical axis, `elevation` above the horizontal plane). Arguments left at
 `nothing` keep their current value; `plot` selects one subplot (1, 2, … as in [`studio_state`](@ref)) or `:all`.
-The view stays while sliders move and the data updates (the camera is locked, as with *Lock Camera*);
-[`studio_reset_view!`](@ref) returns to the automatic view. Returns the new limits per subplot.
+The view stays while sliders move and the data updates (the camera is locked, as with *Lock Camera*), until the
+plotted variables, the plot style or the comparison change, or [`studio_reset_view!`](@ref) returns to the automatic
+view. Returns the new limits per subplot.
 
 ```julia
 studio_view!(xlims = (0, 1), ylims = (-0.1, 1.1))        # a 2D plot
@@ -111,21 +141,26 @@ function studio_view!(; plot = :all, xlims = nothing, ylims = nothing, zlims = n
     axes = _selected_axes(plot)
     want = (_limits_arg(xlims, :xlims), _limits_arg(ylims, :ylims), _limits_arg(zlims, :zlims))
     angles = !isnothing(azimuth) || !isnothing(elevation)
+    for (name, a) in ((:azimuth, azimuth), (:elevation, elevation))
+        isnothing(a) || (a isa Real && isfinite(a)) || throw(ArgumentError("$name = $(repr(a)): a finite number of degrees"))
+    end
     !isnothing(want[3]) && !any(ax -> ax isa Axis3, axes) &&
         throw(ArgumentError("zlims: the selected plot(s) are 2D (only 3D plots have a z axis)"))
     angles && !any(ax -> ax isa Axis3, axes) &&
         throw(ArgumentError("azimuth / elevation: the selected plot(s) are 2D; move them with xlims / ylims, " *
                             "studio_zoom! or studio_pan!"))
-    for ax in axes
+    plan = map(axes) do ax
         lims = _view_limits(ax)
         for d in eachindex(lims)
             isnothing(want[d]) || (lims[d] = want[d])
         end
-        _set_view_limits!(ax, lims)
-        if ax isa Axis3
-            isnothing(azimuth) || (ax.azimuth[] = deg2rad(Float64(azimuth)))
-            isnothing(elevation) || (ax.elevation[] = deg2rad(clamp(Float64(elevation), -90.0, 90.0)))
-        end
+        ax => lims
+    end
+    _apply_view!(plan)
+    for ax in axes
+        ax isa Axis3 || continue
+        isnothing(azimuth) || (ax.azimuth[] = deg2rad(Float64(azimuth)))
+        isnothing(elevation) || (ax.elevation[] = deg2rad(clamp(Float64(elevation), -90.0, 90.0)))
     end
     _lock_view!("View set")
     return _view_summary()
@@ -136,8 +171,9 @@ end
 
 Zooms the plots in (`factor > 1`) or out (`factor < 1`): the shown range of each axis shrinks by `factor` around
 `center` (a tuple of data coordinates, one per axis direction) or around the middle of the current view. `dims`
-restricts the zoom to some axis directions (`:x`, `(:x, :y)`, …; log-scaled axes zoom on the log scale). The view
-stays when the data updates (see [`studio_view!`](@ref)). Returns the new limits per subplot.
+restricts the zoom to some axis directions (`:x`, `(:x, :y)`, …; log-scaled axes zoom on the log scale). Zooming a
+3D plot narrows its limits, so what lies outside is cut off, as when zooming with the mouse. The view stays when the
+data updates (see [`studio_view!`](@ref)). Returns the new limits per subplot.
 
 ```julia
 studio_zoom!(4)                              # 4× closer, around the middle
@@ -149,7 +185,9 @@ function studio_zoom!(factor::Real = 2; plot = :all, center = nothing, dims = :a
     (isfinite(factor) && factor > 0) || throw(ArgumentError("factor = $factor: a positive number (> 1 zooms in)"))
     axes = _selected_axes(plot)
     sel = _zoom_dims(dims)
-    for ax in axes
+    any(ax -> any(d -> d in sel, eachindex(_view_limits(ax))), axes) ||
+        throw(ArgumentError("dims = $(repr(dims)): the selected plot(s) have no such axis (2D plots have x and y)"))
+    plan = map(axes) do ax
         lims = _view_limits(ax)
         for d in eachindex(lims)
             d in sel || continue
@@ -159,8 +197,9 @@ function studio_zoom!(factor::Real = 2; plot = :all, center = nothing, dims = :a
             half = (hi - lo) / (2 * factor)
             lims[d] = log ? (10^(c - half), 10^(c + half)) : (c - half, c + half)
         end
-        _set_view_limits!(ax, lims)
+        ax => lims
     end
+    _apply_view!(plan)
     _lock_view!(factor >= 1 ? "Zoomed in ×$(_fmt_value(factor))" : "Zoomed out ×$(_fmt_value(1 / factor))")
     return _view_summary()
 end
@@ -173,8 +212,8 @@ function _zoom_dims(dims)
 end
 
 function _center_coordinate(center, d, log)
-    (center isa Union{Tuple, AbstractVector} && all(x -> x isa Real, center)) ||
-        throw(ArgumentError("center = $(repr(center)): a tuple of data coordinates, e.g. (x, y)"))
+    (center isa Union{Tuple, AbstractVector} && all(x -> x isa Real && isfinite(x), center)) ||
+        throw(ArgumentError("center = $(repr(center)): a tuple of finite data coordinates, e.g. (x, y)"))
     d <= length(center) || throw(ArgumentError("center = $(repr(center)) has no coordinate for the $("xyz"[d]) axis"))
     c = Float64(center[d])
     log && c <= 0 && throw(ArgumentError("center: the $("xyz"[d]) axis has a log scale, the coordinate must be positive"))
@@ -194,7 +233,7 @@ function studio_pan!(dx::Real, dy::Real = 0, dz::Real = 0; plot = :all)
     axes = _selected_axes(plot)
     shift = (Float64(dx), Float64(dy), Float64(dz))
     dz != 0 && !any(ax -> ax isa Axis3, axes) && throw(ArgumentError("dz: the selected plot(s) are 2D"))
-    for ax in axes
+    plan = map(axes) do ax
         lims = _view_limits(ax)
         for d in eachindex(lims)
             shift[d] == 0 && continue
@@ -203,8 +242,9 @@ function studio_pan!(dx::Real, dy::Real = 0, dz::Real = 0; plot = :all)
             step = shift[d] * (hi - lo)
             lims[d] = log ? (10^(lo + step), 10^(hi + step)) : (lo + step, hi + step)
         end
-        _set_view_limits!(ax, lims)
+        ax => lims
     end
+    _apply_view!(plan)
     _lock_view!("View moved")
     return _view_summary()
 end
@@ -217,11 +257,12 @@ elevation stays within ±90°). 2D plots don't rotate; with `plot = :all` they a
 data updates (see [`studio_view!`](@ref)). Returns the new limits and angles per subplot.
 """
 function studio_rotate!(dazimuth::Real, delevation::Real = 0; plot = :all)
+    all(isfinite, (dazimuth, delevation)) || throw(ArgumentError("studio_rotate!: finite angles in degrees"))
     axes = filter(ax -> ax isa Axis3, _selected_axes(plot))
     isempty(axes) && throw(ArgumentError("studio_rotate!: the selected plot(s) are 2D (only 3D plots rotate); " *
                                          "use studio_pan! / studio_zoom! / studio_view!"))
     for ax in axes
-        ax.azimuth[] = ax.azimuth[] + deg2rad(Float64(dazimuth))
+        ax.azimuth[] = deg2rad(mod(rad2deg(ax.azimuth[]) + Float64(dazimuth), 360.0))
         ax.elevation[] = deg2rad(clamp(rad2deg(ax.elevation[]) + Float64(delevation), -90.0, 90.0))
     end
     _lock_view!("Camera turned")
@@ -241,11 +282,15 @@ function studio_reset_view!()
     axes = _plot_axes()
     manager.camera_locked[] = false
     manager.camera_cache = Dict{Symbol, Any}()
+    manager.view_context = nothing
     for ax in axes
-        ax isa Axis3 || continue
-        ax.azimuth[], ax.elevation[] = _DEFAULT_AZIMUTH, _DEFAULT_ELEVATION
-        ax.limits[] = (nothing, nothing, nothing)
-        reset_limits!(ax)
+        if ax isa Axis3
+            ax.azimuth[], ax.elevation[] = _DEFAULT_AZIMUTH, _DEFAULT_ELEVATION
+            ax.limits[] = (nothing, nothing, nothing)
+            reset_limits!(ax)
+        else
+            autolimits!(ax)   # (the data step below sets the studio's limits where it computes them)
+        end
     end
     manager.triggers[:PlotData][] += 1   # recomputes the automatic limits of the 2D plots
     _status!("View reset: the plots follow the data.", :info)
@@ -260,7 +305,8 @@ function _axis_view(i, ax)
     lims = _view_limits(ax)
     if ax isa Axis3
         return (plot = i, xlims = lims[1], ylims = lims[2], zlims = lims[3],
-                azimuth = round(rad2deg(ax.azimuth[]), digits = 2), elevation = round(rad2deg(ax.elevation[]), digits = 2))
+                azimuth = round(mod(rad2deg(ax.azimuth[]), 360.0), digits = 2),
+                elevation = round(rad2deg(ax.elevation[]), digits = 2))
     end
     return (plot = i, xlims = lims[1], ylims = lims[2])
 end
@@ -271,13 +317,16 @@ end
     studio_snapshot(path = nothing; plot = :all, area = :plots, px_per_unit = 1) -> String
 
 Renders what the studio shows to a PNG file and returns its path (by default a new file in
-`<save path>/snapshots/`). It is rendered by CairoMakie, so it works without any display and doesn't touch the
-window. `area = :plots` gives the plot grid (with colorbars and legends), `:window` the whole studio with the
-control panel, as a person sees it; `plot = i` gives subplot `i` alone (with its axis labels and title).
-`px_per_unit` scales the image (2 for twice the resolution).
+`<save path>/snapshots/`), without changing the window. `area = :plots` gives the plot grid (with colorbars and
+legends), `:window` the whole studio with the control panel, as a person sees it; `plot = i` gives subplot `i` with
+its axis labels, title and its own colorbar or legend. `px_per_unit` scales the image (2 for twice the resolution).
+
+A GLMakie window renders the snapshot itself; otherwise (without a display, see [`studio_headless!`](@ref), or in a
+browser) CairoMakie renders it. CairoMakie can't draw volumes: a snapshot of a volume plot then shows the empty
+axes, and the status line warns about it.
 
 ```julia
-studio_snapshot()                          # the plots, e.g. "…/snapshots/studio_2026-11-09_14-03-12-123.png"
+studio_snapshot()                          # the plots, e.g. "…/snapshots/studio_2026-11-09_14-03-12-123_1.png"
 studio_snapshot("overview.png"; area = :window)
 studio_snapshot("detail.png"; plot = 2, px_per_unit = 2)
 ```
@@ -288,24 +337,68 @@ function studio_snapshot(path::Union{Nothing, AbstractString} = nothing; plot = 
     area in (:plots, :window) || throw(ArgumentError("area = $(repr(area)): :plots or :window"))
     (isfinite(px_per_unit) && px_per_unit > 0) || throw(ArgumentError("px_per_unit = $px_per_unit: a positive number"))
     area === :window && plot !== :all && throw(ArgumentError("plot = $(repr(plot)) needs area = :plots"))
+    isnothing(path) || lowercase(splitext(path)[2]) == ".png" ||
+        throw(ArgumentError("studio_snapshot writes PNG files: give a path ending in .png, got $(repr(path))"))
     box = area === :window ? nothing : plot === :all ?
           _union_box(_plot_layout().layoutobservables.computedbbox[], (_drawn_box(ax) for ax in _plot_axes())...) :
-          _union_box(_axis_box(only(_selected_axes(plot))), _drawn_box(only(_selected_axes(plot))))
-    img = Makie.colorbuffer(fig; backend = CairoMakie, px_per_unit = Float64(px_per_unit))
-    isnothing(box) || (img = _crop(img, box, fig, _controls_right(fig)))
+          _subplot_box(only(_selected_axes(plot)))
+    img, renderer = _render_window(fig, Float64(px_per_unit))
+    isnothing(box) || (img = _crop(img, box, fig, _controls_right(fig); margin = plot === :all ? 6 : 3))
     file = something(path, joinpath(get_save_path(), "snapshots",
-                                    "studio_" * Dates.format(Dates.now(), "yyyy-mm-dd_HH-MM-SS-sss") * ".png"))
+                                    "studio_" * Dates.format(Dates.now(), "yyyy-mm-dd_HH-MM-SS-sss") *
+                                    "_$(_SNAPSHOTS[] += 1).png"))
     isempty(dirname(file)) || mkpath(dirname(file))
     Makie.FileIO.save(file, img)
+    if renderer === :CairoMakie && _base_style(manager.widgets[:plot_style].selection[]) === :volume_3d
+        _status!("Snapshot: CairoMakie can't draw volumes, the image shows the empty axes (use GLMakie for volumes).", :warn)
+    end
     return String(file)
 end
 
-# The box of an axis with its decorations (labels, title, tick labels) in figure coordinates.
+const _SNAPSHOTS = Ref(0)   # (numbers the default file names: two snapshots in the same millisecond)
+
+_backend_name() = (b = Makie.current_backend(); ismissing(b) || isnothing(b) ? :none : Symbol(nameof(b)))
+
+# An image of the whole window: rendered by GLMakie if that shows it (it draws everything, also volumes, and
+# CairoMakie can't render some plots GLMakie has prepared), by CairoMakie otherwise (no display, or a browser).
+function _render_window(fig, ppu)
+    _backend_name() === :GLMakie && return Makie.colorbuffer(fig; px_per_unit = ppu), :GLMakie
+    img = try
+        Makie.colorbuffer(fig; backend = CairoMakie, px_per_unit = ppu)
+    catch e
+        e isa InterruptException && rethrow()
+        throw(ErrorException("CairoMakie could not render the studio while $(_backend_name()) shows it " *
+                             "($(_short(sprint(showerror, e), 120))); snapshots of this plot style work without a " *
+                             "display (studio_headless!()) or with GLMakie"))
+    end
+    return img, :CairoMakie
+end
+
+# The box of a block with its decorations (labels, title, tick labels) in figure coordinates.
 function _axis_box(ax)
     bb = ax.layoutobservables.computedbbox[]
     p = ax.layoutobservables.protrusions[]   # (left, right, bottom, top)
     return Rect2f(bb.origin[1] - p.left, bb.origin[2] - p.bottom, bb.widths[1] + p.left + p.right,
                   bb.widths[2] + p.bottom + p.top)
+end
+
+# A subplot with its decorations and its own colorbars and legends: those next to it, closer to it than to any other
+# subplot (a colorbar shared by the grid is not part of one subplot).
+function _subplot_box(ax)
+    axes = _plot_axes()
+    center(b) = (bb = b.layoutobservables.computedbbox[]; (bb.origin[1] + bb.widths[1] / 2, bb.origin[2] + bb.widths[2] / 2))
+    dist(a, b) = (ca = center(a); cb = center(b); hypot(ca[1] - cb[1], ca[2] - cb[2]))
+    own = Any[]
+    for c in _plot_layout().content
+        b = c.content
+        b isa Union{Colorbar, Legend} || continue
+        nearest = argmin(a -> dist(a, b), axes)
+        nearest === ax || continue
+        bb, ab = b.layoutobservables.computedbbox[], ax.layoutobservables.computedbbox[]
+        overlap = min(bb.origin[2] + bb.widths[2], ab.origin[2] + ab.widths[2]) - max(bb.origin[2], ab.origin[2])
+        overlap > 0.5 * min(bb.widths[2], ab.widths[2]) && push!(own, b)   # (beside it, not a row below)
+    end
+    return _union_box(_axis_box(ax), _drawn_box(ax), (_axis_box(b) for b in own)...)
 end
 
 # What a 2D axis draws in the figure (decorations included, e.g. a title wider than the plot); `nothing` if unknown
@@ -339,10 +432,9 @@ end
 
 # Cuts the box (figure coordinates, origin bottom left) out of an image of the whole figure (first index: rows
 # from the top), with a few pixels of margin, but not left of `left_limit`.
-function _crop(img, box, fig, left_limit = -Inf)
+function _crop(img, box, fig, left_limit = -Inf; margin = 6)
     h, w = size(img)
     s = w / fig.scene.viewport[].widths[1]   # pixels per figure unit
-    margin = 6
     x0 = clamp(max(floor(Int, (box.origin[1] - margin) * s), isfinite(left_limit) ? ceil(Int, left_limit * s) + 2 : 0) + 1, 1, w)
     x1 = clamp(ceil(Int, (box.origin[1] + box.widths[1] + margin) * s), x0, w)
     r0 = clamp(h - ceil(Int, (box.origin[2] + box.widths[2] + margin) * s) + 1, 1, h)
@@ -395,7 +487,7 @@ function studio_state()
     style = _public_style(w[:plot_style].selection[])
     target, _, labels, _ = manager.compare_state
     return (
-        backend = Symbol(nameof(Makie.current_backend())),
+        backend = _backend_name(),
         window_size = Tuple(Int.(fig.scene.viewport[].widths)),
         status = status,
         config = cfg,
@@ -419,10 +511,13 @@ _shown_sliders() = [k for k in _slider_keys() if haskey(manager.widgets, k) && l
 function _slider_state(key)
     sl = manager.widgets[key]
     name = get(manager.param_map, key, key)
-    rng = sl.range[]
-    value = sl.value[]
-    shown = startswith(String(key), "param_") ? _slider_value_text(key, value) : _fmt_value(value)
-    return (name = name, value = value, shown = shown, range = (first(rng), last(rng), length(rng)))
+    raw = sl.value[]
+    vals = _param_values(key)
+    # (a non-numeric sweep runs over the indices of its values: report the value, as `studio_set!` takes it)
+    value = !isnothing(vals) && !_is_numeric_sweep(vals) ? vals[clamp(round(Int, raw), 1, length(vals))] : raw
+    shown = startswith(String(key), "param_") ? _slider_value_text(key, raw) : _fmt_value(raw)
+    choices = _slider_choices(key)
+    return (name = name, value = value, shown = shown, range = (first(choices), last(choices), length(choices)))
 end
 
 function _plot_state(i, ax)
@@ -451,8 +546,10 @@ function describe_studio(io::IO = stdout)
     else
         c = s.config
         println(io, "Configuration: solver $(c.solver); methods $(join(c.methods, ", ")); active $(join(c.active_methods, ", "))")
+        unslid = _unslid_parameters()
         for (k, v) in sort!(collect(c.swept), by = first)
-            println(io, "  swept $k = ", _short(join(string.(v), ", "), 100))
+            println(io, "  swept $k = ", _short(join(string.(v), ", "), 100),
+                    k in unslid ? "  (no slider: the plots show the first value; set_max_params! opens more)" : "")
         end
     end
     a = s.axes
@@ -466,6 +563,10 @@ function describe_studio(io::IO = stdout)
         println(io, "  plot $(p.plot): \"$(p.title)\" [$(p.xlabel) | $(p.ylabel)$(p.is_3d ? " | " * p.zlabel : "")] $lims")
         for (m, r) in sort!(collect(p.value_ranges), by = first)
             println(io, "    $m: values ", isnothing(r) ? "none" : _fmt_lims(r))
+        end
+        if length(p.value_ranges) == 1 && length(s.drawn_methods) > 1 && :method_index in get(STYLE_DEPENDENCIES, _base_style(s.style), Symbol[])
+            println(io, "    (this style shows one method: $(only(keys(p.value_ranges))); " *
+                        "studio_option!(:plot_style, :method_index, i) shows the i-th of $(join(s.drawn_methods, ", ")))")
         end
     end
     println(io, "Controls (studio_set! / studio_press!):")
@@ -604,10 +705,15 @@ function studio_set!(changes::Pair...; apply::Bool = true)
         push!(names, n)
     end
     pressed = apply ? _apply_steps!(steps) : nothing
+    reported = _status_text() != before ? (manager.widgets[:status][], manager.widgets[:status_color][]) : nothing
+    released = apply && _release_stale_view!()   # (a view set by the API showed the old variables)
     # (the status line tells the person at the window what happened, unless the step reported something itself)
-    if _status_text() == before
+    if isnothing(reported)
         _status!("Set " * join(("$(first(c)) = $(_short(repr(last(c)), 30))" for c in changes), ", ") *
-                 (isnothing(pressed) ? (any(!=(:none), steps) ? " (not applied yet)" : "") : " ($pressed)") * ".", :ok)
+                 (isnothing(pressed) ? (any(!=(:none), steps) ? " (not applied yet)" : "") : " ($pressed)") *
+                 (released ? "; the view set before follows the data again" : "") * ".", :ok)
+    else
+        manager.widgets[:status][], manager.widgets[:status_color][] = reported
     end
     now = Dict{Symbol, Any}(c.name => c.value for c in studio_controls() if c.name in names)
     return (values = now, status = _status_text())
@@ -639,10 +745,20 @@ function _set_control!(name::Symbol, value)
         return :apply_layout
     end
     key = _slider_key(name)
+    name in _unslid_parameters() && throw(ArgumentError("parameter :$name is swept but has no slider: the window has " *
+        "$(manager.max_params) parameter slider(s) and draws its first value; open the studio with more (set_max_params!(" *
+        "$(manager.max_params + length(_unslid_parameters()))) before launch_plotter)"))
     isnothing(key) && throw(ArgumentError("studio_set!: no control named :$name; controls: " *
                                           join((repr(c.name) for c in studio_controls() if c.kind !== :button), ", ")))
     _set_slider_control!(name, key, value)
     return :none
+end
+
+# The swept parameters without a slider (more than `max_params`; the plot shows their first value)
+function _unslid_parameters()
+    config = manager.active_config
+    isnothing(config) && return Symbol[]
+    return Symbol[k for k in keys(config.varied) if !(k in values(manager.param_map))]
 end
 
 # The widget key of a slider named by its parameter, its dimension or its key (`:param_1`)
@@ -768,12 +884,27 @@ function studio_option!(scope::Symbol, key::Symbol, value)
     target = manager.ui[scope]
     haskey(target, key) || throw(ArgumentError("scope :$scope has no option :$key; options: " *
                                                join(repr.(sort!(collect(keys(target)))), ", ")))
-    reason = _invalid_ui_reason(key, value)
+    reason = something(_option_type_reason(key, target[key], value), Some(_invalid_ui_reason(key, value)))
     isnothing(reason) || throw(ArgumentError("$scope.$key = $(repr(value)) is not a valid $reason"))
-    target[key] = value
+    before = _status_text()
+    target[key] = value isa Tuple && target[key] isa AbstractVector ? collect(Any, value) : value
     _after_editor_change!(:ui, scope, key, target)
-    _status!(_change_message(:ui, scope, key, target), :ok)
+    # (a drawing that failed reports itself in the status line: keep that)
+    _status_text() == before && _status!(_change_message(:ui, scope, key, target), :ok)
     return _status_text()
+end
+
+# Why `val` doesn't fit the option `key` whose current value is `old` (the types the UI tab keeps), or `nothing`;
+# colours and colormaps are checked by `_invalid_ui_reason`.
+function _option_type_reason(key, old, val)
+    key in (_COLOR_UI_KEYS..., :color_map, :colors) && return nothing
+    old isa Bool && return val isa Bool ? nothing : "true or false"
+    old isa Integer && return val isa Integer && !(val isa Bool) ? nothing : "whole number"
+    old isa Real && return val isa Real && !(val isa Bool) && isfinite(val) ? nothing : "number"
+    old isa AbstractString && return val isa AbstractString ? nothing : "text (a String)"
+    old isa Symbol && return val isa Union{Symbol, AbstractString} ? nothing : "name (a Symbol)"
+    old isa AbstractVector && return val isa Union{AbstractVector, Tuple} ? nothing : "list (a vector)"
+    return nothing
 end
 
 # --- the plotted numbers ---------------------------------------------------------------------------------------
