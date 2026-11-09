@@ -149,6 +149,9 @@ function _map_parameters_to_sliders!(config::SimulationConfig)
             isnothing(lbl_obs) || (lbl_obs[] = frontend_key(real_params[i]) * ":")
         else
             isnothing(lbl_obs) || (lbl_obs[] = "Unused:")
+            # (a parameter that takes this slider later starts at its first value)
+            delete!(manager.slider_cache, p_key)
+            delete!(manager.pending_sliders, p_key)
             haskey(manager.widgets, p_key) && (manager.widgets[p_key].range[] = [0.0])
         end
     end

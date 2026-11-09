@@ -1107,6 +1107,19 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     PDEStudio._map_parameters_to_sliders!(tsweep)
     @test !haskey(manager.slider_cache, :param_1) && manager.param_map[:param_1] === :N
     delete!(tsweep.varied, :N)
+    # (also when the slider was unused in between: T removed from the sweep, then N added)
+    tsweep.varied[:N] = [40, 50]
+    PDEStudio._map_parameters_to_sliders!(tsweep)   # (sliders: N, T)
+    manager.slider_cache[:param_2] = 10.0             # (T at its last value)
+    delete!(tsweep.varied, :T)
+    PDEStudio._map_parameters_to_sliders!(tsweep)   # (the second slider is unused)
+    @test !haskey(manager.slider_cache, :param_2)
+    tsweep.varied[:T] = [1.0, 10.0]; delete!(tsweep.varied, :N)
+    PDEStudio._map_parameters_to_sliders!(tsweep)
+
+    # --- a launch that fails (an unknown style) runs nothing and leaves no summary for the next run ---
+    @test_throws ArgumentError launch_plotter(test_heat_2d(); style = :bogus)
+    @test isnothing(manager.launch_run)
 
     reset_plotter!()
 end

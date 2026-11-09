@@ -39,7 +39,7 @@ What has changed since the last release. Released versions are described in the
   parameters or solvers now starts with its default view (also while an animation plays); launching the same setup
   again keeps the plotted axes, slider positions and comparison. Binding such a configuration into an open window
   (`set_sim_config!`, loading a `.jl` file, a simulation preset) resets the view the same way (it also stops a running
-  animation, the comparison and a locked camera); a CSV file applies its own. A slider that shows another parameter
+  animation, ends the comparison and unlocks the camera); a CSV file applies its own. A slider that shows another parameter
   after an edit of the sweep starts at its first value.
 - **A loaded export runs as it was exported**, at the load and at *Run Simulation*: the bundled copies run in place of
   their originals (files that aren't bundled, such as unlisted helpers and data files, are found next to them), and
