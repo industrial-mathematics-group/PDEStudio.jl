@@ -30,7 +30,7 @@ snapshot of a volume plot then shows the empty axes, and the status line says so
 
 ```text
 PDEStudio (CairoMakie, 1259×928 px)
-Status [ok]: Simulation finished in 0.1 s: 6 runs, 0 ran, 6 cached.
+Status [ok]: Simulation finished in 1.5 s: 6 runs, 6 ran, 0 cached.
 Configuration: solver solve_heat_2d; methods adi, exact, explicit; active exact, explicit, adi
   swept r = 0.1, 0.25, 0.3
 Plot: style heatmap_flat (2D); x = x, y = y, z = none, u = Solution, component 1

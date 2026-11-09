@@ -1063,12 +1063,18 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     end
 
     # --- binding another configuration into the open window resets the view as well, the same one keeps it ---
-    launch_plotter(heat; style = :heatmap)
-    set_sim_config!(config)
+    reset_plotter!()
+    launch_plotter(config; style = :heatmap)
+    studio_set!(:cfl => 1.0)
+    studio_set!(:compare_target => :methods)
+    studio_press!(:lock_camera)
+    set_sim_config!(heat)
     force_simulation()
     s = studio_state()
-    @test s.axes.x === :x && s.axes.y === :t   # (1D data in a heatmap: x-t, as a new window shows it)
-    @test Dict(sl.name => sl.value for sl in s.sliders) == Dict(:cfl => 0.25, :tag => "a")
+    @test s.axes.x === :x && s.axes.y === :y && s.compare.target === :none && !s.camera_locked
+    @test Dict(sl.name => sl.value for sl in s.sliders) == Dict(:r => first(heat.varied[:r]), :t => 0.0)
+    set_sim_config!(config)
+    force_simulation()
     studio_set!(:cfl => 1.0)
     set_sim_config!(config)
     force_simulation()
@@ -1079,6 +1085,28 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     launch_plotter(config; style = :heatmap)
     @test Dict(sl.name => sl.value for sl in studio_state().sliders) == Dict(:N => 48, :cfl => 0.25)   # (2 sliders: tag has none)
     delete!(config.varied, :N)
+
+    # --- title breaks stay while a slider changes the extent of a titled axis (a swept end time) ---
+    reset_plotter!()
+    tsweep = SimulationConfig(create_param_dict(:N => 40, :c => 1.0, :T => 1.0, :cfl => 0.5, :scheme => "upwind",
+                                                :sim_func_name => :solve_advection_1d),
+                              create_method_dict(:fd => create_param_dict()), [:fd]; varied = create_varied_dict(:T => [1.0, 10.0]))
+    launch_plotter(tsweep; style = :lines)
+    tw(str) = PDEStudio._text_width(str, plot_axis().titlefont[], Float64(manager.ui[:axis_general][:title_size]))
+    # (at this width the title of the run with T = 1 alone would fit in one line)
+    critical = round(Int, (tw("T = 10.000 | Time (T) = 1.000") + tw("T = 10.000 | Time (T) = 10.000")) / 2)
+    for width in (300, critical, 600)
+        studio_set!(:plot_width => width)
+        @test length(Set(count(==('\n'), (studio_set!(:T => T); plot_axis().title[])) for T in (1.0, 10.0, 1.0))) == 1
+    end
+    studio_set!(:plot_width => 500)
+    # (a slider that shows another parameter after an edit of the sweep forgets the position of the old one)
+    studio_set!(:T => 10.0)
+    @test haskey(manager.slider_cache, :param_1)
+    tsweep.varied[:N] = [40, 50]   # (N sorts before T: it takes the first slider)
+    PDEStudio._map_parameters_to_sliders!(tsweep)
+    @test !haskey(manager.slider_cache, :param_1) && manager.param_map[:param_1] === :N
+    delete!(tsweep.varied, :N)
 
     reset_plotter!()
 end
@@ -2858,6 +2886,21 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         s = studio_state()
         @test !manager.is_animating[] && s.axes.x === :x && s.axes.y === :y
         @test Dict(sl.name => sl.value for sl in s.sliders) == Dict(:r => first(heat.varied[:r]), :t => 0.0)
+        # ... and binding another configuration into the window stops its animation, too
+        reset_plotter!()
+        display(launch_plotter(adv; style = :lines))
+        studio_set!(:scheme => "lax_friedrichs")
+        at = manager.widgets[:anim_target]
+        at.i_selected[] = findfirst(o -> o[2] === :scheme, at.options[])
+        click_button!(:play_anim_button)
+        sleep(0.3)
+        @test manager.is_animating[]
+        set_sim_config!(heat)
+        force_simulation()
+        sleep(0.5)
+        s = studio_state()
+        @test !manager.is_animating[] && manager.widgets[:play_anim_button].label[] == "Play Anim"
+        @test Dict(sl.name => sl.value for sl in s.sliders)[:r] == first(heat.varied[:r])
         reset_plotter!()
     end
 

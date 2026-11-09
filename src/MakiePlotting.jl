@@ -158,6 +158,13 @@ function _map_parameters_to_sliders!(config::SimulationConfig)
         haskey(manager.widgets, base_lbl_key) && (manager.widgets[base_lbl_key][] = frontend_key(base_sym) * ":")
     end
 
+    # a slider that shows another parameter now (e.g. a parameter added to the sweep): its position doesn't fit it
+    for (slot, param) in param_map
+        get(manager.param_map, slot, param) === param && continue
+        delete!(manager.slider_cache, slot)
+        delete!(manager.pending_sliders, slot)
+        haskey(manager.widgets, slot) && manager.widgets[slot].range[] != [0.0] && (manager.widgets[slot].range[] = [0.0])
+    end
     manager.param_map = param_map
     manager.reverse_map = reverse_map
     manager.plot_vars = Symbol[real_params; get_base_variables()]
@@ -303,10 +310,10 @@ display(fig)
 """
 function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
     manager.launch_run = nothing
-    isnothing(config) || _prepare_for_config!(config, style)
+    plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)   # (an unknown style throws before running)
+    launch_run = isnothing(config) ? nothing : _prepare_for_config!(config, style)
     # the view of another setup doesn't fit this one (a relaunch of the same setup keeps it)
     fresh = !isnothing(config) && _view_setup(config) != manager.bound_setup
-    plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)
 
     reset_plotter!()
     if fresh   # (after `reset_plotter!`: until then the old window, e.g. its animation, can still move the sliders)
@@ -331,6 +338,7 @@ function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; styl
     resize_to_layout!(master_fig)
     if !isnothing(config)
         set_sim_config!(config)
+        manager.launch_run = launch_run   # (what the status line reports after the window's first run)
         force_simulation()
     end
     return master_fig 
@@ -417,10 +425,19 @@ function _reset_config_view!()
     return nothing
 end
 
-# The axis menus and sliders of an open window as a new window has them: the next data chooses the axes and the
-# slider positions again
+# The view of an open window as a new window has it: no animation, comparison or locked camera, axis menus and
+# sliders without choices (the next data chooses the axes and the slider positions again)
 function _reset_open_view!()
     w = manager.widgets
+    timer = manager.animation_timer[]   # (its timer would keep driving a slider of the new setup)
+    isnothing(timer) || close(timer)
+    manager.animation_timer[] = nothing
+    manager.is_animating[] = false
+    manager.camera_locked[] && (manager.camera_locked[] = false)
+    if haskey(w, :compare_target)
+        i = findfirst(o -> o[2] === :none, w[:compare_target].options[])
+        isnothing(i) || w[:compare_target].i_selected[] == i || (w[:compare_target].i_selected[] = i)
+    end
     for k in [[Symbol("param_", i) for i in 1:manager.max_params]; get_base_variables()]
         haskey(w, k) && w[k].range[] != [0.0] && (w[k].range[] = [0.0])
     end
@@ -441,9 +458,8 @@ function _prepare_for_config!(config::SimulationConfig, style)
     @info "Running the configuration before opening the studio (the results are cached)..."
     summary = nothing
     elapsed = @elapsed (summary = _run_simulations(config; calculate_stats = true, force_overwrite = false))
-    manager.launch_run = (summary, elapsed)   # (what the status line reports after the window's first run)
     data = _template_data(config)
-    isnothing(data) && return nothing
+    isnothing(data) && return (summary, elapsed)
     # the style decides the data (particles or grid); without one, particle data opens in a particle style
     mode = isnothing(style) ? (data isa LSimData ? :lagrangian : :eulerian) : _style_mode(_resolve_plot_style(style))
     if mode !== manager.mode[]
@@ -451,7 +467,7 @@ function _prepare_for_config!(config::SimulationConfig, style)
         set_mode!(mode)
     end
     _allow_dims_of!(data.domain)
-    return nothing
+    return (summary, elapsed)   # (the summary of the run and its seconds)
 end
 
 # =================================

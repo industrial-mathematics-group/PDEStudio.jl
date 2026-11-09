@@ -128,8 +128,10 @@ function _title_values(i::Int, is_param::Bool, dim::Symbol, sim_data)
             i <= length(pd.active_param_values) || return String[]
             return unique!([_fmt_value(v) for v in pd.active_param_values[i]])
         end
-        isnothing(sim_data) && return String[]
-        vals = _get_dim_vals(Val(manager.mode[]), sim_data, dim)
+        # (the range of the dimension's slider spans every dataset: the texts don't change with the parameter sliders)
+        slider = get(manager.widgets, dim, nothing)
+        vals = slider isa Makie.Slider && length(slider.range[]) > 1 ? slider.range[] :
+               isnothing(sim_data) ? nothing : _get_dim_vals(Val(manager.mode[]), sim_data, dim)
         (isnothing(vals) || isempty(vals)) && return String[]
         return unique!([_fmt_value(v) for v in (first(vals), last(vals), minimum(vals), maximum(vals))])
     catch
