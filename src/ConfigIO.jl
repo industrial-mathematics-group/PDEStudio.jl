@@ -727,6 +727,7 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
     cam_source = _scene_source(parsed, "Camera")
     if !isnothing(cam_source) && !isempty(cam_source)
         manager.camera_cache = Dict{Symbol, Any}(Symbol(k) => v for (k, v) in cam_source)
+        manager.view_context = nothing   # (a loaded camera is not a view set by the API)
         manager.camera_locked[] = true
         manager.skip_next_camera_extract = true
     else

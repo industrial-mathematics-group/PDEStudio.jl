@@ -23,7 +23,8 @@ What has changed since the last release. Released versions are described in the
 - **Resolution page with particle styles:** only the references (particles are shown as computed).
 - **Scripting and AI agents** (docs: *Scripting & AI Agents*): the studio as functions, also without any display
   (`studio_headless!()`): `describe_studio` / `studio_state` (what is shown, as text or data), `studio_data` (the
-  plotted numbers), `studio_snapshot` (a PNG of the plots, one subplot or the whole window, rendered by CairoMakie),
+  plotted numbers), `studio_snapshot` (a PNG of the plots, one subplot or the whole window; rendered by a GLMakie
+  window itself, otherwise by CairoMakie),
   `studio_controls` / `studio_set!` / `studio_press!` (the controls by name; changes are applied), `studio_options` /
   `studio_option!` (the look), and the camera: `studio_view!` (limits, 3D angles), `studio_zoom!`, `studio_pan!`,
   `studio_rotate!`, `studio_reset_view!`. The view they set stays while the data updates (camera lock).

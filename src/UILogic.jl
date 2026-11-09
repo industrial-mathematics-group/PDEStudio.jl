@@ -2013,8 +2013,10 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
             end
             target[key] = val
         end
+        failures = manager.render_failures
         _after_editor_change!(cat, scope, key, target)
-        _status!(_change_message(cat, scope, key, target), :ok)
+        # (a drawing that failed reports itself in the status line: keep that)
+        manager.render_failures == failures && _status!(_change_message(cat, scope, key, target), :ok)
         return true
     catch e
         @warn "Failed to apply parameter '$key': $(s)" exception=(e, catch_backtrace())
@@ -2060,8 +2062,9 @@ function _editor_row_action!(cat, scope, key, target, tb)
                  _status!("Preset '$key' could not be applied (see the log).", :warn)
         elseif action === :toggle
             target[key] = !target[key]
+            failures = manager.render_failures
             _after_editor_change!(cat, scope, key, target)
-            _status!(_change_message(cat, scope, key, target), :ok)
+            manager.render_failures == failures && _status!(_change_message(cat, scope, key, target), :ok)
         elseif action === :reset
             _apply_editor_input!(cat, scope, key, target, "default", tb) || return nothing
         end
@@ -2231,6 +2234,7 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
     btn_export = manager.widgets[:export_button]
 
     manager.listeners[:Camera_Lock_Click] = on(btn_lock.clicks) do _
+        manager.view_context = nothing   # (the person's own lock or unlock: a view set by the API is theirs now)
         is_locked = !manager.camera_locked[]
         manager.camera_locked[] = is_locked
         

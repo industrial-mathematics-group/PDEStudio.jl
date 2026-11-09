@@ -857,6 +857,19 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test !s.camera_locked && s.plots[1].xlims[2] >= 1.9 && occursin("follows the data again", r.status)
     studio_set!(:x_axis => :x)
     @test studio_state().plots[1].xlims == auto.xlims
+    studio_zoom!(4; center = (0.3, 2.0))                                  # … also after a style change
+    studio_set!(:plot_style => :heatmap_flat, :y_axis => :t)
+    s = studio_state()
+    @test !s.camera_locked && s.plots[1].ylims[2] >= 1.9
+    studio_zoom!(2)                                                       # … a comparison
+    studio_set!(:compare_target => :methods)
+    @test !studio_state().camera_locked && length(studio_state().plots) == 2
+    studio_set!(:compare_target => :none, :plot_style => :lines_1d, :y_axis => :none)
+    studio_zoom!(4)                                                       # … a change applied by a press
+    studio_set!(:x_axis => :t; apply = false)
+    studio_press!(:update_plot)
+    @test !studio_state().camera_locked && studio_state().plots[1].xlims[2] >= 1.9
+    studio_set!(:x_axis => :x)
     # … the Lock Camera button's own lock stays (the person locked it knowingly)
     studio_zoom!(2); studio_press!(:lock_camera); studio_press!(:lock_camera)
     @test studio_state().camera_locked
@@ -878,6 +891,25 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_option!(:labels, :title, 5)            # the types the UI tab keeps
     @test_throws ArgumentError studio_option!(:y_axis_1d, :log_scale, "yes")
     @test_throws ArgumentError studio_option!(:plot_style, :line_width, :thick)
+    for w in (2, 2.5, 3.0)                                                # a number option takes any number
+        studio_option!(:plot_style, :line_width, w)
+        @test studio_options(:plot_style)[:line_width] == w
+    end
+    @test_throws ArgumentError studio_option!(:plot_style, :line_direction, "vertical")   # a name, not text
+    @test_throws ArgumentError studio_option!(:plot_style, :levels, 2.5)  # a count
+    @test_throws ArgumentError studio_option!(:plot_style, :method_index, 9)
+    studio_option!(:plot_style, :colors, [(:red, 0.5), :blue])            # a colour with transparency stays one colour
+    @test studio_options(:plot_style)[:colors][1] == (:red, 0.5)
+    studio_option!(:plot_style, :colors, PDEStudio.MASTER_UI_DICT[:plot_style][:colors])
+    studio_option!(:x_axis_1d, :tick_format, "{:nope")                    # a drawing that fails says so
+    @test studio_state().status.level === :error
+    studio_option!(:x_axis_1d, :grid_visibility, false)                    # … also when it fails again
+    @test studio_state().status.level === :error
+    studio_option!(:x_axis_1d, :tick_format, "default"); studio_option!(:x_axis_1d, :grid_visibility, true)
+    @test studio_state().status.level === :ok
+    PDEStudio._apply_editor_input!(:ui, :x_axis_1d, :tick_format, manager.ui[:x_axis_1d], "\"{:nope\"", nothing)
+    @test studio_state().status.level === :error                           # (the UI tab keeps it too)
+    studio_option!(:x_axis_1d, :tick_format, "default")
     @test studio_options(:y_axis_1d)[:log_scale] === true && haskey(studio_options(), :labels)
     studio_option!(:y_axis_1d, :log_scale, false)
     studio_reset_view!()
@@ -918,8 +950,10 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     s = studio_state()
     studio_set!(:plot_style => :heatmap_flat, :y_axis => :t)
     sub1 = PDEStudio.Makie.FileIO.load(studio_snapshot(joinpath(snapdir, "decoupled1.png"); plot = 1))
-    cmap = count(p -> abs(p.r - p.g) + abs(p.g - p.b) > 0.3, sub1[:, end - 120:end])  # colorbar colours at the right
-    @test cmap > 200
+    cb = [c.content for c in PDEStudio._plot_layout().content if c.content isa PDEStudio.Makie.Colorbar]
+    ab = PDEStudio._axis_box(PDEStudio._plot_axes()[1])
+    cbox = PDEStudio._axis_box(argmin(c -> abs(c.layoutobservables.computedbbox[].origin[1] - (ab.origin[1] + ab.widths[1])), cb))
+    @test size(sub1, 2) >= cbox.origin[1] + cbox.widths[1] - ab.origin[1] - 4     # up to its colorbar's labels
     studio_set!(:plot_style => :lines_1d, :y_axis => :none)
     s = studio_state()
     v = studio_zoom!(2; plot = 2)
@@ -1164,7 +1198,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         studio_set!(:compare_target => :none, :plot_style => :lines_1d, :x_axis => :x)
         s = studio_state()
         @test s.backend === :GLMakie && length(s.plots) == 1 && s.style === :lines_1d
-        f = studio_snapshot(joinpath(mktempdir(), "gl.png"))       # rendered by CairoMakie, the window is kept
+        f = studio_snapshot(joinpath(mktempdir(), "gl.png"))       # rendered by the GLMakie window, which is kept
         @test isfile(f) && studio_state().plots == s.plots && Makie.current_backend() === GLMakie
         v = only(studio_zoom!(2))
         @test v.xlims[2] - v.xlims[1] ≈ (s.plots[1].xlims[2] - s.plots[1].xlims[1]) / 2
@@ -1175,9 +1209,14 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         for style in (:heatmap_surface, :volume_3d)
             studio_set!(:plot_style => style, :y_axis => :t, :z_axis => (style === :volume_3d ? :cfl : :none))
             img = PDEStudio.Makie.FileIO.load(studio_snapshot(joinpath(mktempdir(), "$style.png")))
-            @test length(unique(img)) > 50 && studio_state().status.level !== :warn   # drawn, not the empty axes
+            coloured = count(p -> abs(p.r - p.g) + abs(p.g - p.b) > 0.3, img)       # (the colorbar alone: ~5000)
+            @test coloured > 15_000 && studio_state().status.level !== :warn      # drawn, not the empty axes
         end
         studio_set!(:plot_style => :lines_1d, :x_axis => :x)
+        screen = PDEStudio.Makie.getscreen(manager.master_fig.scene)
+        own = screen.px_per_unit[]
+        studio_snapshot(joinpath(mktempdir(), "2x.png"); px_per_unit = 2)
+        @test screen.px_per_unit[] == own                                      # the window keeps its resolution
     end
 
     # =========================================================================

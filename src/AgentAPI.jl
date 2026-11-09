@@ -95,15 +95,14 @@ _view_context() = (style = manager.widgets[:plot_style].selection[], mode = mana
 # Keeps the view the API set: the camera lock (the *Lock Camera* button) re-applies it after every data update.
 function _lock_view!(msg::AbstractString)
     manager.camera_locked[] = true
-    extract_and_store_camera_state!(_plot_layout())   # (a new cache: `_api_view_locked` tells it from a later lock)
-    manager.view_context = (context = _view_context(), cache = manager.camera_cache)
+    extract_and_store_camera_state!(_plot_layout())
+    manager.view_context = (context = _view_context(),)   # (cleared by the Lock Camera button and loaded cameras)
     _status!(msg * " (camera locked: `studio_reset_view!()` or Lock Camera releases it)", :info)
     return nothing
 end
 
-# Whether the camera is locked to a view the API set (not relocked by the Lock Camera button since)
-_api_view_locked() = manager.camera_locked[] && !isnothing(manager.view_context) &&
-                     manager.view_context.cache === manager.camera_cache
+# Whether the camera is locked to a view the API set (not taken over by the Lock Camera button or a loaded camera)
+_api_view_locked() = manager.camera_locked[] && !isnothing(manager.view_context)
 
 # After changes of the plotted variables, the style or the comparison: releases a view the API set (it belonged to
 # the old plot). Returns whether it did.
@@ -337,7 +336,7 @@ function studio_snapshot(path::Union{Nothing, AbstractString} = nothing; plot = 
     area in (:plots, :window) || throw(ArgumentError("area = $(repr(area)): :plots or :window"))
     (isfinite(px_per_unit) && px_per_unit > 0) || throw(ArgumentError("px_per_unit = $px_per_unit: a positive number"))
     area === :window && plot !== :all && throw(ArgumentError("plot = $(repr(plot)) needs area = :plots"))
-    isnothing(path) || lowercase(splitext(path)[2]) == ".png" ||
+    isnothing(path) || splitext(path)[2] == ".png" ||
         throw(ArgumentError("studio_snapshot writes PNG files: give a path ending in .png, got $(repr(path))"))
     box = area === :window ? nothing : plot === :all ?
           _union_box(_plot_layout().layoutobservables.computedbbox[], (_drawn_box(ax) for ax in _plot_axes())...) :
@@ -349,7 +348,7 @@ function studio_snapshot(path::Union{Nothing, AbstractString} = nothing; plot = 
                                     "_$(_SNAPSHOTS[] += 1).png"))
     isempty(dirname(file)) || mkpath(dirname(file))
     Makie.FileIO.save(file, img)
-    if renderer === :CairoMakie && _base_style(manager.widgets[:plot_style].selection[]) === :volume_3d
+    if renderer === :CairoMakie && manager.active_plot_type === :volume_3d   # (the drawn style)
         _status!("Snapshot: CairoMakie can't draw volumes, the image shows the empty axes (use GLMakie for volumes).", :warn)
     end
     return String(file)
@@ -362,16 +361,24 @@ _backend_name() = (b = Makie.current_backend(); ismissing(b) || isnothing(b) ? :
 # An image of the whole window: rendered by GLMakie if that shows it (it draws everything, also volumes, and
 # CairoMakie can't render some plots GLMakie has prepared), by CairoMakie otherwise (no display, or a browser).
 function _render_window(fig, ppu)
-    _backend_name() === :GLMakie && return Makie.colorbuffer(fig; px_per_unit = ppu), :GLMakie
-    img = try
-        Makie.colorbuffer(fig; backend = CairoMakie, px_per_unit = ppu)
+    screen = Makie.getscreen(fig.scene)
+    shown_by = isnothing(screen) ? _backend_name() : Symbol(nameof(parentmodule(typeof(screen))))
+    renderer = _backend_name() === :GLMakie ? :GLMakie : :CairoMakie
+    try
+        renderer === :CairoMakie && return Makie.colorbuffer(fig; backend = CairoMakie, px_per_unit = ppu), :CairoMakie
+        # (the window's screen renders it: keep its own resolution, e.g. a HiDPI window)
+        own = screen isa Makie.MakieScreen && hasproperty(screen, :px_per_unit) ? screen.px_per_unit[] : nothing
+        try
+            return Makie.colorbuffer(fig; px_per_unit = ppu), :GLMakie
+        finally
+            isnothing(own) || screen.px_per_unit[] == own || (screen.px_per_unit[] = own)
+        end
     catch e
         e isa InterruptException && rethrow()
-        throw(ErrorException("CairoMakie could not render the studio while $(_backend_name()) shows it " *
-                             "($(_short(sprint(showerror, e), 120))); snapshots of this plot style work without a " *
-                             "display (studio_headless!()) or with GLMakie"))
+        throw(ErrorException("$renderer could not render the studio, which $shown_by has drawn " *
+                             "($(_short(sprint(showerror, e), 120))). Choose the backend before opening the studio: " *
+                             "reset_plotter!(), then studio_headless!() or GLMakie.activate!(), then launch_plotter(…)"))
     end
-    return img, :CairoMakie
 end
 
 # The box of a block with its decorations (labels, title, tick labels) in figure coordinates.
@@ -565,8 +572,10 @@ function describe_studio(io::IO = stdout)
             println(io, "    $m: values ", isnothing(r) ? "none" : _fmt_lims(r))
         end
         if length(p.value_ranges) == 1 && length(s.drawn_methods) > 1 && :method_index in get(STYLE_DEPENDENCIES, _base_style(s.style), Symbol[])
+            order = [filter(m -> !is_reference_method(m), s.drawn_methods); filter(is_reference_method, s.drawn_methods)]
             println(io, "    (this style shows one method: $(only(keys(p.value_ranges))); " *
-                        "studio_option!(:plot_style, :method_index, i) shows the i-th of $(join(s.drawn_methods, ", ")))")
+                        "studio_option!(:plot_style, :method_index, i) shows " *
+                        join(("$i = $m" for (i, m) in enumerate(order)), ", ") * ")")
         end
     end
     println(io, "Controls (studio_set! / studio_press!):")
@@ -698,14 +707,15 @@ function studio_set!(changes::Pair...; apply::Bool = true)
     isempty(changes) && throw(ArgumentError("studio_set!(name => value, ...): nothing to set (see studio_controls())"))
     steps = Symbol[]
     names = Symbol[]
-    before = _status_text()
+    before, failures = _status_text(), manager.render_failures
     for (name, value) in changes
         n = Symbol(name)
         push!(steps, _set_control!(n, value))
         push!(names, n)
     end
     pressed = apply ? _apply_steps!(steps) : nothing
-    reported = _status_text() != before ? (manager.widgets[:status][], manager.widgets[:status_color][]) : nothing
+    reported = _status_text() != before || manager.render_failures != failures ?
+               (manager.widgets[:status][], manager.widgets[:status_color][]) : nothing
     released = apply && _release_stale_view!()   # (a view set by the API showed the old variables)
     # (the status line tells the person at the window what happened, unless the step reported something itself)
     if isnothing(reported)
@@ -725,7 +735,7 @@ function _apply_steps!(steps)
     any(!=(:none), steps) || return nothing
     button = needs(:run, :Simulation) ? :run : needs(:apply_layout, :Layout) ? :apply_layout :
              needs(:update_plot, :Plot) ? :update_plot : nothing
-    isnothing(button) || studio_press!(button)
+    isnothing(button) || _press!(button)   # (`studio_set!` releases a stale view itself)
     return button
 end
 
@@ -841,9 +851,12 @@ function studio_press!(name::Symbol)
     _studio_window()
     haskey(_STUDIO_BUTTONS, name) ||
         throw(ArgumentError("studio_press!: no button :$name; buttons: " * join(repr.(keys(_STUDIO_BUTTONS)), ", ")))
-    manager.widgets[_STUDIO_BUTTONS[name][1]].clicks[] += 1
+    _press!(name)
+    name in (:run, :apply_layout, :update_plot) && _release_stale_view!()   # (e.g. after `studio_set!(…; apply = false)`)
     return _status_text()
 end
+
+_press!(name::Symbol) = (manager.widgets[_STUDIO_BUTTONS[name][1]].clicks[] += 1; nothing)
 
 # --- the look (the UI tab) -------------------------------------------------------------------------------------
 
@@ -884,25 +897,43 @@ function studio_option!(scope::Symbol, key::Symbol, value)
     target = manager.ui[scope]
     haskey(target, key) || throw(ArgumentError("scope :$scope has no option :$key; options: " *
                                                join(repr.(sort!(collect(keys(target)))), ", ")))
-    reason = something(_option_type_reason(key, target[key], value), Some(_invalid_ui_reason(key, value)))
+    default = _option_default(scope, key, target[key])
+    reason = something(_option_type_reason(key, default, value), Some(_invalid_ui_reason(key, value)))
     isnothing(reason) || throw(ArgumentError("$scope.$key = $(repr(value)) is not a valid $reason"))
-    before = _status_text()
-    target[key] = value isa Tuple && target[key] isa AbstractVector ? collect(Any, value) : value
+    if key === :method_index
+        n = length(manager.methods[])
+        1 <= value <= max(n, 1) || throw(ArgumentError("method_index = $value: the studio draws $n method(s), give 1…$n"))
+    end
+    failures = manager.render_failures
+    # (a list option takes a tuple as its list; a colour tuple such as (:red, 0.5) stays one colour)
+    target[key] = value isa Tuple && default isa AbstractVector && !(key in _COLOR_UI_KEYS) ? collect(Any, value) : value
     _after_editor_change!(:ui, scope, key, target)
     # (a drawing that failed reports itself in the status line: keep that)
-    _status_text() == before && _status!(_change_message(:ui, scope, key, target), :ok)
+    manager.render_failures == failures && _status!(_change_message(:ui, scope, key, target), :ok)
     return _status_text()
 end
 
-# Why `val` doesn't fit the option `key` whose current value is `old` (the types the UI tab keeps), or `nothing`;
+# The built-in default of an option (its type is the type the option takes), or its current value for options
+# without one
+function _option_default(scope, key, current)
+    template = scope in UI_AXIS_SCOPES ? MASTER_UI_DICT[scope] : get(MASTER_UI_DICT, scope, Dict{Symbol, Any}())
+    return get(template, key, current)
+end
+
+# Options that count something: whole numbers only
+const _WHOLE_NUMBER_OPTIONS = (:levels, :tick_count, :method_index, :bottom_margin, :animation_FPS, :dpi,
+                               :rasterization_quality, :mp4_compression)
+
+# Why `val` doesn't fit the option `key` whose default is `default` (the types the UI tab keeps), or `nothing`;
 # colours and colormaps are checked by `_invalid_ui_reason`.
-function _option_type_reason(key, old, val)
-    key in (_COLOR_UI_KEYS..., :color_map, :colors) && return nothing
+function _option_type_reason(key, default, val)
+    key in (_COLOR_UI_KEYS..., :color_map) && return nothing
+    old = default
     old isa Bool && return val isa Bool ? nothing : "true or false"
-    old isa Integer && return val isa Integer && !(val isa Bool) ? nothing : "whole number"
+    key in _WHOLE_NUMBER_OPTIONS && return val isa Integer && !(val isa Bool) ? nothing : "whole number"
     old isa Real && return val isa Real && !(val isa Bool) && isfinite(val) ? nothing : "number"
     old isa AbstractString && return val isa AbstractString ? nothing : "text (a String)"
-    old isa Symbol && return val isa Union{Symbol, AbstractString} ? nothing : "name (a Symbol)"
+    old isa Symbol && return val isa Symbol ? nothing : "name (a Symbol, e.g. :$old)"
     old isa AbstractVector && return val isa Union{AbstractVector, Tuple} ? nothing : "list (a vector)"
     return nothing
 end
