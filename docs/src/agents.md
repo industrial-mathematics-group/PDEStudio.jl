@@ -105,8 +105,9 @@ studio_option!(:labels, :title, "Heat equation")
 
 All of them act on every subplot or on one (`plot = 2`); linked 2D subplots (*Compare Link*) move together, as in
 the window. The view they set stays while sliders move and the data updates (the camera is locked, as with the *Lock
-Camera* button), until [`studio_reset_view!`](@ref) or until [`studio_set!`](@ref) changes the plotted variables, the
-plot style or the comparison: the old limits would show the wrong range, so the plots follow the data again. Angles
+Camera* button), until [`studio_reset_view!`](@ref) or until [`studio_set!`](@ref) or [`studio_press!`](@ref) changes
+the plotted variables, the plot style or the comparison: the old limits would show the wrong range, so the plots follow
+the data again. A view locked with the *Lock Camera* button, or loaded with a preset or CSV file, stays. Angles
 are in degrees; log-scaled axes zoom and pan on the log scale. Zooming a 3D plot narrows its limits, so what lies
 outside is cut off, as when zooming with the mouse.
 

@@ -1403,7 +1403,9 @@ function _preset_row_action!(i::Int, which::Symbol)
     i <= length(manager.editor_row_keys) || return nothing
     name, kind = manager.editor_row_keys[i], manager.preset_kind
     if which === :a
+        failures = manager.render_failures
         ok = kind === :simulation ? !isnothing(set_sim_preset!(name)) : set_plot_preset!(name) !== false
+        manager.render_failures != failures ? nothing :   # (a drawing that failed reports itself: keep that)
         ok ? _status!("Applied $(kind === :simulation ? "simulation" : "look") preset '$name'." *
                       (kind === :simulation ? " Run Simulation to compute it." : ""), :ok) :
              _status!("Preset '$name' could not be applied (see the log).", :warn)
@@ -2001,6 +2003,8 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
             set_label!(key, strip(s) == "<empty>" ? "" : String(s))   # (as the other pages: `<empty>` is "")
         else
             val = _parse_editor_input(s, target[key])
+            # one colour for the list of colours: a list of one (a tuple such as (:red, 0.5) is one colour)
+            key === :colors && !(val isa AbstractVector) && _valid_color(val) && (val = Any[val])
             if !_valid_editor_value(s, target, key, val)
                 _report(:warn, "'$key' was not changed: '$(_short(String(strip(s)), 30))' is not a valid value. " *
                                "Use numbers, :symbols, [vectors], (tuples) or \"text\" in quotes.")

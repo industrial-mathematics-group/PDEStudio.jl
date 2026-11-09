@@ -231,6 +231,7 @@ function reset_plotter!()
     manager.is_open = false
     manager.master_fig = nothing
     manager.camera_locked[] = false
+    manager.view_context = nothing
     manager.pending_domain = nothing
 
     # Stop a running animation (its timer would keep driving the sliders of the closed window)

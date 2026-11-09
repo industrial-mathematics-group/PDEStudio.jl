@@ -96,7 +96,9 @@ _view_context() = (style = manager.widgets[:plot_style].selection[], mode = mana
 function _lock_view!(msg::AbstractString)
     manager.camera_locked[] = true
     extract_and_store_camera_state!(_plot_layout())
-    manager.view_context = (context = _view_context(),)   # (cleared by the Lock Camera button and loaded cameras)
+    # (cleared by the Lock Camera button and loaded cameras; `pending`: a change still waits for its button, so the
+    # menus already show the next plot while the view belongs to the drawn one)
+    manager.view_context = (context = _view_context(), pending = any(k -> manager.flags[k][], (:Simulation, :Layout, :Plot)))
     _status!(msg * " (camera locked: `studio_reset_view!()` or Lock Camera releases it)", :info)
     return nothing
 end
@@ -108,7 +110,9 @@ _api_view_locked() = manager.camera_locked[] && !isnothing(manager.view_context)
 # the old plot). Returns whether it did.
 function _release_stale_view!()
     _api_view_locked() || return false
-    manager.view_context.context == _view_context() && return false
+    ctx = manager.view_context
+    applied = ctx.pending && !any(k -> manager.flags[k][], (:Simulation, :Layout, :Plot))
+    ctx.context == _view_context() && !applied && return false
     studio_reset_view!()
     return true
 end
@@ -282,17 +286,26 @@ function studio_reset_view!()
     manager.camera_locked[] = false
     manager.camera_cache = Dict{Symbol, Any}()
     manager.view_context = nothing
+    failures = manager.render_failures
     for ax in axes
-        if ax isa Axis3
-            ax.azimuth[], ax.elevation[] = _DEFAULT_AZIMUTH, _DEFAULT_ELEVATION
-            ax.limits[] = (nothing, nothing, nothing)
-            reset_limits!(ax)
-        else
-            autolimits!(ax)   # (the data step below sets the studio's limits where it computes them)
+        try
+            if ax isa Axis3
+                ax.azimuth[], ax.elevation[] = _DEFAULT_AZIMUTH, _DEFAULT_ELEVATION
+                ax.limits[] = (nothing, nothing, nothing)
+                reset_limits!(ax)
+            else
+                autolimits!(ax)   # (the data step below sets the studio's limits where it computes them)
+            end
+        catch e
+            # (an option that can't be drawn, e.g. a tick format, fails as soon as the limits change: say so)
+            e isa InterruptException && rethrow()
+            manager.render_failures += 1
+            _status!("Drawing failed: $(_short(rstrip(first(split(sprint(showerror, e), '\n')), '.'), 60)). " *
+                     "Change the style or options.", :error)
         end
     end
     manager.triggers[:PlotData][] += 1   # recomputes the automatic limits of the 2D plots
-    _status!("View reset: the plots follow the data.", :info)
+    manager.render_failures == failures && _status!("View reset: the plots follow the data.", :info)
     return isempty(axes) ? NamedTuple[] : _view_summary()
 end
 
@@ -362,8 +375,11 @@ _backend_name() = (b = Makie.current_backend(); ismissing(b) || isnothing(b) ? :
 # CairoMakie can't render some plots GLMakie has prepared), by CairoMakie otherwise (no display, or a browser).
 function _render_window(fig, ppu)
     screen = Makie.getscreen(fig.scene)
-    shown_by = isnothing(screen) ? _backend_name() : Symbol(nameof(parentmodule(typeof(screen))))
     renderer = _backend_name() === :GLMakie ? :GLMakie : :CairoMakie
+    # (the backends that have drawn the window: `getscreen` only finds screens of the current backend)
+    drawn = unique(Symbol(nameof(parentmodule(typeof(s)))) for s in fig.scene.current_screens)
+    other = findfirst(!=(renderer), drawn)
+    shown_by = isempty(drawn) ? renderer : isnothing(other) ? first(drawn) : drawn[other]
     try
         renderer === :CairoMakie && return Makie.colorbuffer(fig; backend = CairoMakie, px_per_unit = ppu), :CairoMakie
         # (the window's screen renders it: keep its own resolution, e.g. a HiDPI window)
@@ -845,14 +861,19 @@ end
     studio_press!(name) -> String
 
 Presses a button of the studio: `:run` (*Run Simulation*), `:apply_layout`, `:update_plot` or `:lock_camera`
-(toggles the camera lock). The work is done when it returns; it returns the status line.
+(toggles the camera lock; a view set by the `studio_*` camera functions is then the person's own and stays). The work
+is done when it returns; it returns the status line. Like [`studio_set!`](@ref), a press that changes the plotted
+variables, the style or the comparison releases a view set before (see [`studio_view!`](@ref)).
 """
 function studio_press!(name::Symbol)
     _studio_window()
     haskey(_STUDIO_BUTTONS, name) ||
         throw(ArgumentError("studio_press!: no button :$name; buttons: " * join(repr.(keys(_STUDIO_BUTTONS)), ", ")))
+    failures = manager.render_failures
     _press!(name)
+    reported = (manager.widgets[:status][], manager.widgets[:status_color][])
     name in (:run, :apply_layout, :update_plot) && _release_stale_view!()   # (e.g. after `studio_set!(…; apply = false)`)
+    manager.render_failures == failures || ((manager.widgets[:status][], manager.widgets[:status_color][]) = reported)
     return _status_text()
 end
 
@@ -905,6 +926,7 @@ function studio_option!(scope::Symbol, key::Symbol, value)
         1 <= value <= max(n, 1) || throw(ArgumentError("method_index = $value: the studio draws $n method(s), give 1…$n"))
     end
     failures = manager.render_failures
+    key === :colors && !(value isa AbstractVector) && _valid_color(value) && (value = Any[value])   # (a list of one)
     # (a list option takes a tuple as its list; a colour tuple such as (:red, 0.5) stays one colour)
     target[key] = value isa Tuple && default isa AbstractVector && !(key in _COLOR_UI_KEYS) ? collect(Any, value) : value
     _after_editor_change!(:ui, scope, key, target)

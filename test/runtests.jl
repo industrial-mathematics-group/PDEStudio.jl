@@ -869,6 +869,10 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     studio_set!(:x_axis => :t; apply = false)
     studio_press!(:update_plot)
     @test !studio_state().camera_locked && studio_state().plots[1].xlims[2] >= 1.9
+    studio_set!(:x_axis => :x; apply = false)                             # … a zoom while a change waits for its press
+    studio_zoom!(4)
+    studio_press!(:update_plot)
+    @test !studio_state().camera_locked && studio_state().plots[1].xlims[2] < 6.3
     studio_set!(:x_axis => :x)
     # … the Lock Camera button's own lock stays (the person locked it knowingly)
     studio_zoom!(2); studio_press!(:lock_camera); studio_press!(:lock_camera)
@@ -898,12 +902,14 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_option!(:plot_style, :line_direction, "vertical")   # a name, not text
     @test_throws ArgumentError studio_option!(:plot_style, :levels, 2.5)  # a count
     @test_throws ArgumentError studio_option!(:plot_style, :method_index, 9)
-    studio_option!(:plot_style, :colors, [(:red, 0.5), :blue])            # a colour with transparency stays one colour
-    @test studio_options(:plot_style)[:colors][1] == (:red, 0.5)
+    studio_option!(:plot_style, :colors, (:red, 0.5))                     # one colour (with transparency): a list of one
+    @test studio_options(:plot_style)[:colors] == [(:red, 0.5)]
     studio_option!(:plot_style, :colors, PDEStudio.MASTER_UI_DICT[:plot_style][:colors])
     studio_option!(:x_axis_1d, :tick_format, "{:nope")                    # a drawing that fails says so
     @test studio_state().status.level === :error
     studio_option!(:x_axis_1d, :grid_visibility, false)                    # … also when it fails again
+    @test studio_state().status.level === :error
+    studio_reset_view!()                                                  # … also through a reset of the view
     @test studio_state().status.level === :error
     studio_option!(:x_axis_1d, :tick_format, "default"); studio_option!(:x_axis_1d, :grid_visibility, true)
     @test studio_state().status.level === :ok
