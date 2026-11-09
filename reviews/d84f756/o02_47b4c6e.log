@@ -1,0 +1,309 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_WLUGC7
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 16 simulation task(s) (parallel: false)...
+Running simulations...  12%|███▌                        |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 16 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 16 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 16 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+┌ Error: Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour range, levels) and click 'Update Plot' again.
+│   exception =
+│    Unmatched { in format expression.
+│    Stacktrace:
+│      [1] error(s::String)
+│        @ Base ./error.jl:44
+│      [2] _raise_unmatched_lbrace()
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:88
+│      [3] find_next_entry_close
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:108 [inlined]
+│      [4] Format.FormatExpr(s::String)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:124
+│      [5] printfmt(io::IOBuffer, fe::String, args::Float64)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:157
+│      [6] sprint(::typeof(Format.printfmt), ::String, ::Vararg{Any}; context::Nothing, sizehint::Int64)
+│        @ Base ./strings/io.jl:111
+│      [7] sprint
+│        @ ./strings/io.jl:104 [inlined]
+│      [8] format
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:163 [inlined]
+│      [9] #get_ticklabels##4
+│        @ ./none:-1 [inlined]
+│     [10] iterate
+│        @ ./generator.jl:48 [inlined]
+│     [11] collect(itr::Base.Generator{Vector{Float64}, Makie.var"#get_ticklabels##4#get_ticklabels##5"{String}})
+│        @ Base ./array.jl:828
+│     [12] get_ticklabels(formatstring::String, values::Vector{Float64})
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:831
+│     [13] get_ticks(ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:594
+│     [14] get_ticks(::Nothing, ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/dim-converts/dim-converts.jl:77
+│     [15] (::Makie.var"#LineAxis##22#LineAxis##23"{Observables.Observable{Any}})(::Tuple{Float32, Tuple{Float32, Float32}, Bool}, ::Nothing, limits::Tuple{Float64, Float64}, ticks::Makie.Automatic, tickformat::String, scale::Function)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:444
+│     [16] (::Observables.MapCallback)(value::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:436
+│     [17] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [18] setindex!(observable::Observables.Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│     [19] setproperty!
+│        @ ~/.julia/packages/Makie/dVJIx/src/makielayout/blocks.jl:482 [inlined]
+│     [20] set_axis_styles!(ax::Makie.Axis, def_x::String, def_y::String, def_title::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingUtils.jl:755
+│     [21] _apply_axis_styles!(ax::Makie.Axis, T::Symbol)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingUtils.jl:879
+│     [22] _handle_ui_trigger!(::Val{:lines_1d}, master_fig::Makie.Figure, plot_layout::GridLayoutBase.GridLayout, axes::Vector{Any}, has_colorbar::Bool, u_sel::Observables.Observable{Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingLogic.jl:438
+│     [23] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:585 [inlined]
+│     [24] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PDEStudio.jl:296 [inlined]
+│     [25] (::PDEStudio.var"#setup_render_lift!##10#setup_render_lift!##11"{:lines_1d, Makie.Figure, GridLayoutBase.GridLayout, Bool, Observables.Observable{Any}, Vector{Any}})(::Int64)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:583
+│     [26] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [27] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [28] _after_editor_change!(cat::Symbol, scope::Symbol, key::Symbol, target::Dict{Symbol, Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/UILogic.jl:1055
+│     [29] studio_option!(scope::Symbol, key::Symbol, value::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/AgentAPI.jl:891
+│     [30] #21
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:43 [inlined]
+│     [31] check(f::var"#21#22", name::String)
+│        @ Main ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:9
+│     [32] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:42
+│     [33] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [34] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [35] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:588
+┌ Error: Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour range, levels) and click 'Update Plot' again.
+│   exception =
+│    Unmatched { in format expression.
+│    Stacktrace:
+│      [1] error(s::String)
+│        @ Base ./error.jl:44
+│      [2] _raise_unmatched_lbrace()
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:88
+│      [3] find_next_entry_close
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:108 [inlined]
+│      [4] Format.FormatExpr(s::String)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:124
+│      [5] printfmt(io::IOBuffer, fe::String, args::Float64)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:157
+│      [6] sprint(::typeof(Format.printfmt), ::String, ::Vararg{Any}; context::Nothing, sizehint::Int64)
+│        @ Base ./strings/io.jl:111
+│      [7] sprint
+│        @ ./strings/io.jl:104 [inlined]
+│      [8] format
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:163 [inlined]
+│      [9] #get_ticklabels##4
+│        @ ./none:-1 [inlined]
+│     [10] iterate
+│        @ ./generator.jl:48 [inlined]
+│     [11] collect(itr::Base.Generator{Vector{Float64}, Makie.var"#get_ticklabels##4#get_ticklabels##5"{String}})
+│        @ Base ./array.jl:828
+│     [12] get_ticklabels(formatstring::String, values::Vector{Float64})
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:831
+│     [13] get_ticks(ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:594
+│     [14] get_ticks(::Nothing, ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/dim-converts/dim-converts.jl:77
+│     [15] (::Makie.var"#LineAxis##22#LineAxis##23"{Observables.Observable{Any}})(::Tuple{Float32, Tuple{Float32, Float32}, Bool}, ::Nothing, limits::Tuple{Float64, Float64}, ticks::Makie.Automatic, tickformat::String, scale::Function)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:444
+│     [16] (::Observables.MapCallback)(value::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:436
+│     [17] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [18] setindex!(observable::Observables.Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│     [19] setproperty!
+│        @ ~/.julia/packages/Makie/dVJIx/src/makielayout/blocks.jl:482 [inlined]
+│     [20] set_axis_styles!(ax::Makie.Axis, def_x::String, def_y::String, def_title::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingUtils.jl:755
+│     [21] _apply_axis_styles!(ax::Makie.Axis, T::Symbol)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingUtils.jl:879
+│     [22] _handle_ui_trigger!(::Val{:lines_1d}, master_fig::Makie.Figure, plot_layout::GridLayoutBase.GridLayout, axes::Vector{Any}, has_colorbar::Bool, u_sel::Observables.Observable{Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingLogic.jl:438
+│     [23] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:585 [inlined]
+│     [24] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PDEStudio.jl:296 [inlined]
+│     [25] (::PDEStudio.var"#setup_render_lift!##10#setup_render_lift!##11"{:lines_1d, Makie.Figure, GridLayoutBase.GridLayout, Bool, Observables.Observable{Any}, Vector{Any}})(::Int64)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:583
+│     [26] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [27] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [28] _after_editor_change!(cat::Symbol, scope::Symbol, key::Symbol, target::Dict{Symbol, Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/UILogic.jl:1055
+│     [29] studio_option!(scope::Symbol, key::Symbol, value::Bool)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/AgentAPI.jl:891
+│     [30] #24
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:46 [inlined]
+│     [31] check(f::var"#24#25", name::String)
+│        @ Main ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:9
+│     [32] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:45
+│     [33] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [34] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [35] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:588
+┌ Error: Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour range, levels) and click 'Update Plot' again.
+│   exception =
+│    Unmatched { in format expression.
+│    Stacktrace:
+│      [1] error(s::String)
+│        @ Base ./error.jl:44
+│      [2] _raise_unmatched_lbrace()
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:88
+│      [3] find_next_entry_close
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:108 [inlined]
+│      [4] Format.FormatExpr(s::String)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:124
+│      [5] printfmt(io::IOBuffer, fe::String, args::Float64)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:157
+│      [6] sprint(::typeof(Format.printfmt), ::String, ::Vararg{Any}; context::Nothing, sizehint::Int64)
+│        @ Base ./strings/io.jl:111
+│      [7] sprint
+│        @ ./strings/io.jl:104 [inlined]
+│      [8] format
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:163 [inlined]
+│      [9] #get_ticklabels##4
+│        @ ./none:-1 [inlined]
+│     [10] iterate
+│        @ ./generator.jl:48 [inlined]
+│     [11] collect(itr::Base.Generator{Vector{Float64}, Makie.var"#get_ticklabels##4#get_ticklabels##5"{String}})
+│        @ Base ./array.jl:828
+│     [12] get_ticklabels(formatstring::String, values::Vector{Float64})
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:831
+│     [13] get_ticks(ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:594
+│     [14] get_ticks(::Nothing, ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/dim-converts/dim-converts.jl:77
+│     [15] (::Makie.var"#LineAxis##22#LineAxis##23"{Observables.Observable{Any}})(::Tuple{Float32, Tuple{Float32, Float32}, Bool}, ::Nothing, limits::Tuple{Float64, Float64}, ticks::Makie.Automatic, tickformat::String, scale::Function)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:444
+│     [16] (::Observables.MapCallback)(value::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:436
+│     [17] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [18] setindex!(observable::Observables.Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│     [19] setproperty!
+│        @ ~/.julia/packages/Makie/dVJIx/src/makielayout/blocks.jl:482 [inlined]
+│     [20] set_axis_styles!(ax::Makie.Axis, def_x::String, def_y::String, def_title::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingUtils.jl:755
+│     [21] _apply_axis_styles!(ax::Makie.Axis, T::Symbol)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingUtils.jl:879
+│     [22] _handle_ui_trigger!(::Val{:lines_1d}, master_fig::Makie.Figure, plot_layout::GridLayoutBase.GridLayout, axes::Vector{Any}, has_colorbar::Bool, u_sel::Observables.Observable{Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PlottingLogic.jl:438
+│     [23] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:585 [inlined]
+│     [24] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/PDEStudio.jl:296 [inlined]
+│     [25] (::PDEStudio.var"#setup_render_lift!##10#setup_render_lift!##11"{:lines_1d, Makie.Figure, GridLayoutBase.GridLayout, Bool, Observables.Observable{Any}, Vector{Any}})(::Int64)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:583
+│     [26] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [27] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [28] _after_editor_change!(cat::Symbol, scope::Symbol, key::Symbol, target::Dict{Symbol, Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/UILogic.jl:1055
+│     [29] _apply_editor_input!(cat::Symbol, scope::Symbol, key::Symbol, target::Dict{Symbol, Any}, s::String, tb::Nothing)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/UILogic.jl:2016
+│     [30] #30
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:53 [inlined]
+│     [31] check(f::var"#30#31", name::String)
+│        @ Main ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:9
+│     [32] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/probes/o02_newtests.jl:52
+│     [33] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [34] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [35] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/MakiePlotting.jl:588
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+Running simulations...  33%|█████████▍                  |  ETA: 0:00:02[KRunning simulations...  83%|███████████████████████▍    |  ETA: 0:00:00[KRunning simulations... 100%|████████████████████████████| Time: 0:00:01[K
+[ Info: Pass 1 finished: 6 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 6 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+line_width 2, 2.5, 3.0 accepted                           FAIL
+line_direction "vertical" rejected                        FAIL
+levels 2.5 rejected                                       pass
+method_index 9 rejected                                   FAIL
+colors [(:red, 0.5), :blue] keeps (:red, 0.5)             pass
+failing tick_format -> :error                             pass
+... fails again -> :error                                 FAIL
+repaired -> :ok                                           pass
+UI tab failing tick_format -> :error                      FAIL
+    width 717 needed 705.0801
+decoupled crop reaches its colorbar                       pass
+--- describe_studio order (heat_2d)
+SubString{String}["    (this style shows one method: explicit; studio_option!(:plot_style, :method_index, i) shows the i-th of exact, explicit, adi)"]
+method_index = 1 -> [:explicit]
+method_index = 2 -> [:adi]
+method_index = 3 -> [:exact]
+SUMMARY 47b4c6e: 5/10 pass

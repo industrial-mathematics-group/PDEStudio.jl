@@ -1,0 +1,62 @@
+=== 1. zoom dims=:z on a 2D plot
+(studio_state()).camera_locked = false
+OK   studio_zoom!(2; dims = :z) => [(plot = 1, xlims = (0.0, 0.99), ylims = (-1.05, 1.05))]
+(studio_state()).camera_locked = true
+(studio_state()).status.text = "Zoomed in ×2 (camera locked: `studio_reset_view!()` or Lock Camera releases it)"
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.0, 0.99), ylims = (-1.05, 1.05))]
+=== 2. reset after zoom, default methods (heatmap of x,t)
+OK   studio_set!(:plot_style => :heatmap, :y_axis => :t) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_flat, :y_axis => :t), status = "Set plot_style = :heatmap, y_axis = :t (apply_layout).")
+auto.xlims = (0.0, 0.99)
+auto.ylims = (0.0, 1.0)
+OK   studio_zoom!(3) => [(plot = 1, xlims = (0.32999999999999996, 0.66), ylims = (0.33333333333333337, 0.6666666666666666))]
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.0, 0.99), ylims = (0.0, 1.0))]
+((studio_state()).plots[1]).xlims = (0.0, 0.99)
+((studio_state()).plots[1]).ylims = (0.0, 1.0)
+OK   studio_set!(:plot_style => :lines_1d, :x_axis => :x) => (values = Dict{Symbol, Any}(:plot_style => :lines_1d, :x_axis => :x), status = "Set plot_style = :lines_1d, x_axis = :x (apply_layout).")
+auto.xlims = (0.0, 0.99)
+auto.ylims = (-1.05, 1.05)
+=== 3. only the exact method
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+OK   studio_set!(:methods => [:exact]) => (values = Dict{Symbol, Any}(:methods => [:exact]), status = "Simulation finished in 0.0 s (1 methods).")
+auto.xlims = (0.0, 10.0)
+auto.ylims = (0.0, 10.0)
+OK   studio_zoom!(4) => [(plot = 1, xlims = (3.75, 6.25), ylims = (3.75, 6.25))]
+OK   studio_reset_view!() => [(plot = 1, xlims = (3.75, 6.25), ylims = (3.75, 6.25))]
+((studio_state()).plots[1]).xlims = (3.75, 6.25)
+((studio_state()).plots[1]).ylims = (3.75, 6.25)
+--- t change after reset (exact only)
+OK   studio_set!(:t => 0.5) => (values = Dict{Symbol, Any}(:t => 0.494949494949495), status = "Set t = 0.5.")
+((studio_state()).plots[1]).xlims = (3.75, 6.25)
+((studio_state()).plots[1]).ylims = (3.75, 6.25)
+=== 4. two methods, unlock via button
+OK   studio_set!(:methods => [:exact, :upwind]) => (values = Dict{Symbol, Any}(:methods => [:exact, :upwind]), status = "Simulation finished in 0.0 s (2 methods).")
+auto.xlims = (0.0, 0.99)
+auto.ylims = (-1.0499697926904703, 1.0499673502986593)
+OK   studio_zoom!(4) => [(plot = 1, xlims = (0.37124999999999997, 0.61875), ylims = (-0.2624933640695467, 0.2624909216777357))]
+OK   studio_press!(:lock_camera) => Camera unlocked: the view scales with the next data update.
+OK   studio_set!(:t => 0.25) => (values = Dict{Symbol, Any}(:t => 0.25252525252525254), status = "Set t = 0.25.")
+((studio_state()).plots[1]).xlims = (0.0, 0.99)
+((studio_state()).plots[1]).ylims = (-1.0494911711052695, 1.0498624799553171)
+(studio_state()).camera_locked = false
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.0, 0.99), ylims = (-1.0494911711052695, 1.0498624799553171))]
+((studio_state()).plots[1]).xlims = (0.0, 0.99)
+((studio_state()).plots[1]).ylims = (-1.0494911711052695, 1.0498624799553171)
+=== 5. option types
+┌ Error: Updating the plot failed; the current plot style or options could not be drawn for this data. Change them (e.g. the plot style, colours or levels) and click 'Update Plot' again.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/MakiePlotting.jl:520
+OK   studio_option!(:y_axis_1d, :log_scale, "yes") => Y Axis (1D) → log_scale = yes
+(studio_state()).status = (text = "Y Axis (1D) → log_scale = yes", level = :ok)
+OK   studio_option!(:y_axis_1d, :log_scale, false) => Y Axis (1D) → log_scale = false
+┌ Error: Updating the plot failed; the current plot style or options could not be drawn for this data. Change them (e.g. the plot style, colours or levels) and click 'Update Plot' again.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/MakiePlotting.jl:520
+OK   studio_option!(:y_axis_1d, :padding, "a") => Y Axis (1D) → padding = a
+(studio_state()).status = (text = "Y Axis (1D) → padding = a", level = :ok)
+OK   studio_option!(:y_axis_1d, :padding, 0.05) => Y Axis (1D) → padding = 0.05
+┌ Warning: Failed to apply UI style dynamically to lines_1d
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/UIStyles.jl:527
+┌ Warning: Failed to apply UI style dynamically to lines_1d
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/UIStyles.jl:527
+OK   studio_option!(:plot_style, :line_width, :thick) => Plot Style → line_width = :thick
+(studio_state()).status = (text = "Plot Style → line_width = :thick", level = :ok)
+OK   studio_options(:plot_style) => Dict{Symbol, Any}(:line_direction => :horizontal, :markers => [:circle, :rect, :utriangle, :dtriangle, :cross], :color_range => Any[], :labels => false, :color_map => :viridis, :line_styles => Any[:solid, :dash, :dot, (:dash, :dense), (:dot, :dense)], :marker_size => 15.0, :show_scatter => false, :method_index => 1, :line_width => :thick, :show_lines => true, :reference => Any[], :colors => Any[(:black, 0.8), :blue, :green, :orange, :purple, :yellow], :levels => 15, :dashed_lines => false, :bottom_margin => 60)

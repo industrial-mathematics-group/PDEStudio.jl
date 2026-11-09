@@ -1,0 +1,57 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_AaaBGy
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+Running simulations...  33%|█████████▍                  |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:01[K
+[ Info: Pass 1 finished: 6 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 6 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+(studio_state()).backend = :GLMakie
+(studio_state()).window_size = (1259, 928)
+i0 = (id = 0x63254991d78e82a6, open = true, ppu = 1.0f0, fb = (928, 1259), vis = true)
+OK   studio_set!(:plot_style => st) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_surface), status = "Set plot_style = :heatmap_surface (apply_layout).")
+OK   studio_snapshot(joinpath(P, "g01_gl_$(st).png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_heatmap_surface.png
+(studio_state()).status = (text = "Set plot_style = :heatmap_surface (apply_layout).", level = :ok)
+OK   studio_set!(:plot_style => st) => (values = Dict{Symbol, Any}(:plot_style => :contour_surface), status = "Set plot_style = :contour_surface (apply_layout).")
+OK   studio_snapshot(joinpath(P, "g01_gl_$(st).png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_contour_surface.png
+(studio_state()).status = (text = "Set plot_style = :contour_surface (apply_layout).", level = :ok)
+OK   studio_set!(:plot_style => st) => (values = Dict{Symbol, Any}(:plot_style => :lines_3d), status = "Set plot_style = :lines_3d (apply_layout).")
+OK   studio_snapshot(joinpath(P, "g01_gl_$(st).png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_lines_3d.png
+(studio_state()).status = (text = "Set plot_style = :lines_3d (apply_layout).", level = :ok)
+OK   studio_rotate!(60, 10) => [(plot = 1, xlims = (-0.05000000074505806, 1.0500000230967999), ylims = (-0.05000000074505806, 1.0500000230967999), zlims = (-0.0024999999441206455, 0.05249999975785613), azimuth = 289.5, elevation = 32.5)]
+OK   studio_snapshot(joinpath(P, "g01_gl_surface_rot_ppu2.png"); px_per_unit = 2) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_surface_rot_ppu2.png
+scrinfo(fig) = (id = 0x63254991d78e82a6, open = true, ppu = 2.0f0, fb = (1856, 2424), vis = true)
+OK   studio_snapshot(joinpath(P, "g01_gl_window.png"); area = :window) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_window.png
+OK   studio_snapshot(joinpath(P, "g01_gl_window_ppu2.png"); area = :window, px_per_unit = 2) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_window_ppu2.png
+scrinfo(fig) = (id = 0x63254991d78e82a6, open = true, ppu = 2.0f0, fb = (1856, 2424), vis = true)
+OK   studio_set!(:plot_style => :volume_3d) => (values = Dict{Symbol, Any}(:plot_style => :volume_3d), status = "Set plot_style = :volume_3d (apply_layout).")
+(studio_state()).style = :volume_3d
+(studio_state()).axes = (x = :x, y = :y, z = :t, u = :Solution, component = 1)
+OK   studio_snapshot(joinpath(P, "g01_gl_volume.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_volume.png
+(studio_state()).status = (text = "Set plot_style = :volume_3d (apply_layout).", level = :ok)
+OK   studio_set!(:compare_target => :methods) => (values = Dict{Symbol, Any}(:compare_target => :methods), status = "Set compare_target = :methods (apply_layout).")
+OK   studio_snapshot(joinpath(P, "g01_gl_volume_p2.png"); plot = 2) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_volume_p2.png
+OK   studio_set!(:compare_target => :none, :plot_style => :heatmap_flat) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_flat, :compare_target => :none), status = "Set compare_target = :none, plot_style = :heatmap_flat (apply_layout).")
+OK   studio_snapshot(joinpath(P, "g01_gl_flat.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/g01_gl_flat.png
+scrinfo(fig) = (id = 0x63254991d78e82a6, open = true, ppu = 1.0f0, fb = (928, 1259), vis = true)
+(studio_state()).window_size = (1259, 928)
+--- now studio_headless!() while the GLMakie window is open
+OK   studio_set!(:plot_style => :heatmap_surface) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_surface), status = "Set plot_style = :heatmap_surface (apply_layout).")
+ERR  studio_snapshot(joinpath(P, "g01_gl_then_cairo_surface.png")) => ErrorException: CairoMakie could not render the studio while CairoMakie shows it (Cannot register computation: Some outputs already have parent compute edges: positions_transformed); snapshots of this plot style work without a display (studio_headless!()) or with GLMakie
+(studio_state()).backend = :CairoMakie
+END

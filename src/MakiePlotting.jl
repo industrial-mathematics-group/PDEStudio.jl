@@ -231,6 +231,7 @@ function reset_plotter!()
     manager.is_open = false
     manager.master_fig = nothing
     manager.camera_locked[] = false
+    manager.view_context = nothing
     manager.pending_domain = nothing
 
     # Stop a running animation (its timer would keep driving the sliders of the closed window)
@@ -519,6 +520,9 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
                 # Keep the studio usable: the user can change the style or option that failed and update again.
                 @error "Updating the plot failed; the current plot style or options could not be drawn for this data. " *
                        "Change them (e.g. the plot style, colours or levels) and click 'Update Plot' again." exception = (e, catch_backtrace())
+                manager.render_failures += 1
+                _status!("Drawing failed: $(_short(rstrip(first(split(sprint(showerror, e), '\n')), '.'), 60)). " *
+                         "Change the style or options.", :error)
                 success = false
             end
         end
@@ -585,6 +589,9 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
                 # (like the plot step: an exception must not escape into the click handler or the renderloop)
                 @error "Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour " *
                        "range, levels) and click 'Update Plot' again." exception = (e, catch_backtrace())
+                manager.render_failures += 1
+                _status!("Drawing the look failed: $(_short(rstrip(first(split(sprint(showerror, e), '\n')), '.'), 60)). " *
+                         "Change the options that can't be drawn.", :error)
             end
         end
     end

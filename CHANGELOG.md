@@ -21,6 +21,13 @@ What has changed since the last release. Released versions are described in the
   kept, the data is reloaded (cached) and redrawn. Presets and CSV files store the style name, so they restore the
   particles. `set_mode!` still exists (it no longer closes the window or resets the manager) but is set by the style.
 - **Resolution page with particle styles:** only the references (particles are shown as computed).
+- **Scripting and AI agents** (docs: *Scripting & AI Agents*): the studio as functions, also without any display
+  (`studio_headless!()`): `describe_studio` / `studio_state` (what is shown, as text or data), `studio_data` (the
+  plotted numbers), `studio_snapshot` (a PNG of the plots, one subplot or the whole window; rendered by a GLMakie
+  window itself, otherwise by CairoMakie),
+  `studio_controls` / `studio_set!` / `studio_press!` (the controls by name; changes are applied), `studio_options` /
+  `studio_option!` (the look), and the camera: `studio_view!` (limits, 3D angles), `studio_zoom!`, `studio_pan!`,
+  `studio_rotate!`, `studio_reset_view!`. The view they set stays while the data updates (camera lock).
 
 ### Fixed
 - **A loaded export runs as it was exported**, at the load and at *Run Simulation*: the bundled copies run in place of
@@ -34,6 +41,8 @@ What has changed since the last release. Released versions are described in the
   sources once an original was edited or is gone, and Run includes them from the bundle folder (only bundled files
   are found).
 - **Run Simulation** shows an error in the status line (e.g. a source file that fails) instead of failing silently.
+- **A plot that can't be drawn** (e.g. options the style can't use) says so in the status line; before, only the log
+  showed it.
 - **Symlinked sources** are bundled as files: before, the bundle held the link, so it followed later edits.
 - **Time resolution 1** (`set_resolution!(:t, 1)`, a CSV row) made all data with time fail to load; it shows the last
   snapshot now. Resolutions are whole numbers from 1 to 100000 everywhere: `set_resolution!` throws otherwise, CSV

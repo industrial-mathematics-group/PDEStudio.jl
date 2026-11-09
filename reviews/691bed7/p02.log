@@ -1,0 +1,273 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_l5jpZm
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+auto.xlims = (0.0, 0.99)
+auto.ylims = (-1.05, 1.05)
+s0.style = :lines_1d
+s0.axes = (x = :x, y = :none, z = :none, u = :Solution, component = 1)
+OK   studio_set!(:t => 1.0) => (values = Dict{Symbol, Any}(:t => 1.0), status = "Set t = 1.0.")
+OK   studio_zoom!(4; center = (0.5, 0.0)) => [(plot = 1, xlims = (0.37625, 0.62375), ylims = (-0.2624921428736412, 0.2624921428736412))]
+OK   begin
+    d = studio_data(1)
+    #= /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/probes/p02_adv1d.jl:22 =#
+    maximum(abs, (d.methods[:upwind]).u .- (d.methods[:lax_wendroff]).u)
+end => 0.13756003717602439
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.0, 0.99), ylims = (-1.0499697926904703, 1.0499673502986593))]
+((studio_state()).plots[1]).xlims = (0.0, 0.99)
+((studio_state()).plots[1]).ylims = (-1.0499697926904703, 1.0499673502986593)
+--- A: zoom then change the x axis variable (camera stays locked)
+OK   studio_zoom!(4; center = (0.3, 0.5)) => [(plot = 1, xlims = (0.17625, 0.42374999999999996), ylims = (0.2375078571263588, 0.7624921428736412))]
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot).")
+s.axes.x = :t
+(s.plots[1]).xlabel = "Time (T)"
+(s.plots[1]).xlims = (0.17625, 0.42374999999999996)
+(s.plots[1]).ylims = (0.2375078571263588, 0.7624921428736412)
+s.camera_locked = true
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.0, 1.0), ylims = (-1.0494832177907105, 1.0495363940584068))]
+(s.plots[1]).xlims = (0.0, 1.0)
+(s.plots[1]).ylims = (-1.0494832177907105, 1.0495363940584068)
+OK   studio_set!(:x_axis => :x) => (values = Dict{Symbol, Any}(:x_axis => :x), status = "Set x_axis = :x (update_plot).")
+--- B: invalid inputs
+ERR  studio_view!(xlims = (NaN, 1)) => ArgumentError: ArgumentError: limits (NaN, 1.0) of the x axis: two finite numbers, the lower one first
+ERR  studio_view!(xlims = (0, Inf)) => ArgumentError: ArgumentError: limits (0.0, Inf) of the x axis: two finite numbers, the lower one first
+ERR  studio_view!(xlims = (0, 1, 2)) => ArgumentError: ArgumentError: xlims = (0, 1, 2): give the limits as (lo, hi)
+ERR  studio_view!(xlims = (1, 1)) => ArgumentError: ArgumentError: limits (1.0, 1.0) of the x axis: two finite numbers, the lower one first
+ERR  studio_view!(xlims = ("a", "b")) => ArgumentError: ArgumentError: xlims = ("a", "b"): give the limits as (lo, hi)
+ERR  studio_view!(plot = 0, xlims = (0, 1)) => ArgumentError: ArgumentError: plot = 0: there are 1 plot(s); use 1…1 or :all
+ERR  studio_view!(plot = 1.0, xlims = (0, 1)) => ArgumentError: ArgumentError: plot = 1.0: there are 1 plot(s); use 1…1 or :all
+ERR  studio_view!(plot = true, xlims = (0, 1)) => ArgumentError: ArgumentError: invalid index: true of type Bool
+ERR  studio_view!(plot = :first, xlims = (0, 1)) => ArgumentError: ArgumentError: plot = :first: there are 1 plot(s); use 1…1 or :all
+ERR  studio_zoom!(NaN) => ArgumentError: ArgumentError: factor = NaN: a positive number (> 1 zooms in)
+ERR  studio_zoom!(-1) => ArgumentError: ArgumentError: factor = -1: a positive number (> 1 zooms in)
+ERR  studio_zoom!(1.0e300) => ArgumentError: ArgumentError: limits (0.495, 0.495) of the x axis: two finite numbers, the lower one first
+ERR  studio_zoom!(2; center = (0.5,)) => ArgumentError: ArgumentError: center = (0.5,) has no coordinate for the y axis
+ERR  studio_zoom!(2; center = 0.5) => ArgumentError: ArgumentError: center = 0.5: a tuple of data coordinates, e.g. (x, y)
+ERR  studio_zoom!(2; dims = :q) => ArgumentError: ArgumentError: dims = :q: :all, or some of :x, :y, :z
+OK   studio_zoom!(2; dims = :z) => [(plot = 1, xlims = (0.0, 0.99), ylims = (-1.0499697926904703, 1.0499673502986593))]
+ERR  studio_pan!(Inf) => ArgumentError: ArgumentError: studio_pan!: finite fractions of the view
+ERR  studio_pan!(1.0e308) => ArgumentError: ArgumentError: limits (9.9e307, 9.9e307) of the x axis: two finite numbers, the lower one first
+ERR  studio_pan!(0, 0, 1) => ArgumentError: ArgumentError: dz: the selected plot(s) are 2D
+ERR  studio_rotate!(NaN) => ArgumentError: ArgumentError: studio_rotate!: the selected plot(s) are 2D (only 3D plots rotate); use studio_pan! / studio_zoom! / studio_view!
+ERR  studio_set!(:t => NaN) => ArgumentError: ArgumentError: slider :t: a number, got NaN
+ERR  studio_set!(:t => "1.0") => ArgumentError: ArgumentError: slider :t: a number, got "1.0"
+ERR  studio_set!(:cfl => 2.0) => ArgumentError: ArgumentError: slider :cfl = 2.0 is outside its range 0.250 … 1.000
+OK   studio_set!(:x_axis => "Time (T)") => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = \"Time (T)\" (update_plot).")
+OK   studio_set!(:x_axis => "x") => (values = Dict{Symbol, Any}(:x_axis => :x), status = "Set x_axis = \"x\" (update_plot).")
+ERR  studio_set!(:plot_width => 600.0) => ArgumentError: ArgumentError: plot_width = 600.0: a whole number from 50 to 5000
+ERR  studio_set!(:methods => Symbol[]) => ArgumentError: ArgumentError: methods: at least one method
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+[ Info: No numerical simulations to run.
+[ Info: Running Simulation and Mapping UI...
+OK   studio_set!(:methods => :exact) => (values = Dict{Symbol, Any}(:methods => [:exact]), status = "Simulation finished in 0.0 s (1 methods).")
+OK   studio_set!("t" => 0.5) => (values = Dict{Symbol, Any}(:t => 0.494949494949495), status = "Set t = 0.5.")
+OK   studio_set!(:legend_base => :top) => (values = Dict{Symbol, Any}(:legend_base => :top), status = "Set legend_base = :top (apply_layout).")
+ERR  studio_snapshot(; plot = 2) => ArgumentError: ArgumentError: plot = 2: there are 1 plot(s); use 1…1 or :all
+ERR  studio_snapshot(; px_per_unit = 0) => ArgumentError: ArgumentError: px_per_unit = 0: a positive number
+OK   studio_snapshot(joinpath(P, "nonexistent_dir", "x.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/probes/nonexistent_dir/x.png
+Errors encountered while save FileIO.File{FileIO.DataFormat{:JPEG}, String}("/home/agent/.claude/jobs/d2d299f1/tmp/review-agent/probes/p02_x.jpg").
+All errors:
+===========================================
+TypeError: in Type{...} expression, expected UnionAll, got Type{ColorTypes.ARGB32}
+===========================================
+TypeError: in Type{...} expression, expected UnionAll, got Type{ColorTypes.ARGB32}
+===========================================
+ArgumentError: Package ImageMagick [6218d12a-5da1-5696-b52f-db25d2ecc6d1] is required but does not seem to be installed:
+ - Run `Pkg.instantiate()` to install all recorded dependencies.
+
+===========================================
+ArgumentError: Package OpenCV [f878e3a2-a245-4720-8660-60795d644f2a] is required but does not seem to be installed:
+ - Run `Pkg.instantiate()` to install all recorded dependencies.
+
+===========================================
+
+Fatal error:
+ERR  studio_snapshot(joinpath(P, "p02_x.jpg")) => CapturedException: TypeError: in Type{...} expression, expected UnionAll, got Type{ColorTypes.ARGB32}
+Stacktrace:
+  [1] n0f8(::Type{ColorTypes.ARGB32})
+    @ ImageCore ~/.julia/packages/ImageCore/0ilgc/src/convert_reinterpret.jl:29
+  [2] jpeg_encode(img::Matrix{ColorTypes.ARGB32}; transpose::Bool, kwargs::@Kwargs{})
+ 
+ERR  studio_options(:export) => ArgumentError: ArgumentError: no option scope :export; scopes: :axis_general, :labels, :hud, :outliers_extrema, :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d, :plot_style
+┌ Error: Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour range, levels) and click 'Update Plot' again.
+│   exception =
+│    Failed to resolve data_boundingbox:
+│    [ComputeEdge] data_boundingbox = (::MapFunctionWrapper(#register_full_boundingbox!##0))((markerspace, string_boundingboxes, ), changed, cached)
+│      @ unknown method location
+│    [ComputeEdge] string_boundingboxes = (::MapFunctionWrapper(#register_string_boundingboxes!##0))((fast_string_boundingboxes, markerspace_positions, ), changed, cached)
+│      @ unknown method location
+│    [ComputeEdge] fast_string_boundingboxes = (::MapFunctionWrapper(#register_fast_string_boundingboxes!##0))((text_blocks, raw_glyph_boundingboxes, marker_offset, text_rotation, linesegments, linewidths, lineindices, ), changed, cached)
+│      @ unknown method location
+│    [ComputeEdge] glyphcollections, glyphindices, font_per_char, glyph_origins, glyph_extents, text_blocks, text_color, text_rotation, text_scales, text_strokewidth, text_strokecolor, linesegments, linewidths, linecolors, lineindices = #compute_glyph_collections!##0((input_text, fontsize, selected_font, align, rotation, justification, lineheight, word_wrap_width, offset, fonts, computed_color, strokecolor, strokewidth, ), changed, cached)
+│      @ /home/agent/.julia/packages/Makie/dVJIx/src/basic_recipes/text.jl:343
+│      with edge inputs:
+│        input_text = [5]
+│        fontsize = 14.0f0
+│        selected_font = FTFont (family = TeX Gyre Heros Makie, style = Bold)
+│        align = (:center, :bottom)
+│        rotation = 1.0 + 0.0im + 0.0jm + 0.0km
+│        justification = Makie.Automatic()
+│        lineheight = 1.0
+│        word_wrap_width = -1
+│        offset = Float32[0.0, 0.0, 0.0]
+│        fonts = Attributes()
+│        computed_color = RGBA{Float32}(0.0, 0.0, 0.0, 1.0)
+│        strokecolor = RGBA{Float32}(0.0, 0.0, 0.0, 0.0)
+│        strokewidth = 0.0f0
+│    Triggered by update of:
+│      alpha, strokecolor, position, colormap, colorscale, text, fonts, highclip, word_wrap_width, justification, font, align, nan_color, strokewidth, rotation, arg1, lineheight, colorrange, offset, color, fontsize or lowclip
+│    Due to ERROR: MethodError: no method matching convert_text_string!(::@NamedTuple{glyphcollections::Vector{Makie.GlyphCollection}, glyphindices::Vector{UInt64}, font_per_char::Vector{FreeTypeAbstraction.FTFont}, glyph_origins::Vector{GeometryBasics.Point{3, Float32}}, glyph_extents::Vector{Makie.GlyphExtent}, text_blocks::Vector{UnitRange{Int64}}, text_color::Vector{ColorTypes.RGBA{Float32}}, text_rotation::Vector{Makie.Quaternionf}, text_scales::Vector{GeometryBasics.Vec{2, Float32}}, text_strokewidth::Vector{Float32}, text_strokecolor::Vector{ColorTypes.RGBA{Float32}}, linesegments::Vector{GeometryBasics.Point{3, Float32}}, linewidths::Vector{Float32}, linecolors::Vector{ColorTypes.RGBA{Float32}}, lineindices::Vector{Pair{Int64, Int64}}}, ::Int64, ::Int64, ::Int64, ::Float32, ::FreeTypeAbstraction.FTFont, ::Tuple{Symbol, Symbol}, ::Makie.Quaternion{Float64}, ::Makie.Automatic, ::Float64, ::Int64, ::GeometryBasics.Vec{3, Float32}, ::Makie.Attributes, ::ColorTypes.RGBA{Float32}, ::ColorTypes.RGBA{Float32}, ::Float32)
+│    The function `convert_text_string!` exists, but no method is defined for this combination of argument types.
+│    
+│    Closest candidates are:
+│      convert_text_string!(::NamedTuple, !Matched::LaTeXStrings.LaTeXString, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
+│       @ Makie ~/.julia/packages/Makie/dVJIx/src/basic_recipes/text.jl:262
+│      convert_text_string!(::NamedTuple, !Matched::AbstractString, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
+│       @ Makie ~/.julia/packages/Makie/dVJIx/src/basic_recipes/text.jl:190
+│      convert_text_string!(::NamedTuple, !Matched::Makie.RichText, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
+│       @ Makie ~/.julia/packages/Makie/dVJIx/src/basic_recipes/text.jl:235
+│    
+│    Stacktrace:
+│      [1] (::Makie.var"#compute_glyph_collections!##0#compute_glyph_collections!##1")(::@NamedTuple{input_text::Vector{Int64}, fontsize::Float32, selected_font::FreeTypeAbstraction.FTFont, align::Tuple{Symbol, Symbol}, rotation::Makie.Quaternion{Float64}, justification::Makie.Automatic, lineheight::Float64, word_wrap_width::Int64, offset::GeometryBasics.Vec{3, Float32}, fonts::Makie.Attributes, computed_color::ColorTypes.RGBA{Float32}, strokecolor::ColorTypes.RGBA{Float32}, strokewidth::Float32}, changed::@NamedTuple{input_text::Bool, fontsize::Bool, selected_font::Bool, align::Bool, rotation::Bool, justification::Bool, lineheight::Bool, word_wrap_width::Bool, offset::Bool, fonts::Bool, computed_color::Bool, strokecolor::Bool, strokewidth::Bool}, cached::@NamedTuple{glyphcollections::Vector{Makie.GlyphCollection}, glyphindices::Vector{UInt64}, font_per_char::Vector{FreeTypeAbstraction.FTFont}, glyph_origins::Vector{GeometryBasics.Point{3, Float32}}, glyph_extents::Vector{Makie.GlyphExtent}, text_blocks::Vector{UnitRange{Int64}}, text_color::Vector{ColorTypes.RGBA{Float32}}, text_rotation::Vector{Makie.Quaternionf}, text_scales::Vector{GeometryBasics.Vec{2, Float32}}, text_strokewidth::Vector{Float32}, text_strokecolor::Vector{ColorTypes.RGBA{Float32}}, linesegments::Vector{GeometryBasics.Point{3, Float32}}, linewidths::Vector{Float32}, linecolors::Vector{ColorTypes.RGBA{Float32}}, lineindices::Vector{Pair{Int64, Int64}}})
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/basic_recipes/text.jl:364
+│      [2] resolve!(edge::ComputePipeline.TypedEdge{@NamedTuple{input_text::Base.RefValue{Any}, fontsize::Base.RefValue{Float32}, selected_font::Base.RefValue{FreeTypeAbstraction.FTFont}, align::Base.RefValue{Any}, rotation::Base.RefValue{Makie.Quaternion{Float64}}, justification::Base.RefValue{Makie.Automatic}, lineheight::Base.RefValue{Float64}, word_wrap_width::Base.RefValue{Int64}, offset::Base.RefValue{GeometryBasics.Vec{3, Float32}}, fonts::Base.RefValue{Makie.Attributes}, computed_color::Base.RefValue{ColorTypes.RGBA{Float32}}, strokecolor::Base.RefValue{ColorTypes.RGBA{Float32}}, strokewidth::Base.RefValue{Float32}}, Tuple{Base.RefValue{Vector{Makie.GlyphCollection}}, Base.RefValue{Vector{UInt64}}, Base.RefValue{Vector{FreeTypeAbstraction.FTFont}}, Base.RefValue{Vector{GeometryBasics.Point{3, Float32}}}, Base.RefValue{Vector{Makie.GlyphExtent}}, Base.RefValue{Vector{UnitRange{Int64}}}, Base.RefValue{Vector{ColorTypes.RGBA{Float32}}}, Base.RefValue{Vector{Makie.Quaternionf}}, Base.RefValue{Vector{GeometryBasics.Vec{2, Float32}}}, Base.RefValue{Vector{Float32}}, Base.RefValue{Vector{ColorTypes.RGBA{Float32}}}, Base.RefValue{Vector{GeometryBasics.Point{3, Float32}}}, Base.RefValue{Vector{Float32}}, Base.RefValue{Vector{ColorTypes.RGBA{Float32}}}, Base.RefValue{Vector{Pair{Int64, Int64}}}}, Makie.var"#compute_glyph_collections!##0#compute_glyph_collections!##1"})
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:643
+│      [3] (::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}})()
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:680
+│      [4] lock(f::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}}, l::ReentrantLock)
+│        @ Base ./lock.jl:335
+│      [5] resolve!(edge::ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph})
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:673
+│      [6] _resolve!(computed::ComputePipeline.Computed)
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:666
+│      [7] foreach
+│        @ ./abstractarray.jl:3212 [inlined]
+│      [8] (::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}})()
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:675
+│      [9] lock(f::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}}, l::ReentrantLock)
+│        @ Base ./lock.jl:335
+│     [10] resolve!(edge::ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph})
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:673
+│     [11] _resolve!(computed::ComputePipeline.Computed)
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:666
+│     [12] foreach
+│        @ ./abstractarray.jl:3212 [inlined]
+│     [13] (::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}})()
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:675
+│     [14] lock(f::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}}, l::ReentrantLock)
+│        @ Base ./lock.jl:335
+│     [15] resolve!(edge::ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph})
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:673
+│     [16] _resolve!(computed::ComputePipeline.Computed)
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:666
+│     [17] foreach
+│        @ ./abstractarray.jl:3212 [inlined]
+│     [18] (::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}})()
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:675
+│     [19] lock(f::ComputePipeline.var"#resolve!##4#resolve!##5"{ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph}}, l::ReentrantLock)
+│        @ Base ./lock.jl:335
+│     [20] resolve!(edge::ComputePipeline.ComputeEdge{ComputePipeline.ComputeGraph})
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:673
+│     [21] _resolve!(computed::ComputePipeline.Computed)
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:666
+│     [22] resolve!(computed::ComputePipeline.Computed)
+│        @ ComputePipeline ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:658
+│     [23] getindex
+│        @ ~/.julia/packages/ComputePipeline/ObKcG/src/ComputePipeline.jl:573 [inlined]
+│     [24] full_boundingbox(plot::Makie.Text{Tuple{Vector{GeometryBasics.Point{2, Float32}}}}, target_space::Symbol)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/basic_recipes/text.jl:761
+│     [25] boundingbox(plot::Makie.Text{Tuple{Vector{GeometryBasics.Point{2, Float32}}}}, target_space::Symbol)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/layouting/text_boundingbox.jl:10
+│     [26] compute_protrusions(title::Int64, titlesize::Float64, titlegap::Float64, titlevisible::Bool, spinewidth::Float64, topspinevisible::Bool, bottomspinevisible::Bool, leftspinevisible::Bool, rightspinevisible::Bool, xaxisprotrusion::Float32, yaxisprotrusion::Float32, xaxisposition::Symbol, yaxisposition::Symbol, subtitle::String, subtitlevisible::Bool, subtitlesize::Float64, subtitlegap::Float64, titlelineheight::Float64, subtitlelineheight::Float64, subtitlet::Makie.Text{Tuple{Vector{GeometryBasics.Point{2, Float32}}}}, titlet::Makie.Text{Tuple{Vector{GeometryBasics.Point{2, Float32}}}})
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/blocks/axis.jl:129
+│     [27] (::Observables.MapCallback)(value::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:436
+│     [28] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [29] setindex!(observable::Observables.Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│     [30] _handle_ui_trigger!(::Val{:lines_1d}, master_fig::Makie.Figure, plot_layout::GridLayoutBase.GridLayout, axes::Vector{Any}, has_colorbar::Bool, u_sel::Observables.Observable{Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/PlottingLogic.jl:435
+│     [31] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/MakiePlotting.jl:583 [inlined]
+│     [32] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/PDEStudio.jl:295 [inlined]
+│     [33] (::PDEStudio.var"#setup_render_lift!##10#setup_render_lift!##11"{:lines_1d, Makie.Figure, GridLayoutBase.GridLayout, Bool, Observables.Observable{Any}, Vector{Any}})(::Int64)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/MakiePlotting.jl:581
+│     [34] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [35] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [36] _after_editor_change!(cat::Symbol, scope::Symbol, key::Symbol, target::Dict{Symbol, Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/UILogic.jl:1055
+│     [37] studio_option!(scope::Symbol, key::Symbol, value::Int64)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/AgentAPI.jl:774
+│     [38] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent/probes/p02_adv1d.jl:7
+│     [39] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [40] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [41] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/MakiePlotting.jl:586
+OK   studio_option!(:labels, :title, 5) => Plot → title = 5
+OK   studio_option!(:labels, :title, "Advection") => Plot → title = Advection
+OK   ((studio_state()).plots[1]).title => Advection
+OK   studio_option!(:x_axis_1d, :lims, [0.2, 0.4]) => X Axis (1D) → lims = Float64[0.2, 0.4]
+OK   ((studio_state()).plots[1]).xlims => (0.0, 0.99)
+OK   studio_option!(:x_axis_1d, :lims, Float64[]) => X Axis (1D) → lims = Float64[]
+OK   ((studio_state()).plots[1]).xlims => (0.0, 0.99)
+ERR  studio_data(0) => ArgumentError: ArgumentError: plot = 0: there are 1 plot(s)
+--- C: state truthful
+s.status = (text = "X Axis (1D) → lims = Float64[]", level = :ok)
+s.camera_locked = true
+s.pending = Symbol[]
+s.sliders = [(name = :cfl, value = 0.25, shown = "0.250", range = (0.25, 1.0, 4)), (name = :t, value = 0.494949494949495, shown = "0.495", range = (0.0, 1.0, 100))]
+(studio_controls())[var"end" - 3:var"end"] = NamedTuple{(:name, :kind, :value, :choices, :label, :applies)}[(name = :run, kind = :button, value = nothing, choices = nothing, label = "Run Simulation", applies = :none), (name = :apply_layout, kind = :button, value = nothing, choices = nothing, label = "Apply Layout", applies = :none), (name = :update_plot, kind = :button, value = nothing, choices = nothing, label = "Update Plot", applies = :none), (name = :lock_camera, kind = :button, value = nothing, choices = nothing, label = "Lock Camera", applies = :none)]
+--- D: log scale
+OK   studio_option!(:y_axis_1d, :log_scale, true) => Y Axis (1D) → log_scale = true
+OK   ((studio_state()).plots[1]).ylims => (-1.0499697926904703, 1.0499673502986593)
+OK   studio_zoom!(2) => [(plot = 1, xlims = (0.2475, 0.7424999999999999), ylims = (-0.5249855069431879, 0.5249830645513769))]
+OK   studio_set!(:t => 0.5) => (values = Dict{Symbol, Any}(:t => 0.494949494949495), status = "Set t = 0.5.")
+OK   ((studio_state()).plots[1]).ylims => (-0.5249855069431879, 0.5249830645513769)
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.2475, 0.7424999999999999), ylims = (-0.5249855069431879, 0.5249830645513769))]
+OK   ((studio_state()).plots[1]).ylims => (-0.5249855069431879, 0.5249830645513769)
+OK   studio_option!(:y_axis_1d, :log_scale, false) => Y Axis (1D) → log_scale = false
+--- E: lock button interplay
+OK   studio_zoom!(2) => [(plot = 1, xlims = (0.37125, 0.61875), ylims = (-0.2624933640695467, 0.2624909216777357))]
+[ Info: Camera unlocked: the view scales with the next data update.
+OK   studio_press!(:lock_camera) => Camera unlocked: the view scales with the next data update.
+s.camera_locked = false
+(s.plots[1]).xlims = (0.37125, 0.61875)
+OK   studio_set!(:t => 0.25) => (values = Dict{Symbol, Any}(:t => 0.25252525252525254), status = "Set t = 0.25.")
+s.camera_locked = false
+(s.plots[1]).xlims = (0.37125, 0.61875)
+[ Info: Camera locked to the current view.
+OK   studio_press!(:lock_camera) => Camera locked to the current view.
+OK   studio_set!(:t => 0.75) => (values = Dict{Symbol, Any}(:t => 0.7474747474747475), status = "Set t = 0.75.")
+s.camera_locked = true
+(s.plots[1]).xlims = (0.37125, 0.61875)
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.37125, 0.61875), ylims = (-0.2624933640695467, 0.2624909216777357))]
+--- F: two step kinds in one call
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+OK   studio_set!(:methods => [:exact, :upwind], :plot_style => :scatter_1d) => (values = Dict{Symbol, Any}(:plot_style => :scatter_1d, :methods => [:exact, :upwind]), status = "Simulation finished in 0.0 s (2 methods).")
+s.style = :scatter_1d
+s.drawn_methods = [:exact, :upwind]
+s.pending = Symbol[]
+OK   studio_set!(:plot_style => :lines_1d, :x_axis => :t) => (values = Dict{Symbol, Any}(:plot_style => :lines_1d, :x_axis => :t), status = "Set plot_style = :lines_1d, x_axis = :t (apply_layout).")
+s.style = :lines_1d
+s.axes = (x = :t, y = :none, z = :none, u = :Solution, component = 1)
+s.pending = Symbol[]

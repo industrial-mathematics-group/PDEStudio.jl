@@ -1,0 +1,59 @@
+s.config.swept = Dict{Symbol, Any}(:N => [50, 100], :c => [1.0, 2.0], :cfl => [0.25, 0.5])
+[(x.name, x.value) for x = s.sliders] = Tuple{Symbol, Real}[(:N, 50), (:c, 1.0), (:t, 0.0)]
+PDEStudio.manager.max_params = 2
+  swept N = 50, 100
+  swept c = 1.0, 2.0
+  swept cfl = 0.25, 0.5
+  N [slider] = 50  (50, 100) — swept parameter (shown: 50)
+  c [slider] = 1.0  (1.000, 2.000) — swept parameter (shown: 1.000)
+  t [slider] = 0.0  (100 values, 0.000 … 1.000) — dimension
+ERR  studio_set!(p => if p === :N
+            100
+        else
+            if p === :c
+                2.0
+            else
+                0.5
+            end
+        end) => ArgumentError: ArgumentError: studio_set!: no control named :cfl; controls: :plot_style, :x_axis, :y_axis, :z_axis, :u_axis, :component, :anim_target, :compare_target, :compare_link, :legend_base, :legend_add, :plot_width, :plot_height, :compare_columns, :methods, :N, :c, :t
+OK   studio_set!(p => if p === :N
+            100
+        else
+            if p === :c
+                2.0
+            else
+                0.5
+            end
+        end) => (values = Dict{Symbol, Any}(:N => 100), status = "Set N = 100.")
+OK   studio_set!(p => if p === :N
+            100
+        else
+            if p === :c
+                2.0
+            else
+                0.5
+            end
+        end) => (values = Dict{Symbol, Any}(:c => 2.0), status = "Set c = 2.0.")
+--- apply=false / pending
+OK   studio_set!(:plot_style => :scatter_1d, :legend_base => :left, :compare_columns => 3, :plot_width => 640, :plot_height => 480; apply = false) => (values = Dict{Symbol, Any}(:plot_style => :scatter_1d, :compare_columns => 3, :legend_base => :left, :plot_height => 480, :plot_width => 640), status = "Set plot_style = :scatter_1d, legend_base = :left, compare_columns = 3, plot_width = 640, plot_height = 480 (not applied yet).")
+s.pending = [:Layout]
+s.status = (text = "Set plot_style = :scatter_1d, legend_base = :left, compare_columns = 3, plot_width = 640, plot_height = 480 (not applied yet).", level = :ok)
+SubString{String}["PDEStudio (CairoMakie, 1276×928 px)", "Status [ok]: Set plot_style = :scatter_1d, legend_base = :left, compare_columns = 3, plot_width = 640, plot_height = 480 (not applied yet).", "Pending: Layout (press :apply_layout)", "Configuration: solver solve_advection_1d; methods exact, upwind; active exact, upwind"]
+OK   studio_press!(:apply_layout) => Set plot_style = :scatter_1d, legend_base = :left, compare_columns = 3, plot_width = 640, plot_height = 480 (not applied yet).
+(studio_state()).style = :scatter_1d
+(studio_state()).pending = Symbol[]
+--- time compare: t slider
+OK   studio_set!(:compare_target => :time) => (values = Dict{Symbol, Any}(:compare_target => :time), status = "Set compare_target = :time (apply_layout).")
+ERR  studio_set!(:t => 0.5) => ArgumentError: ArgumentError: slider :t is disabled: it is a plot axis or the compare target, or the data has a single value for it
+OK   studio_set!(:compare_target => :none) => (values = Dict{Symbol, Any}(:compare_target => :none), status = "Set compare_target = :none (apply_layout).")
+--- anim_target
+OK   studio_set!(:anim_target => :cfl) => (values = Dict{Symbol, Any}(:anim_target => :cfl), status = "Set anim_target = :cfl.")
+ERR  studio_set!(:anim_target => :q) => ArgumentError: ArgumentError: anim_target has no option :q; options: :c ("C"), :cfl ("Cfl"), :none ("Disabled"), :N ("N"), :x ("Position (X)"), :t ("Time (T)")
+--- u_axis / component after stats
+c.choices = Any[:Solution]
+--- log x on 1D (positive data via c axis?)
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot).")
+OK   studio_option!(:x_axis_1d, :log_scale, true) => X Axis (1D) → log_scale = true
+OK   ((studio_state()).plots[1]).xlims => (0.0, 1.0)
+OK   ((PDEStudio._plot_axes())[1]).xscale[] => identity
+OK   studio_zoom!(2) => [(plot = 1, xlims = (0.25, 0.75), ylims = (-0.5247409441920091, 0.5247409441920091))]

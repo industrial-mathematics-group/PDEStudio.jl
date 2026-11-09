@@ -1,0 +1,220 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_sY3R08
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+Running simulations...  17%|████▋                       |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 12 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+┌ Error: Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour range, levels) and click 'Update Plot' again.
+│   exception =
+│    MethodError: no method matching isless(::Int64, ::Symbol)
+│    The function `isless` exists, but no method is defined for this combination of argument types.
+│    
+│    Closest candidates are:
+│      isless(!Matched::Symbol, ::Symbol)
+│       @ Base strings/basic.jl:363
+│      isless(!Matched::Missing, ::Any)
+│       @ Base missing.jl:87
+│      isless(::Number, !Matched::Unitful.AbstractQuantity)
+│       @ Unitful ~/.julia/packages/Unitful/ikxOk/src/quantities.jl:239
+│      ...
+│    
+│    Stacktrace:
+│      [1] <(x::Int64, y::Symbol)
+│        @ Base ./operators.jl:399
+│      [2] >(x::Symbol, y::Int64)
+│        @ Base ./operators.jl:425
+│      [3] (::PDEStudio.var"#97#98"{Symbol})(lims::GeometryBasics.HyperRectangle{2, Float64}, xscl::Function, yscl::Function)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PlottingUtils.jl:159
+│      [4] #map#11
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:570 [inlined]
+│      [5] map
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:568 [inlined]
+│      [6] plot_reference_lines!(ax::Makie.Axis, exponents::Vector{Symbol}; label::String, color::Symbol, line_style::Symbol, kwargs::@Kwargs{})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PlottingUtils.jl:144
+│      [7] _handle_ui_trigger!(::Val{:lines_1d}, master_fig::Makie.Figure, plot_layout::GridLayoutBase.GridLayout, axes::Vector{Any}, has_colorbar::Bool, u_sel::Observables.Observable{Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PlottingLogic.jl:444
+│      [8] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:585 [inlined]
+│      [9] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PDEStudio.jl:296 [inlined]
+│     [10] (::PDEStudio.var"#setup_render_lift!##10#setup_render_lift!##11"{:lines_1d, Makie.Figure, GridLayoutBase.GridLayout, Bool, Observables.Observable{Any}, Vector{Any}})(::Int64)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:583
+│     [11] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [12] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [13] _after_editor_change!(cat::Symbol, scope::Symbol, key::Symbol, target::Dict{Symbol, Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/UILogic.jl:1055
+│     [14] studio_option!(scope::Symbol, key::Symbol, value::Vector{Symbol})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/AgentAPI.jl:891
+│     [15] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent2/probes/h02_misc.jl:7
+│     [16] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [17] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [18] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:588
+┌ Error: Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour range, levels) and click 'Update Plot' again.
+│   exception =
+│    Unmatched { in format expression.
+│    Stacktrace:
+│      [1] error(s::String)
+│        @ Base ./error.jl:44
+│      [2] _raise_unmatched_lbrace()
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:88
+│      [3] find_next_entry_close
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:108 [inlined]
+│      [4] Format.FormatExpr(s::String)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:124
+│      [5] printfmt(io::IOBuffer, fe::String, args::Float64)
+│        @ Format ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:157
+│      [6] sprint(::typeof(Format.printfmt), ::String, ::Vararg{Any}; context::Nothing, sizehint::Int64)
+│        @ Base ./strings/io.jl:111
+│      [7] sprint
+│        @ ./strings/io.jl:104 [inlined]
+│      [8] format
+│        @ ~/.julia/packages/Format/0LfJN/src/formatexpr.jl:163 [inlined]
+│      [9] #get_ticklabels##4
+│        @ ./none:-1 [inlined]
+│     [10] iterate
+│        @ ./generator.jl:48 [inlined]
+│     [11] collect(itr::Base.Generator{Vector{Float64}, Makie.var"#get_ticklabels##4#get_ticklabels##5"{String}})
+│        @ Base ./array.jl:828
+│     [12] get_ticklabels(formatstring::String, values::Vector{Float64})
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:831
+│     [13] get_ticks(ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:594
+│     [14] get_ticks(::Nothing, ticks::Makie.Automatic, scale::Function, formatter::String, vmin::Float64, vmax::Float64)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/dim-converts/dim-converts.jl:77
+│     [15] (::Makie.var"#LineAxis##22#LineAxis##23"{Observables.Observable{Any}})(::Tuple{Float32, Tuple{Float32, Float32}, Bool}, ::Nothing, limits::Tuple{Float64, Float64}, ticks::Makie.Automatic, tickformat::String, scale::Function)
+│        @ Makie ~/.julia/packages/Makie/dVJIx/src/makielayout/lineaxis.jl:444
+│     [16] (::Observables.MapCallback)(value::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:436
+│     [17] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [18] setindex!(observable::Observables.Observable, val::Any)
+│        @ Observables ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123
+│     [19] setproperty!
+│        @ ~/.julia/packages/Makie/dVJIx/src/makielayout/blocks.jl:482 [inlined]
+│     [20] set_axis_styles!(ax::Makie.Axis, def_x::String, def_y::String, def_title::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PlottingUtils.jl:755
+│     [21] _apply_axis_styles!(ax::Makie.Axis, T::Symbol)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PlottingUtils.jl:879
+│     [22] _handle_ui_trigger!(::Val{:lines_1d}, master_fig::Makie.Figure, plot_layout::GridLayoutBase.GridLayout, axes::Vector{Any}, has_colorbar::Bool, u_sel::Observables.Observable{Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PlottingLogic.jl:438
+│     [23] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:585 [inlined]
+│     [24] macro expansion
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/PDEStudio.jl:296 [inlined]
+│     [25] (::PDEStudio.var"#setup_render_lift!##10#setup_render_lift!##11"{:lines_1d, Makie.Figure, GridLayoutBase.GridLayout, Bool, Observables.Observable{Any}, Vector{Any}})(::Int64)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:583
+│     [26] notify
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:206 [inlined]
+│     [27] setindex!
+│        @ ~/.julia/packages/Observables/YdEbO/src/Observables.jl:123 [inlined]
+│     [28] _after_editor_change!(cat::Symbol, scope::Symbol, key::Symbol, target::Dict{Symbol, Any})
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/UILogic.jl:1055
+│     [29] studio_option!(scope::Symbol, key::Symbol, value::String)
+│        @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/AgentAPI.jl:891
+│     [30] top-level scope
+│        @ ~/.claude/jobs/d2d299f1/tmp/review-agent2/probes/h02_misc.jl:7
+│     [31] include(mod::Module, _path::String)
+│        @ Base ./Base.jl:309
+│     [32] exec_options(opts::Base.JLOptions)
+│        @ Base ./client.jl:344
+│     [33] _start()
+│        @ Base ./client.jl:577
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:588
+--- A: zoom, then lines -> heatmap_flat with y = t (stale view?)
+OK   studio_set!(:plot_style => :heatmap_flat, :y_axis => :t) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_flat, :y_axis => :t), status = "Set plot_style = :heatmap_flat, y_axis = :t (apply_layout).")
+st() = (locked = true, lims = [((0.17625, 0.42374999999999996), (0.2375, 0.7625))], api = false, status = (text = "Set plot_style = :heatmap_flat, y_axis = :t (apply_layout).", level = :ok))
+st() = (locked = false, lims = [((0.0, 0.99), (0.0, 1.0))], api = false, status = (text = "View reset: the plots follow the data.", level = :info))
+--- B: option types
+ERR  studio_option!(:labels, :title, 5) => ArgumentError: ArgumentError: labels.title = 5 is not a valid text (a String)
+ERR  studio_option!(:y_axis_1d, :log_scale, "yes") => ArgumentError: ArgumentError: y_axis_1d.log_scale = "yes" is not a valid true or false
+ERR  studio_option!(:y_axis_1d, :padding, "a") => ArgumentError: ArgumentError: y_axis_1d.padding = "a" is not a valid number
+ERR  studio_option!(:plot_style, :line_width, :thick) => ArgumentError: ArgumentError: plot_style.line_width = :thick is not a valid number
+OK   studio_option!(:plot_style, :line_width, 2) => Plot Style → line_width = 2
+(PDEStudio.manager.ui[:plot_style])[:line_width] = 2
+ERR  studio_option!(:plot_style, :line_width, 2.5) => ArgumentError: ArgumentError: plot_style.line_width = 2.5 is not a valid whole number
+ERR  studio_option!(:plot_style, :line_width, 3.0) => ArgumentError: ArgumentError: plot_style.line_width = 3.0 is not a valid whole number
+OK   studio_option!(:y_axis_1d, :padding, 0) => Y Axis (1D) → padding = 0
+ERR  studio_option!(:y_axis_1d, :padding, 0.05) => ArgumentError: ArgumentError: y_axis_1d.padding = 0.05 is not a valid whole number
+ERR  studio_option!(:axis_general, :font_size, 20.5) => ArgumentError: ArgumentError: axis_general.font_size = 20.5 is not a valid whole number
+ERR  studio_option!(:export, :dpi, 150.0) => ArgumentError: ArgumentError: no option scope :export; scopes: :axis_general, :labels, :hud, :outliers_extrema, :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d, :plot_style
+ERR  studio_option!(:export, :animation_FPS, 29.97) => ArgumentError: ArgumentError: no option scope :export; scopes: :axis_general, :labels, :hud, :outliers_extrema, :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d, :plot_style
+OK   studio_option!(:plot_style, :line_direction, "vertical") => Plot Style → line_direction = vertical
+typeof((PDEStudio.manager.ui[:plot_style])[:line_direction]) = String
+ERR  studio_option!(:plot_style, :line_direction, :horizontal) => ArgumentError: ArgumentError: plot_style.line_direction = :horizontal is not a valid text (a String)
+ERR  studio_option!(:plot_style, :colors, ((:red, 0.5), :blue)) => ArgumentError: ArgumentError: plot_style.colors = ((:red, 0.5), :blue) is not a valid colour (e.g. :red, "#1f77b4" or (:blue, 0.5))
+OK   studio_option!(:plot_style, :colors, [(:black, 0.8), :blue, :green, :orange, :purple, :yellow]) => Plot Style → colors = Any[(:black, 0.8), :blue, :green, :oran…
+OK   studio_option!(:plot_style, :color_range, (0, 1)) => Plot Style → color_range = Any[0, 1]
+(PDEStudio.manager.ui[:plot_style])[:color_range] = Any[0, 1]
+OK   studio_option!(:plot_style, :color_range, []) => Plot Style → color_range = Any[]
+OK   studio_option!(:x_axis_1d, :lims, (0.2, 0.8)) => X Axis (1D) → lims = Any[0.2, 0.8]
+((studio_state()).plots[1]).xlims = (0.2, 0.8)
+OK   studio_option!(:x_axis_1d, :lims, []) => X Axis (1D) → lims = Any[]
+OK   studio_option!(:hud, :points, [(0.2, 0.0), (0.8, 0.5)]) => HUD → points = Tuple{Float64, Float64}[(0.2, 0.0), (0.…
+OK   studio_option!(:hud, :points, ((0.2, 0.0), (0.8, 0.5))) => HUD → points = Any[(0.2, 0.0), (0.8, 0.5)]
+OK   studio_option!(:hud, :visible, true) => HUD → visible = true
+(studio_state()).status = (text = "HUD → visible = true", level = :ok)
+OK   studio_option!(:hud, :visible, false) => HUD → visible = false
+OK   studio_option!(:plot_style, :reference, [:exact]) => Drawing the look failed: MethodError: no method matching isless(::Int64, ::Symbol). Change the options that can't be drawn.
+(studio_state()).status = (text = "Drawing the look failed: MethodError: no method matching isless(::Int64, ::Symbol). Change the options that can't be drawn.", level = :error)
+ERR  studio_option!(:plot_style, :reference, :exact) => ArgumentError: ArgumentError: plot_style.reference = :exact is not a valid list (a vector)
+OK   studio_option!(:plot_style, :reference, []) => Plot Style → reference = Any[]
+ERR  studio_option!(:plot_style, :markers, (:circle, :rect)) => ArgumentError: ArgumentError: plot_style.markers = (:circle, :rect) is not a valid list of markers (at least one, e.g. [:circle, :rect])
+OK   studio_option!(:plot_style, :line_styles, [:solid, (:dash, :dense)]) => Plot Style → line_styles = Any[:solid, (:dash, :dense)]
+OK   studio_option!(:labels, :title, "My title") => Plot → title = My title
+OK   studio_option!(:labels, :title, "default") => Plot → title = default
+ERR  studio_option!(:export, :save_formats, ("png", "pdf")) => ArgumentError: ArgumentError: no option scope :export; scopes: :axis_general, :labels, :hud, :outliers_extrema, :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d, :plot_style
+ERR  studio_option!(:export, :save_formats, ["png"]) => ArgumentError: ArgumentError: no option scope :export; scopes: :axis_general, :labels, :hud, :outliers_extrema, :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d, :plot_style
+OK   studio_option!(:plot_style, :levels, 10) => Plot Style → levels = 10
+OK   studio_option!(:plot_style, :method_index, 2) => Plot Style → method_index = 2
+OK   studio_option!(:plot_style, :method_index, 1) => Plot Style → method_index = 1
+--- C: failed redraw status
+OK   studio_option!(:plot_style, :line_styles, [:nope]) => Plot Style → line_styles = Symbol[:nope]
+(studio_state()).status = (text = "Plot Style → line_styles = Symbol[:nope]", level = :ok)
+OK   studio_option!(:plot_style, :line_styles, [:solid, :dash, :dot, (:dash, :dense), (:dot, :dense)]) => Plot Style → line_styles = Any[:solid, :dash, :dot, (:dash, :dense…
+(studio_state()).status = (text = "Plot Style → line_styles = Any[:solid, :dash, :dot, (:dash, :dense…", level = :ok)
+OK   studio_option!(:x_axis_1d, :tick_format, "{:nope") => Drawing the look failed: Unmatched { in format expression.. Change the options that can't be drawn.
+(studio_state()).status = (text = "Drawing the look failed: Unmatched { in format expression.. Change the options that can't be drawn.", level = :error)
+OK   studio_option!(:x_axis_1d, :tick_format, "default") => X Axis (1D) → tick_format = default
+(studio_state()).status = (text = "X Axis (1D) → tick_format = default", level = :ok)
+OK   studio_set!(:t => 0.3) => (values = Dict{Symbol, Any}(:t => 0.30303030303030304), status = "Set t = 0.3.")
+(studio_state()).status = (text = "Set t = 0.3.", level = :ok)
+--- D: camera validation
+ERR  studio_zoom!(2; plot = true) => ArgumentError: ArgumentError: plot = true: there are 1 plot(s); use 1…1 or :all
+ERR  studio_view!(plot = false, xlims = (0, 1)) => ArgumentError: ArgumentError: plot = false: there are 1 plot(s); use 1…1 or :all
+ERR  studio_zoom!(2; dims = :z) => ArgumentError: ArgumentError: dims = :z: the selected plot(s) have no such axis (2D plots have x and y)
+st() = (locked = false, lims = [((0.0, 0.99), (-0.9999984921822271, 0.9999056818497107))], api = false, status = (text = "Set t = 0.3.", level = :ok))
+ERR  studio_view!(azimuth = NaN) => ArgumentError: ArgumentError: azimuth = NaN: a finite number of degrees
+ERR  studio_view!(elevation = Inf) => ArgumentError: ArgumentError: elevation = Inf: a finite number of degrees
+ERR  studio_rotate!(NaN) => ArgumentError: ArgumentError: studio_rotate!: finite angles in degrees
+ERR  studio_zoom!(2; center = (NaN, 0.0)) => ArgumentError: ArgumentError: center = (NaN, 0.0): a tuple of finite data coordinates, e.g. (x, y)
+ERR  studio_pan!(NaN) => ArgumentError: ArgumentError: studio_pan!: finite fractions of the view
+st() = (locked = false, lims = [((0.0, 0.99), (-0.9999984921822271, 0.9999056818497107))], api = false, status = (text = "Set t = 0.3.", level = :ok))
+ERR  studio_pan!(Inf) => ArgumentError: ArgumentError: studio_pan!: finite fractions of the view
+st() = (locked = false, lims = [((0.0, 0.99), (-0.9999984921822271, 0.9999056818497107))], api = false, status = (text = "Set t = 0.3.", level = :ok))
+OK   studio_zoom!(2; dims = (:x, :z)) => [(plot = 1, xlims = (0.2475, 0.7424999999999999), ylims = (-0.9999984921822271, 0.9999056818497107))]
+st() = (locked = true, lims = [((0.2475, 0.7424999999999999), (-0.9999984921822271, 0.9999056818497107))], api = true, status = (text = "Zoomed in ×2 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+--- E: non-PNG
+ERR  studio_snapshot(joinpath(P, "h02_x.jpg")) => ArgumentError: ArgumentError: studio_snapshot writes PNG files: give a path ending in .png, got "/home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/h02_x.jpg"
+ERR  studio_snapshot(joinpath(P, "h02_x.PNG")) => ErrorException: No applicable_savers found for UNKNOWN
+ERR  studio_snapshot(joinpath(P, "h02_noext")) => ArgumentError: ArgumentError: studio_snapshot writes PNG files: give a path ending in .png, got "/home/agent/.claude/jobs/d2d299f1/tmp/review-agent2/probes/h02_noext"
+--- F: default names
+fs = ["/tmp/jl_sY3R08/snapshots/studio_2026-11-09_16-26-18-985_5.png", "/tmp/jl_sY3R08/snapshots/studio_2026-11-09_16-26-18-993_6.png", "/tmp/jl_sY3R08/snapshots/studio_2026-11-09_16-26-19-000_7.png"]
+length(unique(fs)) = 3

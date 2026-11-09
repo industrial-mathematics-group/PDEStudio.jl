@@ -1,0 +1,15 @@
+Test Summary:                                 | Pass  Fail  Total   Time
+PDEStudio: Scripting and agent API (headless) |   74     2     76  26.8s
+MUTATION crop_none: tests FAILED (caught)
+Test Summary:                                 | Pass  Total   Time
+PDEStudio: Scripting and agent API (headless) |   76     76  26.0s
+MUTATION crop_flipped: tests PASSED (mutation not caught)
+Test Summary:                                 | Pass  Fail  Total   Time
+PDEStudio: Scripting and agent API (headless) |   73     3     76  26.7s
+MUTATION no_lock: tests FAILED (caught)
+Test Summary:                                 | Pass  Fail  Error  Total   Time
+PDEStudio: Scripting and agent API (headless) |   55     1      1     57  15.4s
+MUTATION no_apply: tests FAILED (caught)
+Test Summary:                                 | Pass  Fail  Total   Time
+PDEStudio: Scripting and agent API (headless) |   75     1     76  26.6s
+MUTATION reset_no_trigger: tests FAILED (caught)
