@@ -29,13 +29,16 @@ What has changed since the last release. Released versions are described in the
   `studio_option!` (the look), and the camera: `studio_view!` (limits, 3D angles), `studio_zoom!`, `studio_pan!`,
   `studio_rotate!`, `studio_reset_view!`. The view they set stays while the data updates (camera lock).
 - **The status line after a run** counts the runs that ran, were cached or failed (with the first error message),
-  and stored results made with other source code (from PDEStudioCore's `RunSummary`, 0.5; with older versions it
-  shows the time only).
+  and stored results made with other source code (from the `RunSummary` the next PDEStudioCore release returns; with
+  older versions it shows the time only). After `launch_plotter(config)` it reports the run made before the window
+  opened.
 
 ### Fixed
 - **`launch_plotter(config)` after another configuration** started with the view of the old one: its plotted axes,
   slider positions and methods (e.g. the heat equation in 2D opened with `y = t`). A configuration with other swept
-  parameters or solvers now starts with its default view; launching the same setup again keeps the last view.
+  parameters or solvers now starts with its default view (also while an animation plays); launching the same setup
+  again keeps the plotted axes, slider positions and comparison. Binding such a configuration into an open window
+  (`set_sim_config!`, loading a `.jl` file) resets the view the same way; a CSV file applies its own.
 - **A loaded export runs as it was exported**, at the load and at *Run Simulation*: the bundled copies run in place of
   their originals (files that aren't bundled, such as unlisted helpers and data files, are found next to them), and
   an `include` of a bundled file runs its copy (`include(path)`, `include(f, path)`, `Base.include`, `include` as a
@@ -142,7 +145,8 @@ What has changed since the last release. Released versions are described in the
 ### Changed
 - **Shorter plot titles:** a title lists only the variables that are not on an axis (`R = 0.100 | Time (T) = 0.000`;
   the `Position (X) = [Axis]` parts are gone, the axis labels name them), broken into lines where it would be wider
-  than the plot. `studio_state` / `describe_studio` report a title in one line.
+  than the plot. The breaks are chosen for the widest value of each part, so they stay while the sliders move.
+  `studio_state` / `describe_studio` report a title in one line.
 - **Default display resolutions in space: 100 points for the data, 200 for references** (were 200 and 400; time
   stays at 50 and 100): 3-D data with time was infeasible with the old defaults. Raise them in *Files → Resolution ›*
   or with `set_resolution!` where needed.

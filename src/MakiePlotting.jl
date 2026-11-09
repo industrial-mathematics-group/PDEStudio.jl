@@ -87,6 +87,14 @@ This function unpacks the `SimulationConfig`, maps the dynamic parameter sweeps 
 With `snapshot = true` (the default) a copy of `config` is kept as the baseline that *Reset Simulation* (see [`reset_sim_config!`](@ref)) returns to.
 """
 function set_sim_config!(config::SimulationConfig; snapshot::Bool = true)
+    # another setup (swept parameters, solvers) in an open window: the view of the old one doesn't fit (a CSV file
+    # applies its own view after this)
+    setup = _view_setup(config)
+    if !isnothing(manager.bound_setup) && setup != manager.bound_setup
+        _reset_config_view!()
+        manager.is_open && _reset_open_view!()
+    end
+    manager.bound_setup = setup
     manager.active_config = config
     manager.csv_cache = nothing  # a staged (structural) CSV is superseded by this configuration
     haskey(manager.flags, :Simulation) && (manager.flags[:Simulation][] = true)
@@ -284,7 +292,8 @@ Builds the studio window and returns its `Figure` (show it with `display`, or us
   with the right setup: without a `style`, particle data opens in a particle style; axes the window doesn't know
   yet (such as a time axis `:iteration`) are added (see [`set_allowed_dims!`](@ref)). A configuration with other
   swept parameters or solvers than the bound one starts with its default view (plotted axes, sliders, animation
-  target, comparison, camera); launching the same setup again keeps the view of the last window.
+  target, comparison, camera); launching the same setup again keeps the plotted axes, slider positions and
+  comparison of the last window (a locked camera is unlocked). `set_sim_config!` does the same in an open window.
 
 ```julia
 fig = launch_plotter(; style = :heatmap)              # empty window, heatmaps once data arrives
@@ -293,15 +302,17 @@ display(fig)
 ```
 """
 function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
-    if !isnothing(config)
-        _prepare_for_config!(config, style)
-        # the view of another setup doesn't fit this one (a relaunch of the same setup keeps it)
-        old = manager.active_config
-        (isnothing(old) || _view_setup(old) != _view_setup(config)) && _reset_config_view!()
-    end
+    manager.launch_run = nothing
+    isnothing(config) || _prepare_for_config!(config, style)
+    # the view of another setup doesn't fit this one (a relaunch of the same setup keeps it)
+    fresh = !isnothing(config) && _view_setup(config) != manager.bound_setup
     plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)
 
     reset_plotter!()
+    if fresh   # (after `reset_plotter!`: until then the old window, e.g. its animation, can still move the sliders)
+        _reset_config_view!()
+        manager.bound_setup = _view_setup(config)
+    end
 
     master_fig = Figure()
     ctrl_layout = master_fig[1, 1] = GridLayout()
@@ -385,7 +396,6 @@ function _resolve_plot_style(style::Symbol)
                         "particles) or a style ($(join(sort([grid; collect(keys(PARTICLE_STYLES))]), ", ")))"))
 end
 
-# Runs `config` (cached) and sets the data kind and the dimensions its data needs before the window is built.
 # What the view of a window depends on: the swept parameters and the solvers of a configuration
 function _view_setup(config::SimulationConfig)
     solvers = [get(config.shared, :sim_func_name, nothing); [get(m, :sim_func_name, nothing) for m in values(config.methods)]]
@@ -407,9 +417,31 @@ function _reset_config_view!()
     return nothing
 end
 
+# The axis menus and sliders of an open window as a new window has them: the next data chooses the axes and the
+# slider positions again
+function _reset_open_view!()
+    w = manager.widgets
+    for k in [[Symbol("param_", i) for i in 1:manager.max_params]; get_base_variables()]
+        haskey(w, k) && w[k].range[] != [0.0] && (w[k].range[] = [0.0])
+    end
+    for k in (:x_axis, :y_axis, :z_axis, :u_axis, :anim_target)
+        haskey(w, k) || continue
+        w[k].options[] = Any[menu_opt(:none)]
+        w[k].i_selected[] = 1
+    end
+    if haskey(w, :component)
+        w[:component].options[] = Any[(frontend_key(:component_1), 1)]
+        w[:component].i_selected[] = 1
+    end
+    return nothing
+end
+
+# Runs `config` (cached) and sets the data kind and the dimensions its data needs before the window is built.
 function _prepare_for_config!(config::SimulationConfig, style)
     @info "Running the configuration before opening the studio (the results are cached)..."
-    _run_simulations(config; calculate_stats = true, force_overwrite = false)
+    summary = nothing
+    elapsed = @elapsed (summary = _run_simulations(config; calculate_stats = true, force_overwrite = false))
+    manager.launch_run = (summary, elapsed)   # (what the status line reports after the window's first run)
     data = _template_data(config)
     isnothing(data) && return nothing
     # the style decides the data (particles or grid); without one, particle data opens in a particle style

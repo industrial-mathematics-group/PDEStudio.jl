@@ -87,7 +87,13 @@ function generate_dynamic_title(
     sel_vals,
     sim_data::Union{Nothing, AbstractSimData} = nothing
 )
-    title_parts = String[]
+    return join(first.(_title_parts(plot_dims, dim_names, sel_vals, sim_data)), " | ")
+end
+
+# The parts of a title (see `generate_dynamic_title`), each with the other texts it can show (its other values: the
+# swept values, or the ends of the axis), so the line breaks of a title don't move with the sliders.
+function _title_parts(plot_dims::Tuple, dim_names::Vector{Symbol}, sel_vals, sim_data = nothing)
+    parts = Tuple{String, Vector{String}}[]
     base_vars = get_base_variables()
     n_params = length(dim_names) - length(base_vars)
 
@@ -105,41 +111,74 @@ function generate_dynamic_title(
             continue
         elseif i <= length(sel_vals)
             val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
-            push!(title_parts, "$name = $(_fmt_value(val))")
+            others = ["$name = $v" for v in _title_values(i, i <= n_params, name_sym, sim_data)]
+            push!(parts, ("$name = $(_fmt_value(val))", others))
         end
     end
-    
-    return join(title_parts, " | ")
+    return parts
 end
 
-# The title of a subplot: the custom title of the UI settings, or `default_title` fitted to the plot width
-_set_title!(ax, default_title::AbstractString) =
-    (ax.title[] = manager.ui[:labels][:title] == "default" ? _fit_title(default_title, ax) : manager.ui[:labels][:title])
+# The texts the value of title part `i` can show: every swept value of a parameter, the ends of an axis of the data
+function _title_values(i::Int, is_param::Bool, dim::Symbol, sim_data)
+    try
+        if is_param
+            data = manager.plot_data[]
+            isempty(data) && return String[]
+            pd = first(values(data))
+            i <= length(pd.active_param_values) || return String[]
+            return unique!([_fmt_value(v) for v in pd.active_param_values[i]])
+        end
+        isnothing(sim_data) && return String[]
+        vals = _get_dim_vals(Val(manager.mode[]), sim_data, dim)
+        (isnothing(vals) || isempty(vals)) && return String[]
+        return unique!([_fmt_value(v) for v in (first(vals), last(vals), minimum(vals), maximum(vals))])
+    catch
+        return String[]
+    end
+end
 
-# A title that fits the width of its plot (the plot width of the layout): the parts of `title` (separated by " | ")
-# are broken into lines where a line would be wider.
-function _fit_title(title::AbstractString, ax)
-    parts = split(title, " | ")
-    length(parts) > 1 || return String(title)
+# The title of a subplot: the custom title of the UI settings, or the default title (parts fitted to the plot width;
+# a text, e.g. the label of a compared value, as it is)
+function _set_title!(ax, default_title)
+    custom = manager.ui[:labels][:title]
+    ax.title[] = custom != "default" ? custom : default_title isa AbstractString ? default_title : _fit_title(default_title, ax)
+    return nothing
+end
+
+# A title that fits the width of its plot (the plot width of the layout): its parts are broken into lines where a
+# line would be wider. The breaks are chosen for the widest text of each part, so they stay as the values change.
+function _fit_title(parts::AbstractVector, ax)
+    texts = String[first(p) for p in parts]
+    length(texts) > 1 || return join(texts, " | ")
     width = Float64(haskey(manager.widgets, :plot_width) ? manager.widgets[:plot_width].selection[] :
                     get(manager.layout_cache, :plot_width, 500))
     # (the size of the UI settings: the axis gets it after its title)
     gen = get(manager.ui, :axis_general, Dict{Symbol, Any}())
     font, size = ax.titlefont[], Float64(get(gen, :title_size, ax.titlesize[]))
-    lines = String[String(parts[1])]
-    for part in parts[2:end]
-        candidate = lines[end] * " | " * part
-        if _text_width(candidate, font, size) <= width
-            lines[end] = candidate
+    widest = [maximum(s -> _text_width(s, font, size), [text; others]) for (text, others) in parts]
+    sep = _text_width(" | ", font, size)
+    lines, used = [[texts[1]]], widest[1]
+    for k in 2:length(texts)
+        if used + sep + widest[k] <= width
+            push!(lines[end], texts[k])
+            used += sep + widest[k]
         else
-            push!(lines, String(part))
+            push!(lines, [texts[k]])
+            used = widest[k]
         end
     end
-    return join(lines, "\n")
+    return join((join(l, " | ") for l in lines), "\n")
 end
+
+const _TEXT_WIDTHS = Dict{Tuple{String, Any, Float64}, Float64}()   # (measured once per text, font and size)
 
 # The width of `str` in pixels, drawn with `font` (a font or the name of one of the theme's fonts, e.g. `:bold`)
 function _text_width(str::AbstractString, font, size::Real)
+    length(_TEXT_WIDTHS) > 10_000 && empty!(_TEXT_WIDTHS)
+    return get!(() -> _measure_text(String(str), font, Float64(size)), _TEXT_WIDTHS, (String(str), font, Float64(size)))
+end
+
+function _measure_text(str::String, font, size::Float64)
     try
         f = font isa Symbol ? Makie.to_font(Makie.to_value(Makie.current_default_theme().fonts[font])) : Makie.to_font(font)
         return Float64(Makie.widths(Makie.text_bb(str, f, Float32(size)))[1])

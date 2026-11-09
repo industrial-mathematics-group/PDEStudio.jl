@@ -25,7 +25,7 @@ entries as rows (name, value, a button), an overview has one button per page.
     orange for warnings (e.g. a value that was refused, and why), red for errors. Edits, method changes, presets,
     simulation runs, CSV loads and exports report here; everything is also written to the Julia log. After a run it
     counts the runs that ran, were cached or failed (with the first error message), and stored results made with
-    other source code (PDEStudioCore 0.5).
+    other source code (with a PDEStudioCore whose `run_all_simulations` returns a `RunSummary`, its next release).
 *   **Sliders** (at the bottom): one slider per swept parameter and per physical dimension, scaled to the values of
     the active datasets. Only sliders with a choice to make are shown: unused parameter sliders, dimensions on a plot
     axis and dimensions the data doesn't have are hidden. Text-valued sweeps (e.g. scheme names) get index sliders that display the swept value. Details:
