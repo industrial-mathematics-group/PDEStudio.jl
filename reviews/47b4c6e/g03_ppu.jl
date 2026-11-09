@@ -1,0 +1,23 @@
+using PDEStudio, GLMakie
+const P = @__DIR__
+GLMakie.activate!()
+set_save_path!(mktempdir())
+fig = launch_plotter(test_heat_2d(); style = :heatmap)
+display(fig)
+scr = Makie.getscreen(fig.scene)
+info() = (ppu = scr.px_per_unit[], winsize = GLMakie.GLFW.GetWindowSize(scr.glscreen), fbsize = GLMakie.GLFW.GetFramebufferSize(scr.glscreen), viewport = fig.scene.viewport[].widths, cb = size(Makie.colorbuffer(scr)))
+@show info()
+f = studio_snapshot(joinpath(P, "g03_ppu2.png"); px_per_unit = 2); @show size(Makie.FileIO.load(f))
+@show info() Makie.getscreen(fig.scene) === scr
+studio_set!(:t => 0.02)
+@show info()
+f = studio_snapshot(joinpath(P, "g03_ppu1.png")); @show size(Makie.FileIO.load(f))
+@show info()
+println("--- window ppu 2 set by the user (HiDPI-like): GLMakie.activate!(px_per_unit = 2)")
+GLMakie.activate!(px_per_unit = 2)
+reset_plotter!()
+fig = launch_plotter(test_heat_2d(); style = :heatmap); display(fig)
+scr = Makie.getscreen(fig.scene)
+@show info()
+f = studio_snapshot(joinpath(P, "g03_hidpi_default.png")); @show size(Makie.FileIO.load(f))
+@show info()
