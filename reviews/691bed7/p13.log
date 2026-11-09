@@ -1,0 +1,7 @@
+OK  lines_3d -> p13_lines_3d.png
+OK  scatter_3d -> p13_scatter_3d.png
+OK  contour_3d -> p13_contour_3d.png
+OK  contour_surface -> p13_contour_surface.png
+ERR heatmap_surface -> Cannot register computation: Some outputs already have parent compute edges: positions_transformed
+OK  volume_3d -> p13_volume_3d.png
+OK  heatmap_flat -> p13_heatmap_flat.png

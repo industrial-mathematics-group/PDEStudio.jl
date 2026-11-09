@@ -1,0 +1,99 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :pointwise_diff keeping dimensions: all
+[ Info: Module save root path set to: /tmp/jl_D3OFSc
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 2 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 2 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Camera locked to the current view.
+[ Info: Camera unlocked: the view scales with the next data update.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+[ Info: Pass 1: executing 1 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 1 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 9 simulation task(s) (parallel: false)...
+Running simulations...  22%|██████▎                     |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 9 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+Calculating stats...  22%|██████▋                       |  ETA: 0:00:02[KCalculating stats... 100%|██████████████████████████████| Time: 0:00:00[K
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Plotter state completely cleared!
+[ Info: Lagrangian representation not cached; generating it on the fly...
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 9 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 9 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Plotter state completely cleared!
+
+PDEStudio: Scripting and agent API (headless): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:868
+  Expression: size(img_p, 1) < size(img_w, 1) && size(img_p, 2) < size(img_w, 2)
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:768
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:868 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+PDEStudio: Scripting and agent API (headless): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:880
+  Expression: size(PDEStudio.Makie.FileIO.load(sub), 2) < size(img_w, 2) / 2 + 60
+   Evaluated: 1733 < 724.5
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:768
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:880 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                 | Pass  Fail  Total   Time
+PDEStudio: Scripting and agent API (headless) |   74     2     76  26.8s
+RNG of the outermost testset: Random.Xoshiro(0xe61d9a313c581dca, 0x9fc3566b881b0e43, 0xbfa1dd68aa3e76d1, 0x0e0c89fc4aad946c, 0xe5e8b66532a0a99c)
+MUTATION crop_none: tests FAILED (caught)

@@ -1,0 +1,27 @@
+[ Info: UI and Layout have been directly reset to defaults.
+┌ Warning: Unable to determine HTML(edit_link = ...) from remote HEAD branch, defaulting to "master".
+│ Calling `git remote` failed with an exception. Set JULIA_DEBUG=Documenter to see the error.
+│ Unless this is due to a configuration error, the relevant variable should be set explicitly.
+└ @ Documenter ~/.julia/packages/Documenter/eCrmY/src/utilities/utilities.jl:1032
+[ Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+[ Info: ExpandTemplates: expanding markdown templates.
+[ Info: CrossReferences: building cross-references.
+[ Info: CheckDocument: running document checks.
+[ Info: Populate: populating indices.
+[ Info: RenderDocument: rendering document.
+[ Info: HTMLWriter: rendering HTML pages.
+┌ Warning: Can't generate landing page (index.html): src/index.md missing
+│   keys(doc.blueprint.pages) =
+│    KeySet for a Dict{String, Documenter.Page} with 2 entries. Keys:
+│      "api.md"
+│      "agents.md"
+└ @ Documenter.HTMLWriter ~/.julia/packages/Documenter/eCrmY/src/html/HTMLWriter.jl:871
+┌ Warning: Unable to determine the repository root URL for the navbar link.
+│ This can happen when a string is passed to the `repo` keyword of `makedocs`.
+│ 
+│ To remove this warning, either pass a Remotes.Remote object to `repo` to completely
+│ specify the remote repository, or explicitly set the remote URL by setting `repolink`
+│ via `makedocs(format = HTML(repolink = "..."), ...)`.
+└ @ Documenter.HTMLWriter ~/.julia/packages/Documenter/eCrmY/src/html/HTMLWriter.jl:875
+[ Info: Automatic `version="0.5.5"` for inventory from ../Project.toml
