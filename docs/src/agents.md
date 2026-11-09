@@ -30,11 +30,11 @@ snapshot of a volume plot then shows the empty axes, and the status line says so
 
 ```text
 PDEStudio (CairoMakie, 1259×928 px)
-Status [ok]: Simulation finished in 0.0 s (3 methods).
+Status [ok]: Simulation finished in 0.1 s: 3 runs, 0 ran, 3 cached.
 Configuration: solver solve_heat_2d; methods adi, exact, explicit; active exact, explicit, adi
   swept r = 0.1, 0.25, 0.3
 Plot: style heatmap_flat (2D); x = x, y = y, z = none, u = Solution, component 1
-  plot 1: "R = 0.100 | Position (X) = [Axis] | Position (Y) = [Axis] | Time (T) = 0.000" [Position (X) | Position (Y)] x ∈ [0.000, 1.000], y ∈ [0.000, 1.000]
+  plot 1: "R = 0.100 | Time (T) = 0.000" [Position (X) | Position (Y)] x ∈ [0.000, 1.000], y ∈ [0.000, 1.000]
     explicit: values [-0.212, 1.295]
 Controls (studio_set! / studio_press!):
   plot_style [style, applies with :apply_layout] = :heatmap_flat  ∈ {:lines_1d, :lines_2d, …}

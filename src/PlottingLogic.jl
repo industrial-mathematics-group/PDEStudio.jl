@@ -106,7 +106,7 @@ function _handle_plot_trigger!(
             u_str = frontend_key(u_sel[])
 
             initialize_base_plot!(plot_layout, axes[i], valid_methods, data_tuples, x_str, y_str, z_str, u_str, ts, Val(T), i)
-            axes[i].title[] = manager.ui[:labels][:title] == "default" ? default_title : manager.ui[:labels][:title]
+            _set_title!(axes[i], default_title)
             
             if !is_3d_axis
                 if manager.mode[] == :lagrangian
@@ -352,7 +352,7 @@ function _handle_data_trigger!(
             
         default_title = is_compare ? "$(compare_labels[i])" : ts
 
-        axes[i].title[] = manager.ui[:labels][:title] == "default" ? default_title : manager.ui[:labels][:title]
+        _set_title!(axes[i], default_title)
     end
     
     if !is_3d_axis
@@ -432,7 +432,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
         if i <= length(manager.plot_titles)
             ts = manager.plot_titles[i]
             default_title = is_compare && !isempty(dyn_compare_labels) && i <= length(dyn_compare_labels) ? "$(dyn_compare_labels[i])" : ts
-            ax.title[] = manager.ui[:labels][:title] == "default" ? default_title : manager.ui[:labels][:title]
+            _set_title!(ax, default_title)
         end
         
         _apply_axis_styles!(ax, T)

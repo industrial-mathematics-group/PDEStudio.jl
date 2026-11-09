@@ -282,7 +282,9 @@ Builds the studio window and returns its `Figure` (show it with `display`, or us
   as particles (Lagrangian), all others on a grid (Eulerian); data of the other kind is converted.
 - `config`: a `SimulationConfig` to bind and run. It is run first (the results are cached), so the window starts
   with the right setup: without a `style`, particle data opens in a particle style; axes the window doesn't know
-  yet (such as a time axis `:iteration`) are added (see [`set_allowed_dims!`](@ref)).
+  yet (such as a time axis `:iteration`) are added (see [`set_allowed_dims!`](@ref)). A configuration with other
+  swept parameters or solvers than the bound one starts with its default view (plotted axes, sliders, animation
+  target, comparison, camera); launching the same setup again keeps the view of the last window.
 
 ```julia
 fig = launch_plotter(; style = :heatmap)              # empty window, heatmaps once data arrives
@@ -291,7 +293,12 @@ display(fig)
 ```
 """
 function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
-    isnothing(config) || _prepare_for_config!(config, style)
+    if !isnothing(config)
+        _prepare_for_config!(config, style)
+        # the view of another setup doesn't fit this one (a relaunch of the same setup keeps it)
+        old = manager.active_config
+        (isnothing(old) || _view_setup(old) != _view_setup(config)) && _reset_config_view!()
+    end
     plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)
 
     reset_plotter!()
@@ -379,6 +386,27 @@ function _resolve_plot_style(style::Symbol)
 end
 
 # Runs `config` (cached) and sets the data kind and the dimensions its data needs before the window is built.
+# What the view of a window depends on: the swept parameters and the solvers of a configuration
+function _view_setup(config::SimulationConfig)
+    solvers = [get(config.shared, :sim_func_name, nothing); [get(m, :sim_func_name, nothing) for m in values(config.methods)]]
+    return (sort!(string.(collect(keys(config.varied)))), sort!(unique(string.(filter(!isnothing, solvers)))))
+end
+
+# Forgets the view of the last configuration (the windows keep it in caches that outlive them): plotted axes,
+# component, slider positions, animation target, comparison and camera. The plot style, layout and look are kept.
+function _reset_config_view!()
+    empty!(manager.plot_cache)
+    empty!(manager.slider_cache)
+    empty!(manager.pending_sliders)
+    manager.exploration_cache = Dict{Symbol, Any}(:anim_target => :none, :component => 1)
+    manager.layout_cache[:compare_target] = :none
+    manager.compare_state = (:none, nothing, String[], Any[])
+    manager.camera_cache = Dict{Symbol, Any}()
+    manager.view_context = nothing
+    manager.methods.val = Symbol[]   # (the first layout of the window would look for data of the old methods)
+    return nothing
+end
+
 function _prepare_for_config!(config::SimulationConfig, style)
     @info "Running the configuration before opening the studio (the results are cached)..."
     _run_simulations(config; calculate_stats = true, force_overwrite = false)

@@ -23,11 +23,16 @@ entries as rows (name, value, a button), an overview has one button per page.
 
 *   **Status line** (below the tab content): the result of the last action, coloured by outcome: green for done,
     orange for warnings (e.g. a value that was refused, and why), red for errors. Edits, method changes, presets,
-    simulation runs, CSV loads and exports report here; everything is also written to the Julia log.
+    simulation runs, CSV loads and exports report here; everything is also written to the Julia log. After a run it
+    counts the runs that ran, were cached or failed (with the first error message), and stored results made with
+    other source code (PDEStudioCore 0.5).
 *   **Sliders** (at the bottom): one slider per swept parameter and per physical dimension, scaled to the values of
     the active datasets. Only sliders with a choice to make are shown: unused parameter sliders, dimensions on a plot
     axis and dimensions the data doesn't have are hidden. Text-valued sweeps (e.g. scheme names) get index sliders that display the swept value. Details:
     [Exploration](sliders.md).
+*   **Plot titles** show the values of the variables that are not on an axis (the swept parameters, the time of the
+    snapshot), broken into lines where they would be wider than the plot. A custom title (UI tab, *Labels*) replaces
+    them.
 *   **Camera & Animation:** a one-click animation player that sweeps the chosen `Anim Target`. **Lock Camera**
     freezes the view (2D limits, or 3D azimuth, elevation and bounds) for perfectly stable video exports.
 *   **Reactive Triggers:** the execution buttons (`Run Simulation`, `Apply Layout`, `Update Plot`) are tied to a

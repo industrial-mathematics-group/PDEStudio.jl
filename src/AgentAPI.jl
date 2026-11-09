@@ -547,7 +547,7 @@ function _plot_state(i, ax)
     caches = get(manager.caches, i, Dict{Symbol, AbstractPlotCache}())
     ranges = Dict{Symbol, Any}(m => _finite_range(c.obs_u[]) for (m, c) in caches)
     return merge(_axis_view(i, ax),
-                 (title = string(ax.title[]), xlabel = string(ax.xlabel[]), ylabel = string(ax.ylabel[]),
+                 (title = replace(string(ax.title[]), "\n" => " | "), xlabel = string(ax.xlabel[]), ylabel = string(ax.ylabel[]),
                   zlabel = ax isa Axis3 ? string(ax.zlabel[]) : nothing, is_3d = ax isa Axis3, value_ranges = ranges))
 end
 

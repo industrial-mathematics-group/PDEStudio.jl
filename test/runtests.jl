@@ -1007,6 +1007,52 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     studio_zoom!(2)
     @test isfile(studio_snapshot(joinpath(snapdir, "particles.png")))
 
+    # --- titles: the values of what is not on an axis, broken into lines to fit the plot width ---
+    reset_plotter!()
+    launch_plotter(config)
+    title = studio_state().plots[1].title
+    @test title == "Cfl = 0.250 | Tag = a | Time (T) = 0.000"   # (x is on the axis)
+    plot_axis() = only(b for b in manager.master_fig.content if b isa Axis)
+    @test plot_axis().title[] == title
+    studio_set!(:plot_width => 150)
+    narrow = plot_axis().title[]
+    @test occursin("\n", narrow) && replace(narrow, "\n" => " | ") == title   # (lines break only between the parts)
+    @test all(l -> PDEStudio._text_width(l, plot_axis().titlefont[], plot_axis().titlesize[]) <= 150 || !occursin(" | ", l),
+              split(narrow, "\n"))
+    @test studio_state().plots[1].title == title                 # (the API reports it in one line)
+    @test PDEStudio._fit_title("No parts here, however long it is", plot_axis()) == "No parts here, however long it is"
+    studio_option!(:labels, :title, "My title")
+    @test plot_axis().title[] == "My title"                      # a custom title is kept as it is
+    studio_option!(:labels, :title, "default")
+    studio_set!(:plot_width => 500)
+
+    # --- a relaunch with another configuration starts with its own view, the same configuration keeps it ---
+    studio_set!(:cfl => 1.0)
+    studio_set!(:compare_target => :time)
+    studio_set!(:compare_target => :none)
+    reset_plotter!()
+    launch_plotter(config)
+    @test only(sl for sl in studio_state().sliders if sl.name === :cfl).value == 1.0
+    reset_plotter!()
+    heat = test_heat_2d()
+    launch_plotter(heat; style = :heatmap)
+    s = studio_state()
+    @test s.axes.x === :x && s.axes.y === :y && s.compare.target === :none
+    @test Dict(sl.name => sl.value for sl in s.sliders) == Dict(:r => first(heat.varied[:r]), :t => 0.0)
+
+    # --- the status line after a run: what ran, was cached or failed ---
+    @test PDEStudio._run_status(nothing, 1.23, 2) == ("Simulation finished in 1.2 s (2 methods).", :ok)
+    if isdefined(PDEStudioCore, :RunSummary)   # (PDEStudioCore 0.5)
+        @test occursin("runs, 0 ran", s.status.text) && s.status.level === :ok   # (cached by the launch before)
+        a, b = create_param_dict(:a => 1), create_param_dict(:a => 2)
+        @test PDEStudio._run_status(RunSummary(tasks = [a, b], ran = [a], cached = [b]), 1.23, 2) ==
+              ("Simulation finished in 1.2 s: 2 runs, 1 ran, 1 cached.", :ok)
+        msg, level = PDEStudio._run_status(RunSummary(tasks = [a, b], cached = [b], changed = [b], failed = [a => "boom"],
+                                                      postprocessing_failed = [b => "late"]), 2.0, 2)
+        @test level === :warn && occursin("0 ran, 1 cached, 1 failed", msg) && occursin("1 made with other source code", msg)
+        @test occursin("1 statistics / post-processing step(s) failed", msg) && endswith(msg, "First error: boom.")
+    end
+
     reset_plotter!()
 end
 

@@ -385,8 +385,9 @@ function simulation_trigger()
         end
 
         @info "Running dynamic calculations directly from active config..."
+        summary = nothing
         elapsed = try
-            @elapsed _run_simulations(curr_config; calculate_stats = true, force_overwrite = false)
+            @elapsed (summary = _run_simulations(curr_config; calculate_stats = true, force_overwrite = false))
         catch e
             # (e.g. a source file that fails or is gone; failures of single runs are logged by PDEStudioCore)
             e isa InterruptException && rethrow()
@@ -410,7 +411,7 @@ function simulation_trigger()
             haskey(manager.widgets, :run_button) && (manager.widgets[:run_button].buttoncolor[] = :orange)
             return
         end
-        _status!("Simulation finished in $(round(elapsed, digits = 1)) s ($(length(active_methods)) methods).", :ok)
+        _status!(_run_status(summary, elapsed, length(active_methods))...)
 
         if manager.methods[] != active_methods   # order matters: it is the legend / comparison order
             manager.methods[] = copy(active_methods)

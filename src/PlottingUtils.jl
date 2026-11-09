@@ -79,7 +79,7 @@ end
 
 Dynamically constructs a plot title reflecting the exact position within a multi-dimensional parameter sweep.
 
-Iterates through all registered UI axes. If a dimension is actively mapped to a spatial or parameter axis (found in `plot_dims`), it labels it `[Axis]`. Otherwise, it prints the fixed value (e.g., `T = 0.500 | N = 100`): for a dimension of the data, the value of the snapshot or grid line drawn (the one of `sim_data`, the drawn dataset, nearest to the slider), not the slider position.
+Iterates through all registered UI axes. If a dimension is actively mapped to a spatial or parameter axis (found in `plot_dims`), it is left out (the axis label names it). Otherwise, it prints the fixed value (e.g., `T = 0.500 | N = 100`): for a dimension of the data, the value of the snapshot or grid line drawn (the one of `sim_data`, the drawn dataset, nearest to the slider), not the slider position.
 """
 function generate_dynamic_title(
     plot_dims::Tuple, 
@@ -102,7 +102,7 @@ function generate_dynamic_title(
         name = frontend_key(name_sym)   # custom display labels (set_label!) apply to titles too
 
         if i in plot_dims
-            push!(title_parts, "$name = [Axis]")
+            continue
         elseif i <= length(sel_vals)
             val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
             push!(title_parts, "$name = $(_fmt_value(val))")
@@ -110,6 +110,42 @@ function generate_dynamic_title(
     end
     
     return join(title_parts, " | ")
+end
+
+# The title of a subplot: the custom title of the UI settings, or `default_title` fitted to the plot width
+_set_title!(ax, default_title::AbstractString) =
+    (ax.title[] = manager.ui[:labels][:title] == "default" ? _fit_title(default_title, ax) : manager.ui[:labels][:title])
+
+# A title that fits the width of its plot (the plot width of the layout): the parts of `title` (separated by " | ")
+# are broken into lines where a line would be wider.
+function _fit_title(title::AbstractString, ax)
+    parts = split(title, " | ")
+    length(parts) > 1 || return String(title)
+    width = Float64(haskey(manager.widgets, :plot_width) ? manager.widgets[:plot_width].selection[] :
+                    get(manager.layout_cache, :plot_width, 500))
+    # (the size of the UI settings: the axis gets it after its title)
+    gen = get(manager.ui, :axis_general, Dict{Symbol, Any}())
+    font, size = ax.titlefont[], Float64(get(gen, :title_size, ax.titlesize[]))
+    lines = String[String(parts[1])]
+    for part in parts[2:end]
+        candidate = lines[end] * " | " * part
+        if _text_width(candidate, font, size) <= width
+            lines[end] = candidate
+        else
+            push!(lines, String(part))
+        end
+    end
+    return join(lines, "\n")
+end
+
+# The width of `str` in pixels, drawn with `font` (a font or the name of one of the theme's fonts, e.g. `:bold`)
+function _text_width(str::AbstractString, font, size::Real)
+    try
+        f = font isa Symbol ? Makie.to_font(Makie.to_value(Makie.current_default_theme().fonts[font])) : Makie.to_font(font)
+        return Float64(Makie.widths(Makie.text_bb(str, f, Float32(size)))[1])
+    catch
+        return 0.6 * size * length(str)   # (an estimate, should Makie's text layout change)
+    end
 end
 
 # The value of the dimension `dim` that is drawn for the slider value `v`: the nearest one on the axis of the dataset
