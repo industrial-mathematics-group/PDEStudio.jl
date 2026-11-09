@@ -67,7 +67,7 @@ Human-Review = "TODO"
 Reviewed-by = "TODO"
 
 [[annotations]]
-path = ["CHANGELOG.md", "README.md", "docs/make.jl", "docs/src/agents.md", "src/AgentAPI.jl", "src/MakiePlotting.jl", "src/PDEStudio.jl", "test/runtests.jl"]
+path = ["CHANGELOG.md", "README.md", "docs/make.jl", "docs/src/agents.md", "src/AgentAPI.jl", "src/ConfigIO.jl", "src/MakiePlotting.jl", "src/PDEStudio.jl", "src/UILogic.jl", "test/runtests.jl"]
 AI-Generation = "G3"
 Human-Review = "H0"
 AI-Review = "A2"
