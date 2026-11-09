@@ -16,6 +16,10 @@ end
 
 export launch_plotter, @launch, set_sim_config!, reset_plotter!, reset_manager!, set_mode!, set_allowed_dims!, set_max_params!, set_plot_preset!, force_simulation, set_resolution!
 export set_sim_preset!, save_sim_preset, save_plot_preset, reset_sim_config!
+# scripting and agents: the studio as functions (src/AgentAPI.jl)
+export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_data, studio_controls, studio_set!,
+       studio_press!, studio_options, studio_option!, studio_view!, studio_zoom!, studio_pan!, studio_rotate!,
+       studio_reset_view!
 
 
 # ==============================================================================
@@ -307,6 +311,7 @@ include("UILogic.jl")
 include("Render.jl")
 include("ConfigIO.jl")
 include("Presets.jl")
+include("AgentAPI.jl")
 
 """
     get_base_layout_options()

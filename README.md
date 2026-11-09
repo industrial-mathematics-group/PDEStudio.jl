@@ -64,6 +64,24 @@ They come from [PDEStudioCore](https://github.com/industrial-mathematics-group/P
 `SimulationConfig`, with its solver in PDEStudioCore's
 [`src/Examples/`](https://github.com/industrial-mathematics-group/PDEStudioCore.jl/tree/main/src/Examples).
 
+## Scripting & AI Agents
+
+Everything the window offers is also available as functions, with or without a display, so scripts and AI agents
+can explore results the way a person does: read what is shown, look at it, operate the controls and move the camera.
+
+```julia
+using PDEStudio
+studio_headless!()                          # no display needed (CairoMakie)
+launch_plotter(test_heat_2d(); style = :heatmap)
+describe_studio()                           # what is shown, and every control with its choices
+studio_set!(:t => 0.02, :plot_style => :heatmap_surface)
+studio_rotate!(30, 10); studio_zoom!(2)     # the camera
+studio_snapshot("heat.png")                 # an image of the plots
+studio_data(1)                              # the plotted numbers
+```
+
+See *Scripting & AI Agents* in the [documentation](https://industrial-mathematics-group.github.io/PDEStudio.jl/dev/).
+
 ## Your Own Simulation
 
 A solver is a function from the parameters of one run to a dataset; a `SimulationConfig` adds the methods, the sweep

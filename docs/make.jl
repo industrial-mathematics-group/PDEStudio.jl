@@ -30,6 +30,7 @@ makedocs(
             "Volume" => "render/volume.md",
         ],
         "Exploration" => "sliders.md",
+        "Scripting & AI Agents" => "agents.md",
         "API Reference" => "api.md",
     ],
 )
