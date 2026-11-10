@@ -1,6 +1,6 @@
 name = "PDEStudio"
 uuid = "9dcd72ad-f481-4c48-9703-3c94083dcfc3"
-version = "0.5.5"
+version = "0.6.0"
 authors = ["Pascal Jung <dev@blackslash.win>"]
 
 [deps]
@@ -37,7 +37,7 @@ FileIO = "1"
 LibGit2 = "1"
 Makie = "0.24"
 Observables = "0.5"
-PDEStudioCore = "0.4.4"
+PDEStudioCore = "0.5"
 Pkg = "1"
 PrecompileTools = "1"
 Printf = "1"
