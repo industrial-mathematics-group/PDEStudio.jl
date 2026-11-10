@@ -735,6 +735,29 @@ end
 # Shortens a value for a status message.
 _short(s::AbstractString, n::Int = 40) = length(s) > n ? first(s, n - 1) * "…" : s
 
+# The status line after a run, `(message, level)`: what ran, was cached or failed, from the `RunSummary` of PDEStudioCore
+# (older versions return nothing: then only the time)
+function _run_status(summary, elapsed::Real, n_methods::Integer)
+    head = "Simulation finished in $(round(elapsed, digits = 1)) s"
+    all(p -> hasproperty(summary, p), (:tasks, :ran, :cached, :failed)) || return ("$head ($n_methods methods).", :ok)
+    n(field) = hasproperty(summary, field) ? length(getproperty(summary, field)) : 0
+    n(:tasks) == 0 && return ("$head: no numerical runs (references only).", :ok)
+    parts = ["$(n(:ran)) ran", "$(n(:cached)) cached"]
+    n(:empty) > 0 && push!(parts, "$(n(:empty)) without output")
+    n(:failed) > 0 && push!(parts, "$(n(:failed)) failed")
+    msg = "$head: $(n(:tasks)) runs, $(join(parts, ", "))"
+    n(:changed) > 0 && (msg *= "; $(n(:changed)) made with other source code (kept, see the log)")
+    later = n(:stats_failed) + n(:postprocessing_failed)
+    later > 0 && (msg *= "; $later statistics / post-processing step(s) failed")
+    outdated = hasproperty(summary, :postprocessing) ? get(summary.postprocessing, :outdated, 0) : 0
+    outdated > 0 && (msg *= "; $outdated post-processed by another version of the post-processor (kept, see the log)")
+    first_error = n(:failed) > 0 ? last(first(summary.failed)) :
+                  n(:stats_failed) > 0 ? last(first(summary.stats_failed)) :
+                  n(:postprocessing_failed) > 0 ? last(first(summary.postprocessing_failed)) : nothing
+    isnothing(first_error) || (msg *= ". First error: $(_short(string(first_error), 90))")
+    return msg * ".", (n(:failed) + n(:empty) + later + n(:changed) + outdated == 0 ? :ok : :warn)
+end
+
 # ------------------------------------------------------------------------------
 # Fixed widgets: placing, hiding and parking
 # ------------------------------------------------------------------------------

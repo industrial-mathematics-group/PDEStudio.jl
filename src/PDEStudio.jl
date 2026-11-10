@@ -168,6 +168,9 @@ Base.@kwdef mutable struct PlotManager
     exploration_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     compare_state::Tuple{Symbol, Union{Nothing, Int}, Vector{String}, Vector} = (:none, nothing, String[], Any[])
     plot_titles::Vector{String} = String[]
+    launch_run::Any = nothing                                          # (RunSummary, seconds) of the run before a launch
+    bound_setup::Any = nothing                                         # `_view_setup` of the bound configuration
+    plot_title_parts::Vector{Vector{Tuple{String, Vector{String}}}} = Vector{Tuple{String, Vector{String}}}[]   # (see `_title_parts`)
     active_plot_type::Symbol = :none                                 # :none before the first layout
     csv_cache::Union{Nothing, NamedTuple} = nothing                  # structural CSV staged until "Run Simulation"
     pending_domain::Any = nothing                                    # data with axes the window lacks (rebuilt on "Run")
@@ -374,6 +377,7 @@ function simulation_trigger()
     ran = false
     @with_lock :Simulation begin
 
+        launch_run, manager.launch_run = manager.launch_run, nothing   # (see below)
         curr_config = manager.active_config
         isnothing(curr_config) && return
 
@@ -385,8 +389,9 @@ function simulation_trigger()
         end
 
         @info "Running dynamic calculations directly from active config..."
+        summary = nothing
         elapsed = try
-            @elapsed _run_simulations(curr_config; calculate_stats = true, force_overwrite = false)
+            @elapsed (summary = _run_simulations(curr_config; calculate_stats = true, force_overwrite = false))
         catch e
             # (e.g. a source file that fails or is gone; failures of single runs are logged by PDEStudioCore)
             e isa InterruptException && rethrow()
@@ -395,6 +400,9 @@ function simulation_trigger()
             _status!("Running failed: $(_short(first(split(msg, '\n')), 110))", :error)
             return
         end
+
+        # (the run before `launch_plotter` built the window did the work: its summary)
+        isnothing(launch_run) || ((summary, elapsed) = launch_run)
 
         # Data with axes the window doesn't have (e.g. a time axis `:iteration`) would be dropped: the next click on
         # "Run Simulation" rebuilds the window with them (like a CSV that changes the dimensions).
@@ -410,7 +418,7 @@ function simulation_trigger()
             haskey(manager.widgets, :run_button) && (manager.widgets[:run_button].buttoncolor[] = :orange)
             return
         end
-        _status!("Simulation finished in $(round(elapsed, digits = 1)) s ($(length(active_methods)) methods).", :ok)
+        _status!(_run_status(summary, elapsed, length(active_methods))...)
 
         if manager.methods[] != active_methods   # order matters: it is the legend / comparison order
             manager.methods[] = copy(active_methods)

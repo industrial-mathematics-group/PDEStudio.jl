@@ -1,0 +1,16 @@
+# set_sim_config!(other setup) into an open window with a locked camera (studio_view!) vs relaunch (headless)
+using PDEStudio
+studio_headless!()
+set_save_path!(mktempdir())
+const M = PDEStudio.manager
+lim(tag) = (p = studio_state().plots[1]; println(rpad(tag, 26), "locked=", M.camera_locked[], " xlims=", p.xlims, " ylims=", p.ylims, " title=", p.title))
+launch_plotter(test_heat_2d(); style = :heatmap)
+studio_view!(xlims = (0.2, 0.4), ylims = (0.3, 0.6))
+lim("heat, studio_view!")
+set_sim_config!(test_advection_1d()); force_simulation()
+lim("adv bound + run")
+reset_plotter!()
+launch_plotter(test_heat_2d(); style = :heatmap)
+studio_view!(xlims = (0.2, 0.4), ylims = (0.3, 0.6))
+launch_plotter(test_advection_1d(); style = :heatmap)
+lim("(relaunch instead)")

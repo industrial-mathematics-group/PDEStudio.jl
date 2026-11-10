@@ -76,6 +76,7 @@ function _handle_plot_trigger!(
         plot_y_slices = Dict{Int, Any}()
 
         manager.plot_titles = fill("", num_plots)
+        manager.plot_title_parts = [Tuple{String, Vector{String}}[] for _ in 1:num_plots]
 
         for i in 1:num_plots
             manager.caches[i] = Dict{Symbol, _cache_type(Val(manager.mode[]))}()
@@ -93,12 +94,14 @@ function _handle_plot_trigger!(
             sim_data = _get_first_valid(first(values(data)))
             active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
             
-            ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
-                                        something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
+            parts = _title_parts(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+                                 something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
             
+            ts = join(first.(parts), " | ")
             manager.plot_titles[i] = ts
+            manager.plot_title_parts[i] = parts
             
-            default_title = is_compare ? "$(compare_labels[i])" : ts
+            default_title = is_compare ? "$(compare_labels[i])" : parts
             
             x_str = frontend_key(x_sel[])
             y_str = frontend_key(y_sel[])
@@ -106,7 +109,7 @@ function _handle_plot_trigger!(
             u_str = frontend_key(u_sel[])
 
             initialize_base_plot!(plot_layout, axes[i], valid_methods, data_tuples, x_str, y_str, z_str, u_str, ts, Val(T), i)
-            axes[i].title[] = manager.ui[:labels][:title] == "default" ? default_title : manager.ui[:labels][:title]
+            _set_title!(axes[i], default_title)
             
             if !is_3d_axis
                 if manager.mode[] == :lagrangian
@@ -313,6 +316,7 @@ function _handle_data_trigger!(
     plot_y_slices = Dict{Int, Any}()
 
     manager.plot_titles = fill("", num_plots)
+    manager.plot_title_parts = [Tuple{String, Vector{String}}[] for _ in 1:num_plots]
 
     for i in 1:num_plots
         mutated_sel_vals = is_compare ? _mutate_compare_vals(sel_vals, i) : sel_vals
@@ -345,14 +349,16 @@ function _handle_data_trigger!(
         
         active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
         
-        ts = generate_dynamic_title(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
-                                    something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
+        parts = _title_parts(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+                             something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
         
+        ts = join(first.(parts), " | ")
         manager.plot_titles[i] = ts
+        manager.plot_title_parts[i] = parts
             
-        default_title = is_compare ? "$(compare_labels[i])" : ts
+        default_title = is_compare ? "$(compare_labels[i])" : parts
 
-        axes[i].title[] = manager.ui[:labels][:title] == "default" ? default_title : manager.ui[:labels][:title]
+        _set_title!(axes[i], default_title)
     end
     
     if !is_3d_axis
@@ -430,9 +436,9 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
 
     for (i, ax) in enumerate(axes)
         if i <= length(manager.plot_titles)
-            ts = manager.plot_titles[i]
+            ts = i <= length(manager.plot_title_parts) ? manager.plot_title_parts[i] : manager.plot_titles[i]
             default_title = is_compare && !isempty(dyn_compare_labels) && i <= length(dyn_compare_labels) ? "$(dyn_compare_labels[i])" : ts
-            ax.title[] = manager.ui[:labels][:title] == "default" ? default_title : manager.ui[:labels][:title]
+            _set_title!(ax, default_title)
         end
         
         _apply_axis_styles!(ax, T)
