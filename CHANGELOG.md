@@ -5,6 +5,28 @@ What has changed since the last release. Released versions are described in the
 
 ## Unreleased
 
+### Fixed
+- **`particles_lines` joins the particles along the axis**, not in storage order: particle management stores inserted
+  particles last, so the lines ran back and forth across the plot.
+- **`studio_set!` makes the changes of one call in the order the controls depend on each other** (style, methods,
+  layout and comparison, axes, dependent field, then the sliders after the rest is applied): ending a comparison and
+  setting the slider it held, or setting the x axis and a statistic it offers, works in one call.
+- **Small and large values in titles, slider labels and descriptions** have 3 significant digits (`τ = 1e-05`, was
+  `0.000`); values from 0.001 to 10⁵ keep 3 decimals.
+- **Names of parameters without a label:** an entry of a tuple parameter is shown in brackets (`Grid_Ns__1` is
+  "Grid Ns[1]", was "Grid Ns  1"; `__all` is "(all)"), and words written with capitals keep them (`PDE_tau` is
+  "PDE Tau", was "Pde Tau").
+- **Long method names in the titles of compared methods** are broken into lines at spaces or underscores (a word
+  wider than the plot is shortened with "…") instead of running into the next plot.
+
+### Changed
+- **Statistics for agents:** the `:u_axis` entry of `studio_controls` / `describe_studio` and the error of an
+  unavailable `:u_axis` value name the statistics the current axes don't offer and the call that plots them (e.g.
+  `studio_set!(:x_axis => :t, :u_axis => :l1error)`; in particle styles with a grid style). `studio_state` reports
+  titles as one line of text.
+
+## 0.6.0
+
 ### New
 - **`@launch [style] [config]`**: runs a configuration and opens the studio with it, optionally in a plot style:
   `@launch heatmap test_heat_2d()`. A style is a group (`lines`, `scatter`, `contour`, `heatmap`, `volume`,

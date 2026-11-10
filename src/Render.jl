@@ -604,8 +604,8 @@ function initialize_base_plot!(plot_layout::GridLayout, ax, active_methods, data
             cache.obs_x.val = _unwrap_1tuples(xs_slices[m_idx])
             cache.obs_u.val = _unwrap_1tuples(us_slices[m_idx])
         else
-            cache.obs_pts.val = _unwrap_1tuples(xs_slices[m_idx])
-            cache.obs_u.val   = _unwrap_1tuples(us_slices[m_idx])
+            # (lines join the particles along the axis, not in storage order: inserted particles are stored last)
+            cache.obs_pts.val, cache.obs_u.val = _by_position(_unwrap_1tuples(xs_slices[m_idx]), _unwrap_1tuples(us_slices[m_idx]))
         end
         
         c   = Makie.to_color(ui_app[:colors][mod1(m_idx, end)])
@@ -625,6 +625,15 @@ function initialize_base_plot!(plot_layout::GridLayout, ax, active_methods, data
 end
 
 initialize_base_plot!(args...; kwargs...) = @warn "Could not find requested Plotting Style!"
+
+# Particles of a 1D line plot sorted by their position (particle management stores inserted particles last, so the
+# storage order isn't the order along the axis)
+function _by_position(pts::AbstractVector, u::AbstractVector)
+    (length(pts) == length(u) && !isempty(pts) && first(pts) isa Union{Real, StaticVector{1}}) || return pts, u
+    p = sortperm(first.(pts))
+    issorted(p) && return pts, u
+    return pts[p], u[p]
+end
 
 # =============================================================================
 # TIER 3 DATA INJECTION HELPERS (Perfectly Forked)
@@ -663,8 +672,10 @@ function sync_data_to_cache!(cache_dict, active_methods, data_tuples, ::Val{D}) 
             haskey(cache_dict, label) || continue
             cache = cache_dict[label]
             changed = Observable[]
-            _stage!(cache.obs_pts, _unwrap_1tuples(pts_slices[m_idx])) && push!(changed, cache.obs_pts)
-            cache.obs_u.val = _unwrap_1tuples(us_slices[m_idx])
+            pts, u = _unwrap_1tuples(pts_slices[m_idx]), _unwrap_1tuples(us_slices[m_idx])
+            haskey(cache.primitives, :scatter_lines) && ((pts, u) = _by_position(pts, u))
+            _stage!(cache.obs_pts, pts) && push!(changed, cache.obs_pts)
+            cache.obs_u.val = u
             _notify_staged!(changed, cache.obs_u)
         end        
     elseif first_cache isa EulerianPlotCache

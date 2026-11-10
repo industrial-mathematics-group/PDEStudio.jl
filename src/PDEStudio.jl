@@ -170,6 +170,7 @@ Base.@kwdef mutable struct PlotManager
     plot_titles::Vector{String} = String[]
     launch_run::Any = nothing                                          # (RunSummary, seconds) of the run before a launch
     bound_setup::Any = nothing                                         # `_view_setup` of the bound configuration
+    title_texts::Dict{UInt, String} = Dict{UInt, String}()             # objectid(axis) => its title in one line
     plot_title_parts::Vector{Vector{Tuple{String, Vector{String}}}} = Vector{Tuple{String, Vector{String}}}[]   # (see `_title_parts`)
     active_plot_type::Symbol = :none                                 # :none before the first layout
     csv_cache::Union{Nothing, NamedTuple} = nothing                  # structural CSV staged until "Run Simulation"

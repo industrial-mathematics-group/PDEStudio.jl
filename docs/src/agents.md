@@ -82,8 +82,23 @@ studio_press!(:run)                                        # a button
 ```
 
 `studio_set!` presses the button a change needs (*Update Plot*, *Apply Layout* or *Run Simulation*) once after all
-changes, and returns the new values and the status line. A name or value that doesn't exist throws an
-`ArgumentError` listing the valid ones, so an agent can correct itself.
+changes, and returns the new values and the status line. The changes of one call are made in the order the controls
+depend on each other, whatever order they are given in (style, methods, layout and comparison, x/y/z axes, the
+dependent field, then the sliders after the rest is applied), so `studio_set!(:compare_target => :none, :r => 0.25)`
+sets the slider the comparison held. A name or value that doesn't exist throws an `ArgumentError` listing the valid
+ones, so an agent can correct itself.
+
+**Statistics** (errors, mass, …) are dependent fields (`:u_axis`) over the dimensions they keep or over swept
+parameters, in the grid styles (particle data is converted):
+
+```julia
+studio_set!(:plot_style => :lines, :x_axis => :t, :u_axis => :l1error)   # the error over time
+studio_set!(:x_axis => :N, :u_axis => :l1error, :t => 1.0)               # the error over a swept parameter, at t = 1
+```
+
+The `:u_axis` entry of `studio_controls` (and `describe_studio`) names the statistics the current axes don't offer and
+how to get them. An x-axis entry `:l1error|t` is something else: it puts the statistic on the x axis, against the
+dependent field.
 
 The look (the *UI* tab) is changed with [`studio_option!`](@ref); [`studio_options`](@ref) lists the scopes and keys:
 

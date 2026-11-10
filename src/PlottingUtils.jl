@@ -18,7 +18,10 @@ end
 # Maximum number of subplots a "compare over time / parameter" layout creates (values are subsampled evenly).
 const MAX_COMPARE_PLOTS = 12
 
-_fmt_value(v) = v isa AbstractFloat ? @sprintf("%.3f", v) : string(v)
+# Numbers in titles, slider labels and descriptions: 3 decimals, small and large values with 3 significant digits
+# (τ = 1e-05, not 0.000)
+_fmt_value(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 1e-3 <= abs(v) < 1e5 ? @sprintf("%.3f", v) :
+                                       @sprintf("%.3g", v)) : string(v)
 _fmt_compare(v) = v isa AbstractFloat ? string(round(v, sigdigits = 4)) : string(v)
 
 # Evenly spread indices into 1:n, at most MAX_COMPARE_PLOTS of them.
@@ -139,12 +142,50 @@ function _title_values(i::Int, is_param::Bool, dim::Symbol, sim_data)
     end
 end
 
-# The title of a subplot: the custom title of the UI settings, or the default title (parts fitted to the plot width;
-# a text, e.g. the label of a compared value, as it is)
+# The title of a subplot: the custom title of the UI settings, or the default title fitted to the plot width (its parts,
+# or a text such as the label of a compared method)
 function _set_title!(ax, default_title)
     custom = manager.ui[:labels][:title]
-    ax.title[] = custom != "default" ? custom : default_title isa AbstractString ? default_title : _fit_title(default_title, ax)
+    text = custom != "default" ? custom : default_title isa AbstractString ? String(default_title) :
+           join((first(p) for p in default_title), " | ")
+    manager.title_texts[objectid(ax)] = text   # (the title in one line, as the API reports it)
+    ax.title[] = custom != "default" ? custom :
+                 default_title isa AbstractString ? _fit_label(default_title, ax) : _fit_title(default_title, ax)
     return nothing
+end
+
+# The plot width and the title font of an axis (the size of the UI settings: the axis gets it after its title)
+function _title_metrics(ax)
+    width = Float64(haskey(manager.widgets, :plot_width) ? manager.widgets[:plot_width].selection[] :
+                    get(manager.layout_cache, :plot_width, 500))
+    gen = get(manager.ui, :axis_general, Dict{Symbol, Any}())
+    return width, ax.titlefont[], Float64(get(gen, :title_size, ax.titlesize[]))
+end
+
+# A title of one text (e.g. the label of a compared method) that fits the plot width: broken after spaces or underscores
+# where a line would be wider, a word wider than the plot shortened with "…"
+function _fit_label(label::AbstractString, ax)
+    width, font, size = _title_metrics(ax)
+    fits(s) = _text_width(s, font, size) <= width
+    (isempty(label) || fits(label)) && return String(label)
+    lines = String[""]
+    for word in (m.match for m in eachmatch(r"[^ _]+[ _]*|[ _]+", label))   # (a word with the separators after it)
+        if isempty(lines[end]) || fits(rstrip(lines[end] * word))
+            lines[end] *= word
+        else
+            push!(lines, word)
+        end
+    end
+    return join((_shorten_to(rstrip(l), fits) for l in lines), "\n")
+end
+
+function _shorten_to(s::AbstractString, fits)
+    fits(s) && return String(s)
+    n = length(s)
+    while n > 1 && !fits(first(s, n - 1) * "…")
+        n -= 1
+    end
+    return first(s, max(n - 1, 1)) * "…"
 end
 
 # A title that fits the width of its plot (the plot width of the layout): its parts are broken into lines where a
@@ -152,11 +193,7 @@ end
 function _fit_title(parts::AbstractVector, ax)
     texts = String[first(p) for p in parts]
     length(texts) > 1 || return join(texts, " | ")
-    width = Float64(haskey(manager.widgets, :plot_width) ? manager.widgets[:plot_width].selection[] :
-                    get(manager.layout_cache, :plot_width, 500))
-    # (the size of the UI settings: the axis gets it after its title)
-    gen = get(manager.ui, :axis_general, Dict{Symbol, Any}())
-    font, size = ax.titlefont[], Float64(get(gen, :title_size, ax.titlesize[]))
+    width, font, size = _title_metrics(ax)
     widest = [maximum(s -> _text_width(s, font, size), [text; others]) for (text, others) in parts]
     sep = _text_width(" | ", font, size)
     lines, used = [[texts[1]]], widest[1]
