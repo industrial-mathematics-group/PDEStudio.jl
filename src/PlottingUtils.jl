@@ -19,8 +19,8 @@ end
 const MAX_COMPARE_PLOTS = 12
 
 # Numbers in titles, slider labels and descriptions: 3 decimals, small and large values with 3 significant digits
-# (τ = 1e-05, not 0.000)
-_fmt_value(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 1e-3 <= abs(v) < 1e5 ? @sprintf("%.3f", v) :
+# (τ = 1e-05, not 0.000; 0.0015, not 0.002)
+_fmt_value(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 1e-2 <= abs(v) < 1e5 ? @sprintf("%.3f", v) :
                                        @sprintf("%.3g", v)) : string(v)
 _fmt_compare(v) = v isa AbstractFloat ? string(round(v, sigdigits = 4)) : string(v)
 
@@ -148,9 +148,16 @@ function _set_title!(ax, default_title)
     custom = manager.ui[:labels][:title]
     text = custom != "default" ? custom : default_title isa AbstractString ? String(default_title) :
            join((first(p) for p in default_title), " | ")
-    manager.title_texts[objectid(ax)] = text   # (the title in one line, as the API reports it)
-    ax.title[] = custom != "default" ? custom :
-                 default_title isa AbstractString ? _fit_label(default_title, ax) : _fit_title(default_title, ax)
+    manager.title_texts[objectid(ax)] = replace(text, "\n" => " | ")   # (the title in one line, as the API reports it)
+    if custom != "default"
+        ax.title[] = custom
+    elseif ax isa Axis3
+        # (the space above a 3D axis doesn't grow with the title: one line, shortened to the plot width)
+        width, font, size = _title_metrics(ax)
+        ax.title[] = _shorten_to(text, s -> _text_width(s, font, size) <= width)
+    else
+        ax.title[] = default_title isa AbstractString ? _fit_label(default_title, ax) : _fit_title(default_title, ax)
+    end
     return nothing
 end
 
@@ -176,6 +183,7 @@ function _fit_label(label::AbstractString, ax)
             push!(lines, word)
         end
     end
+    length(lines) > 2 && (lines = [lines[1], join(lines[2:end])])   # (at most two lines: the rest is shortened)
     return join((_shorten_to(rstrip(l), fits) for l in lines), "\n")
 end
 

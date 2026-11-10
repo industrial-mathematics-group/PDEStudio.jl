@@ -38,7 +38,7 @@ Plot: style heatmap_flat (2D); x = x, y = y, z = none, u = Solution, component 1
     explicit: values [-0.212, 1.295]
 Controls (studio_set! / studio_press!):
   plot_style [style, applies with :apply_layout] = :heatmap_flat  ∈ {:lines_1d, :lines_2d, …}
-  x_axis [menu, applies with :update_plot] = :x  ∈ {:x, :y, :r, :t} — X-Axis
+  x_axis [menu, applies with :update_plot] = :x  ∈ {:x, :y, :r, :t} — X-Axis (an entry :stat|dim puts the statistic on the x axis, against the dependent field)
   …
   r [slider] = 0.1  (0.100, 0.250, 0.300) — swept parameter (shown: 0.100)
   t [slider] = 0.0  (100 values, 0.000 … 0.050) — dimension
@@ -85,16 +85,21 @@ studio_press!(:run)                                        # a button
 changes, and returns the new values and the status line. The changes of one call are made in the order the controls
 depend on each other, whatever order they are given in (style, methods, layout and comparison, x/y/z axes, the
 dependent field, then the sliders after the rest is applied), so `studio_set!(:compare_target => :none, :r => 0.25)`
-sets the slider the comparison held. A name or value that doesn't exist throws an `ArgumentError` listing the valid
+sets the slider the comparison held (a slider that the same call puts on an axis or into the comparison is left as it
+is). Every name is checked before anything is set. A name or value that doesn't exist throws an `ArgumentError` listing the valid
 ones, so an agent can correct itself.
 
 **Statistics** (errors, mass, …) are dependent fields (`:u_axis`) over the dimensions they keep or over swept
-parameters, in the grid styles (particle data is converted):
+parameters, in a 1D grid style such as `lines` (particle data is converted):
 
 ```julia
 studio_set!(:plot_style => :lines, :x_axis => :t, :u_axis => :l1error)   # the error over time
 studio_set!(:x_axis => :N, :u_axis => :l1error, :t => 1.0)               # the error over a swept parameter, at t = 1
 ```
+
+Over a swept parameter, each run is taken at its stored time nearest to the `:t` slider; runs with other time steps can
+differ there (the title shows one of them), so for convergence studies use a common output time or a statistic of the
+final state.
 
 The `:u_axis` entry of `studio_controls` (and `describe_studio`) names the statistics the current axes don't offer and
 how to get them. An x-axis entry `:l1error|t` is something else: it puts the statistic on the x axis, against the

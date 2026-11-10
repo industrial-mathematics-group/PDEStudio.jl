@@ -10,20 +10,22 @@ What has changed since the last release. Released versions are described in the
   particles last, so the lines ran back and forth across the plot.
 - **`studio_set!` makes the changes of one call in the order the controls depend on each other** (style, methods,
   layout and comparison, axes, dependent field, then the sliders after the rest is applied): ending a comparison and
-  setting the slider it held, or setting the x axis and a statistic it offers, works in one call.
+  setting the slider it held, or setting the x axis and a statistic it offers, works in one call. Every name is
+  checked before anything is set, and a slider the same call puts on an axis or into the comparison is left as it is.
 - **Small and large values in titles, slider labels and descriptions** have 3 significant digits (`τ = 1e-05`, was
-  `0.000`); values from 0.001 to 10⁵ keep 3 decimals.
+  `0.000`; `0.0015`, was `0.002`); values from 0.01 to 10⁵ keep 3 decimals.
 - **Names of parameters without a label:** an entry of a tuple parameter is shown in brackets (`Grid_Ns__1` is
   "Grid Ns[1]", was "Grid Ns  1"; `__all` is "(all)"), and words written with capitals keep them (`PDE_tau` is
   "PDE Tau", was "Pde Tau").
 - **Long method names in the titles of compared methods** are broken into lines at spaces or underscores (a word
-  wider than the plot is shortened with "…") instead of running into the next plot.
+  wider than the plot is shortened with "…", at most two lines; one line on 3D axes) instead of running into the next
+  plot.
 
 ### Changed
 - **Statistics for agents:** the `:u_axis` entry of `studio_controls` / `describe_studio` and the error of an
   unavailable `:u_axis` value name the statistics the current axes don't offer and the call that plots them (e.g.
-  `studio_set!(:x_axis => :t, :u_axis => :l1error)`; in particle styles with a grid style). `studio_state` reports
-  titles as one line of text.
+  `studio_set!(:x_axis => :t, :u_axis => :l1error)`, with `:plot_style => :lines` in 2D/3D and particle styles).
+  `studio_state` reports titles as one line of text.
 
 ## 0.6.0
 
