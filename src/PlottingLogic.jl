@@ -76,6 +76,7 @@ function _handle_plot_trigger!(
         plot_y_slices = Dict{Int, Any}()
 
         manager.plot_titles = fill("", num_plots)
+        empty!(manager.title_texts)   # (new axes)
         manager.plot_title_parts = [Tuple{String, Vector{String}}[] for _ in 1:num_plots]
 
         for i in 1:num_plots

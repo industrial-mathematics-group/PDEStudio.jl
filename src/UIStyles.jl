@@ -78,9 +78,12 @@ function frontend_key(s::Symbol)
     if haskey(SYMBOL_TO_LABEL_MAP, s)
         return SYMBOL_TO_LABEL_MAP[s]
     end
-    # 3. Algorithmic Fallback
-    words = split(String(s), "_")
-    return join(map(titlecase, words), " ")
+    # 3. Algorithmic Fallback: words at underscores (as written when they have capitals: `PDE_tau` is "PDE Tau"),
+    #    an entry of a tuple parameter in brackets (`Grid_Ns__1` is "Grid Ns[1]", `Ns__all` "Ns (all)")
+    m = match(r"^(.+?)__([A-Za-z0-9]+)$", String(s))
+    isnothing(m) || return frontend_key(Symbol(m.captures[1])) * (m.captures[2] == "all" ? " (all)" : "[$(m.captures[2])]")
+    words = filter(!isempty, split(String(s), "_"))
+    return join((w == lowercase(w) ? titlecase(w) : uppercasefirst(w) for w in words), " ")
 end
 frontend_key(s) = string(s)  # numbers, `nothing`, … (e.g. menu values that are not symbols)
 

@@ -547,7 +547,7 @@ function _plot_state(i, ax)
     caches = get(manager.caches, i, Dict{Symbol, AbstractPlotCache}())
     ranges = Dict{Symbol, Any}(m => _finite_range(c.obs_u[]) for (m, c) in caches)
     return merge(_axis_view(i, ax),
-                 (title = replace(string(ax.title[]), "\n" => " | "), xlabel = string(ax.xlabel[]), ylabel = string(ax.ylabel[]),
+                 (title = get(manager.title_texts, objectid(ax), replace(string(ax.title[]), "\n" => " ")), xlabel = string(ax.xlabel[]), ylabel = string(ax.ylabel[]),
                   zlabel = ax isa Axis3 ? string(ax.zlabel[]) : nothing, is_3d = ax isa Axis3, value_ranges = ranges))
 end
 
@@ -649,8 +649,12 @@ function studio_controls()
     for key in (:x_axis, :y_axis, :z_axis, :u_axis, :component, :anim_target, :compare_target, :compare_link,
                 :legend_base, :legend_add)
         haskey(w, key) || continue
+        label = key === :u_axis ? join(filter(!isempty, [_MENU_LABELS[key], _statistics_hint()]), "; ") :
+                key === :x_axis && manager.mode[] === :eulerian ?
+                _MENU_LABELS[key] * " (an entry :stat|dim puts the statistic on the x axis, against the dependent field)" :
+                _MENU_LABELS[key]
         push!(out, (name = key, kind = :menu, value = w[key].selection[], choices = Any[o[2] for o in w[key].options[]],
-                    label = _MENU_LABELS[key], applies = _control_step(key)))
+                    label = label, applies = _control_step(key)))
     end
     for key in (:plot_width, :plot_height, :compare_columns)
         haskey(w, key) || continue
@@ -708,28 +712,68 @@ name, e.g. `:N => 128` or `:t => 1.5`; the nearest slider value is taken, non-nu
 (`:plot_style => :heatmap_surface`, also groups such as `:contour`), the numbers of the layout (`:plot_width => 600`)
 and the active methods (`:methods => [:upwind, :exact]`). See [`studio_controls`](@ref) for the names, values and
 choices. With `apply = true` the button a change needs is pressed afterwards (*Update Plot*, *Apply Layout* or *Run
-Simulation*, once for all changes, also if a change made before is still pending). Invalid names or values throw an
-`ArgumentError` that lists the valid ones. Returns `(values, status)`: the value each control has now and the status
-line.
+Simulation*, once for all changes, also if a change made before is still pending). The changes of one call are made
+in the order the controls depend on each other, whatever order they are given in: the plot style, the methods, the
+layout and comparison, the axes (x, y, z, then the dependent field, whose statistics depend on the axes), and the
+sliders after the rest is applied: a slider that a change frees (e.g. the former compare target) can be set in the
+same call (with `apply = false` it is still disabled then, and the call throws), and a slider the same call puts on a
+plot axis or into the comparison is left as it is (the status line names it). Every name is checked before anything
+is set; an invalid name or value throws an `ArgumentError` that lists the valid ones. Returns `(values, status)`: the
+value each control has now and the status line.
+
+Statistics are dependent fields (`:u_axis`) over the dimensions they keep or over swept parameters, in a 1D grid style
+(particle data is converted): an error over time is `studio_set!(:plot_style => :lines, :x_axis => :t, :u_axis =>
+:l1error)`, over a swept parameter `studio_set!(:x_axis => :N, :u_axis => :l1error)`. The latter takes each run at its
+stored time nearest to the `:t` slider (runs with other time steps can differ there; for convergence studies use a
+common output time or a statistic of the final state).
 
 ```julia
 studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
 studio_set!(:N => 128)
 studio_set!(:compare_target => :methods, :compare_columns => 3)
+studio_set!(:compare_target => :none, :cfl => 0.5)   # (the slider the comparison held)
 ```
 """
 function studio_set!(changes::Pair...; apply::Bool = true)
     _studio_window()
     isempty(changes) && throw(ArgumentError("studio_set!(name => value, ...): nothing to set (see studio_controls())"))
+    names = Symbol[Symbol(first(c)) for c in changes]
+    foreach(_check_control_name, names)   # (nothing is set or pressed before every name is known)
     steps = Symbol[]
-    names = Symbol[]
     before, failures = _status_text(), manager.render_failures
-    for (name, value) in changes
-        n = Symbol(name)
-        push!(steps, _set_control!(n, value))
-        push!(names, n)
+    # in the order the controls depend on each other (the style decides the axes, the x axis the statistics the dependent
+    # field offers, ...), and the sliders after the rest is applied (e.g. a slider the comparison held)
+    ordered = sort!(collect(Pair{Symbol, Any}, Symbol(first(c)) => last(c) for c in changes), by = c -> _control_rank(first(c)))
+    sliders = filter(c -> _control_rank(first(c)) == _SLIDER_RANK, ordered)
+    enabled = Dict(n => _slider_enabled(n) for (n, _) in sliders)   # (before the other changes of this call)
+    # (the values of the sliders that are usable now are checked before anything is set or pressed; a change of the
+    # methods or the style may change their ranges: then they are checked when they are set)
+    if !any(n -> n in (:methods, :plot_style), names)
+        foreach(((n, v),) -> enabled[n] && _slider_target(n, _slider_key(n), v), sliders)
     end
-    pressed = apply ? _apply_steps!(steps) : nothing
+    for (n, value) in ordered
+        _control_rank(n) == _SLIDER_RANK && continue
+        push!(steps, _set_control!(n, value))
+    end
+    pressed = nothing
+    if apply && !isempty(sliders)
+        pressed = _apply_steps!(steps)
+        empty!(steps)
+    end
+    skipped = Symbol[]   # sliders this call put on a plot axis or into the comparison: left as they are
+    for (n, value) in sliders
+        if apply && enabled[n] && !_slider_enabled(n)
+            push!(skipped, n)
+            continue
+        end
+        push!(steps, _set_control!(n, value))
+    end
+    if apply
+        last_press = _apply_steps!(steps)
+        isnothing(last_press) || (pressed = last_press)
+    end
+    note = isempty(skipped) ? "" : "; not set: $(join(repr.(skipped), ", ")) (disabled by this call: a plot axis, the " *
+                                    "compare target, or not kept by the dependent field)"
     reported = _status_text() != before || manager.render_failures != failures ?
                (manager.widgets[:status][], manager.widgets[:status_color][]) : nothing
     released = apply && _release_stale_view!()   # (a view set by the API showed the old variables)
@@ -737,13 +781,38 @@ function studio_set!(changes::Pair...; apply::Bool = true)
     if isnothing(reported)
         _status!("Set " * join(("$(first(c)) = $(_short(repr(last(c)), 30))" for c in changes), ", ") *
                  (isnothing(pressed) ? (any(!=(:none), steps) ? " (not applied yet)" : "") : " ($pressed)") *
-                 (released ? "; the view set before follows the data again" : "") * ".", :ok)
+                 (released ? "; the view set before follows the data again" : "") * note * ".", :ok)
     else
         manager.widgets[:status][], manager.widgets[:status_color][] = reported
+        isempty(note) || (manager.widgets[:status][] = rstrip(manager.widgets[:status][], '.') * note * ".")
     end
     now = Dict{Symbol, Any}(c.name => c.value for c in studio_controls() if c.name in names)
     return (values = now, status = _status_text())
 end
+
+# Throws the error `studio_set!` gives for a name that is no control (before anything is set)
+function _check_control_name(n::Symbol)
+    w = manager.widgets
+    (n in (:plot_style, :methods) || (n in keys(_MENU_LABELS) && haskey(w, n)) ||
+     (n in keys(_NUMBER_LABELS) && haskey(w, n)) || !isnothing(_slider_key(n))) && return nothing
+    n in _unslid_parameters() && throw(_unslid_error(n))
+    throw(_no_control_error(n))
+end
+
+_unslid_error(n) = ArgumentError("parameter :$n is swept but has no slider: the window has $(manager.max_params) " *
+    "parameter slider(s) and draws its first value; open the studio with more (set_max_params!(" *
+    "$(manager.max_params + length(_unslid_parameters()))) before launch_plotter)")
+_no_control_error(n) = ArgumentError("studio_set!: no control named :$n; controls: " *
+                                     join((repr(c.name) for c in studio_controls() if c.kind !== :button), ", "))
+
+_slider_enabled(n) = (key = _slider_key(n); !isnothing(key) && length(manager.widgets[key].range[]) > 1)
+
+# The order `studio_set!` sets controls in (stable within a rank)
+const _SLIDER_RANK = 9
+const _CONTROL_RANKS = Dict(:plot_style => 1, :methods => 2, :compare_target => 3, :compare_link => 3, :compare_columns => 3,
+                            :legend_base => 3, :legend_add => 3, :plot_width => 3, :plot_height => 3, :x_axis => 4,
+                            :y_axis => 5, :z_axis => 6, :u_axis => 7, :component => 8, :anim_target => 8)
+_control_rank(name::Symbol) = get(_CONTROL_RANKS, name, _SLIDER_RANK)
 
 function _apply_steps!(steps)
     f = manager.flags
@@ -771,11 +840,8 @@ function _set_control!(name::Symbol, value)
         return :apply_layout
     end
     key = _slider_key(name)
-    name in _unslid_parameters() && throw(ArgumentError("parameter :$name is swept but has no slider: the window has " *
-        "$(manager.max_params) parameter slider(s) and draws its first value; open the studio with more (set_max_params!(" *
-        "$(manager.max_params + length(_unslid_parameters()))) before launch_plotter)"))
-    isnothing(key) && throw(ArgumentError("studio_set!: no control named :$name; controls: " *
-                                          join((repr(c.name) for c in studio_controls() if c.kind !== :button), ", ")))
+    name in _unslid_parameters() && throw(_unslid_error(name))
+    isnothing(key) && throw(_no_control_error(name))
     _set_slider_control!(name, key, value)
     return :none
 end
@@ -793,7 +859,10 @@ function _slider_key(name)
     return key in _slider_keys() && haskey(manager.widgets, key) && manager.widgets[key] isa Makie.Slider ? key : nothing
 end
 
-function _set_slider_control!(name, key, value)
+_set_slider_control!(name, key, value) = (set_close_to!(manager.widgets[key], _slider_target(name, key, value)); nothing)
+
+# The slider position for `value` (an index for a non-numeric sweep); throws an `ArgumentError` for an invalid value
+function _slider_target(name, key, value)
     sl = manager.widgets[key]
     rng = collect(sl.range[])
     length(rng) > 1 || throw(ArgumentError("slider :$name is disabled: it is a plot axis or the compare target, or the " *
@@ -812,8 +881,7 @@ function _set_slider_control!(name, key, value)
             throw(ArgumentError("slider :$name = $value is outside its range $(_fmt_value(lo)) … $(_fmt_value(hi))"))
         Float64(value)
     end
-    set_close_to!(sl, target)
-    return nothing
+    return target
 end
 
 function _set_menu_control!(name, menu, value)
@@ -821,10 +889,44 @@ function _set_menu_control!(name, menu, value)
     i = findfirst(o -> isequal(o[2], value) || string(o[2]) == string(value), opts)
     isnothing(i) && value isa AbstractString &&
         (i = findfirst(o -> lowercase(string(o[1])) == lowercase(strip(value)), opts))
-    isnothing(i) && throw(ArgumentError("$name has no option $(repr(value)); options: " *
-                                        join(("$(repr(o[2])) (\"$(o[1])\")" for o in opts), ", ")))
+    if isnothing(i)
+        hint = name === :u_axis ? _statistics_hint(Symbol(value)) : ""
+        throw(ArgumentError("$name has no option $(repr(value)); options: " *
+                            join(("$(repr(o[2])) (\"$(o[1])\")" for o in opts), ", ") * (isempty(hint) ? "" : ". " * uppercasefirst(hint))))
+    end
     menu.i_selected[] == i || (menu.i_selected[] = i)
     return nothing
+end
+
+# The statistics of the data the dependent field doesn't offer with the current axes (or only `stat`), and how to get
+# them: statistics are fields over the dimensions they keep and over swept parameters, plotted with a grid style
+function _statistics_hint(stat = nothing)
+    data = manager.plot_data[]
+    isempty(data) && return ""
+    pd = first(values(data))
+    sim = _get_first_valid(pd)
+    isnothing(sim) && return ""
+    offered = Set(o[2] for o in manager.widgets[:u_axis].options[])
+    params = Symbol.(pd.active_param_keys)
+    kept(k) = PDEStudioCore.get_kept_dims(k, sim.domain)
+    # (a statistic that keeps no dimension needs a swept parameter to be plotted over)
+    stats = sort!(Symbol[k for k in keys(sim.stats) if k !== :Solution && !(k in offered) && (isnothing(stat) || k === stat) &&
+                         (!isempty(kept(k)) || !isempty(params))])
+    isempty(stats) && return ""
+    s1 = first(stats)
+    axis = !isempty(kept(s1)) ? first(kept(s1)) : first(params)
+    over(k) = join([isempty(kept(k)) ? String[] : ["over $(join(repr.(kept(k)), ", "))"];
+                    isempty(params) ? String[] : ["over a swept parameter"]], " or ")
+    what, how = length(stats) == 1 ? ("the statistic $(repr(s1))", over(s1)) :
+                ("statistics ($(_short(join(repr.(stats), ", "), 120)))",
+                 allequal(kept.(stats)) ? over(s1) :
+                 "over the dimensions each keeps" * (isempty(params) ? "" : " or a swept parameter"))
+    # a 1D style: a 2D/3D style needs as many axes the statistic is plotted over (particle styles: a grid style)
+    style_dim = get(PLOT_DIM_MAP, manager.widgets[:plot_style].selection[], 1)
+    one_d = manager.mode[] === :lagrangian || style_dim > 1
+    where_ = !one_d ? "" : manager.mode[] === :lagrangian ? " in a 1D grid style (the particles are converted)" : " in a 1D grid style"
+    example = "studio_set!(" * (one_d ? ":plot_style => :lines, " : "") * ":x_axis => $(repr(axis)), :u_axis => $(repr(s1)))"
+    return "$what: plotted $how$where_, e.g. $example"
 end
 
 function _set_style_control!(value)

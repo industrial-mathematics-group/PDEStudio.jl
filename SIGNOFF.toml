@@ -85,3 +85,14 @@ AI-Review = "A2"
 Assisted-by = ["Claude (Anthropic), claude-opus-5-5"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+
+# Changed on claude/agent-feedback by Claude (issues found with the agent API: particle lines, statistic hints, the
+# order of studio_set!, value and label formatting, long titles of compared methods; reviewed in reviews/).
+[[annotations]]
+path = ["CHANGELOG.md", "docs/src/agents.md", "src/AgentAPI.jl", "src/PDEStudio.jl", "src/PlottingLogic.jl", "src/PlottingUtils.jl", "src/Render.jl", "src/UIStyles.jl", "test/runtests.jl"]
+AI-Generation = "G3"
+Human-Review = "H0"
+AI-Review = "A2"
+Assisted-by = ["Claude (Anthropic), claude-opus-5-5"]
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
