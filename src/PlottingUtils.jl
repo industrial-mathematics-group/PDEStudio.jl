@@ -19,8 +19,8 @@ end
 const MAX_COMPARE_PLOTS = 12
 
 # Numbers in titles, slider labels and descriptions: 3 decimals, small and large values with 3 significant digits
-# (τ = 1e-05, not 0.000; 0.0015, not 0.002)
-_fmt_value(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 1e-2 <= abs(v) < 1e5 ? @sprintf("%.3f", v) :
+# (τ = 1e-05, not 0.000; 0.0015, not 0.002; 0.0125, not 0.013)
+_fmt_value(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 0.1 <= abs(v) < 1e5 ? @sprintf("%.3f", v) :
                                        @sprintf("%.3g", v)) : string(v)
 _fmt_compare(v) = v isa AbstractFloat ? string(round(v, sigdigits = 4)) : string(v)
 
@@ -154,7 +154,8 @@ function _set_title!(ax, default_title)
     elseif ax isa Axis3
         # (the space above a 3D axis doesn't grow with the title: one line, shortened to the plot width)
         width, font, size = _title_metrics(ax)
-        ax.title[] = _shorten_to(text, s -> _text_width(s, font, size) <= width)
+        ax.title[] = default_title isa AbstractString ? _fit_label(default_title, ax) :
+                     _shorten_middle(text, s -> _text_width(s, font, size) <= width)
     else
         ax.title[] = default_title isa AbstractString ? _fit_label(default_title, ax) : _fit_title(default_title, ax)
     end
@@ -175,6 +176,8 @@ function _fit_label(label::AbstractString, ax)
     width, font, size = _title_metrics(ax)
     fits(s) = _text_width(s, font, size) <= width
     (isempty(label) || fits(label)) && return String(label)
+    label = _without_common_start(label)
+    (ax isa Axis3 || fits(label)) && return _shorten_middle(label, fits)   # (3D axes: one line)
     lines = String[""]
     for word in (m.match for m in eachmatch(r"[^ _]+[ _]*|[ _]+", label))   # (a word with the separators after it)
         if isempty(lines[end]) || fits(rstrip(lines[end] * word))
@@ -183,8 +186,40 @@ function _fit_label(label::AbstractString, ax)
             push!(lines, word)
         end
     end
-    length(lines) > 2 && (lines = [lines[1], join(lines[2:end])])   # (at most two lines: the rest is shortened)
-    return join((_shorten_to(rstrip(l), fits) for l in lines), "\n")
+    if length(lines) > 2   # (at most two lines: the rest is shortened in its middle, the ends of names differ)
+        return join([_shorten_to(rstrip(lines[1]), fits), _shorten_middle(rstrip(join(lines[2:end])), fits)], "\n")
+    end
+    return join((_shorten_middle(rstrip(l), fits) for l in lines), "\n")
+end
+
+# A compared value's label (e.g. a method name) without the words it shares at its start with the labels of the other
+# compared plots it is most alike (`upwind_scheme_without_limiter` next to `upwind_scheme_with_limiter`: "…without_limiter")
+function _without_common_start(label::AbstractString)
+    labels = String.(string.(manager.compare_state[3]))
+    (label in labels && length(labels) > 1) || return String(label)
+    words(s) = [m.match for m in eachmatch(r"[^ _]+[ _]*|[ _]+", s)]
+    mine = words(label)
+    n = 0   # (the most words it shares with another label: those it is confused with)
+    for other in labels
+        other == label && continue
+        w = words(other)
+        n = max(n, something(findfirst(i -> i > length(w) || w[i] != mine[i], 1:length(mine)), length(mine) + 1) - 1)
+    end
+    n = min(n, length(mine) - 1)   # (the last word stays)
+    return n <= 0 ? String(label) : "…" * join(mine[(n + 1):end])
+end
+
+# `s` shortened in its middle ("upwind_first…without_limiter") until it fits: the start and the end, where names of
+# compared methods (or the time of a title) differ, stay
+function _shorten_middle(s::AbstractString, fits)
+    fits(s) && return String(s)
+    n = length(s)
+    for keep in (n - 1):-1:2
+        head = cld(keep, 2)
+        t = first(s, head) * "…" * last(s, keep - head)
+        fits(t) && return t
+    end
+    return first(s, 1) * "…"
 end
 
 function _shorten_to(s::AbstractString, fits)

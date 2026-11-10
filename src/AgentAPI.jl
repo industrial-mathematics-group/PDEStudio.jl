@@ -746,6 +746,11 @@ function studio_set!(changes::Pair...; apply::Bool = true)
     ordered = sort!(collect(Pair{Symbol, Any}, Symbol(first(c)) => last(c) for c in changes), by = c -> _control_rank(first(c)))
     sliders = filter(c -> _control_rank(first(c)) == _SLIDER_RANK, ordered)
     enabled = Dict(n => _slider_enabled(n) for (n, _) in sliders)   # (before the other changes of this call)
+    # (the values of the sliders that are usable now are checked before anything is set or pressed; a change of the
+    # methods or the style may change their ranges: then they are checked when they are set)
+    if !any(n -> n in (:methods, :plot_style), names)
+        foreach(((n, v),) -> enabled[n] && _slider_target(n, _slider_key(n), v), sliders)
+    end
     for (n, value) in ordered
         _control_rank(n) == _SLIDER_RANK && continue
         push!(steps, _set_control!(n, value))
@@ -767,7 +772,8 @@ function studio_set!(changes::Pair...; apply::Bool = true)
         last_press = _apply_steps!(steps)
         isnothing(last_press) || (pressed = last_press)
     end
-    note = isempty(skipped) ? "" : "; not set: $(join(repr.(skipped), ", ")) (now a plot axis or the compare target)"
+    note = isempty(skipped) ? "" : "; not set: $(join(repr.(skipped), ", ")) (disabled by this call: a plot axis, the " *
+                                    "compare target, or not kept by the dependent field)"
     reported = _status_text() != before || manager.render_failures != failures ?
                (manager.widgets[:status][], manager.widgets[:status_color][]) : nothing
     released = apply && _release_stale_view!()   # (a view set by the API showed the old variables)
@@ -778,7 +784,7 @@ function studio_set!(changes::Pair...; apply::Bool = true)
                  (released ? "; the view set before follows the data again" : "") * note * ".", :ok)
     else
         manager.widgets[:status][], manager.widgets[:status_color][] = reported
-        isempty(note) || (manager.widgets[:status][] *= note)
+        isempty(note) || (manager.widgets[:status][] = rstrip(manager.widgets[:status][], '.') * note * ".")
     end
     now = Dict{Symbol, Any}(c.name => c.value for c in studio_controls() if c.name in names)
     return (values = now, status = _status_text())
@@ -853,7 +859,10 @@ function _slider_key(name)
     return key in _slider_keys() && haskey(manager.widgets, key) && manager.widgets[key] isa Makie.Slider ? key : nothing
 end
 
-function _set_slider_control!(name, key, value)
+_set_slider_control!(name, key, value) = (set_close_to!(manager.widgets[key], _slider_target(name, key, value)); nothing)
+
+# The slider position for `value` (an index for a non-numeric sweep); throws an `ArgumentError` for an invalid value
+function _slider_target(name, key, value)
     sl = manager.widgets[key]
     rng = collect(sl.range[])
     length(rng) > 1 || throw(ArgumentError("slider :$name is disabled: it is a plot axis or the compare target, or the " *
@@ -872,8 +881,7 @@ function _set_slider_control!(name, key, value)
             throw(ArgumentError("slider :$name = $value is outside its range $(_fmt_value(lo)) … $(_fmt_value(hi))"))
         Float64(value)
     end
-    set_close_to!(sl, target)
-    return nothing
+    return target
 end
 
 function _set_menu_control!(name, menu, value)
@@ -911,7 +919,8 @@ function _statistics_hint(stat = nothing)
                     isempty(params) ? String[] : ["over a swept parameter"]], " or ")
     what, how = length(stats) == 1 ? ("the statistic $(repr(s1))", over(s1)) :
                 ("statistics ($(_short(join(repr.(stats), ", "), 120)))",
-                 allequal(kept.(stats)) ? over(s1) : "over the dimensions each keeps or a swept parameter")
+                 allequal(kept.(stats)) ? over(s1) :
+                 "over the dimensions each keeps" * (isempty(params) ? "" : " or a swept parameter"))
     # a 1D style: a 2D/3D style needs as many axes the statistic is plotted over (particle styles: a grid style)
     style_dim = get(PLOT_DIM_MAP, manager.widgets[:plot_style].selection[], 1)
     one_d = manager.mode[] === :lagrangian || style_dim > 1

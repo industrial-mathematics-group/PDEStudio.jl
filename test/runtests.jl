@@ -1185,31 +1185,38 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test manager.active_config.defaults == active
     @test_throws ArgumentError studio_set!(:x_axis => :t, :bogus => 1)
     @test studio_state().axes.x === :x && manager.flags[:Plot][] == plot_flag
+    @test_throws ArgumentError studio_set!(:x_axis => :t, :cfl => 7.0)   # (so are the values of usable sliders)
+    @test studio_state().axes.x === :x && manager.flags[:Plot][] == plot_flag
 
     # --- names and numbers: tuple entries, capitals as written, small values ---
     @test PDEStudio.frontend_key.((:Grid_Ns__1, :PDE_tau, :Ns__all, :l1error, :cfl)) ==
           ("Grid Ns[1]", "PDE Tau", "Ns (all)", "L1Error", "Cfl")
-    @test PDEStudio._fmt_value.((1e-5, 0.0015, 0.002, 0.25, 0.0, 2.5e6, 3)) ==
-          ("1e-05", "0.0015", "0.002", "0.250", "0.000", "2.5e+06", "3")
+    @test PDEStudio._fmt_value.((1e-5, 0.0015, 0.002, 0.0125, 0.013, 0.25, 0.0, 2.5e6, 3)) ==
+          ("1e-05", "0.0015", "0.002", "0.0125", "0.013", "0.250", "0.000", "2.5e+06", "3")
 
     # --- long method names in the titles of compared methods are broken into lines to fit the plot ---
     long = SimulationConfig(create_param_dict(:N => 32, :cfl => 0.5, :sim_func_name => :advection_solver_1d),
                             create_method_dict(:upwind_first_order_scheme_without_limiter => create_param_dict(:scheme => "upwind"),
+                                               :upwind_first_order_scheme_with_limiter => create_param_dict(:scheme => "upwind"),
                                                :lax_friedrichs => create_param_dict(:scheme => "lax_friedrichs")))
     reset_plotter!()
     launch_plotter(long; style = :lines)
     studio_set!(:compare_target => :methods, :plot_width => 300)
     drawn = [b.title[] for b in manager.master_fig.content if b isa Axis]
     @test "upwind_first_order_scheme_without_limiter" in [p.title for p in studio_state().plots]   # (the API: one line)
-    @test any(t -> occursin("\n", t) && replace(t, "\n" => "") == "upwind_first_order_scheme_without_limiter", drawn)
+    @test sort(drawn) == ["lax_friedrichs", "…with_limiter", "…without_limiter"]   # (their shared start is left out)
+    wrapped = PDEStudio._fit_label("a_long_method_name_on_two_lines", first(b for b in manager.master_fig.content if b isa Axis))
+    @test occursin("\n", wrapped) && replace(wrapped, "\n" => "") == "a_long_method_name_on_two_lines"
     ax1 = first(b for b in manager.master_fig.content if b isa Axis)
-    @test PDEStudio._fit_label("x" ^ 200, ax1)[end] == '…' && !occursin("\n", PDEStudio._fit_label("x" ^ 200, ax1))
+    @test occursin('…', PDEStudio._fit_label("x" ^ 200, ax1)) && !occursin("\n", PDEStudio._fit_label("x" ^ 200, ax1))
     studio_set!(:plot_width => 60)   # (very narrow: at most two lines)
     @test count(==('\n'), PDEStudio._fit_label("upwind_first_order_scheme_without_limiter", ax1)) <= 1
+    studio_set!(:plot_width => 150)   # (shortened in the middle: compared methods stay distinct)
+    @test allunique([b.title[] for b in manager.master_fig.content if b isa Axis])
     # (3D axes: one line, shortened)
     studio_set!(:plot_style => :heatmap_surface, :plot_width => 300)
     drawn3 = [b.title[] for b in manager.master_fig.content if b isa Axis3]
-    @test length(drawn3) == 2 && !any(t -> occursin("\n", t), drawn3) && any(t -> endswith(t, "…"), drawn3)
+    @test length(drawn3) == 3 && !any(t -> occursin("\n", t), drawn3) && any(t -> occursin("…", t), drawn3) && allunique(drawn3)
     studio_set!(:plot_style => :lines, :plot_width => 500, :compare_target => :none)
     # (a custom title with line breaks is reported in one line)
     studio_option!(:labels, :title, "a\nb")
