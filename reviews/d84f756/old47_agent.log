@@ -1,0 +1,116 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: UI and Layout have been directly reset to defaults.
+
+  1 dependency had output during precompilation:
+┌ PDEStudio → PDEStudioWGLMakieExt
+│  [Output was shown above]
+└  
+[ Info: Registered statistic :pointwise_diff keeping dimensions: all
+[ Info: Module save root path set to: /tmp/jl_y4XNN7
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 16 simulation task(s) (parallel: false)...
+Running simulations...  12%|███▌                        |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 16 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+Calculating stats...  12%|███▊                          |  ETA: 0:00:09[KCalculating stats...  75%|██████████████████████▌       |  ETA: 0:00:00[KCalculating stats... 100%|██████████████████████████████| Time: 0:00:01[K
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 16 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 16 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (64, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x29 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 29) to (100, 29) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x22 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 22) to (100, 22) (linear in space, nearest in time)...
+[ Info: Camera unlocked: the view scales with the next data update.
+[ Info: Camera locked to the current view.
+ERROR: LoadError: Some tests did not pass: 63 passed, 3 failed, 1 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:767
+
+PDEStudio: Scripting and agent API (headless): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:863
+  Expression: !(s.camera_locked) && (s.plots[1]).ylims[2] >= 1.9
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:768
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:863 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+PDEStudio: Scripting and agent API (headless): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:866
+  Expression: !((studio_state()).camera_locked) && length((studio_state()).plots) == 2
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:768
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:866 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+PDEStudio: Scripting and agent API (headless): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:871
+  Expression: !((studio_state()).camera_locked) && ((studio_state()).plots[1]).xlims[2] >= 1.9
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:768
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:871 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+PDEStudio: Scripting and agent API (headless): Error During Test at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:767
+  Got exception outside of a @test
+  ArgumentError: plot_style.line_width = 2.5 is not a valid whole number
+  Stacktrace:
+   [1] studio_option!(scope::Symbol, key::Symbol, value::Float64)
+     @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/src/AgentAPI.jl:888
+   [2] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:768
+   [3] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [4] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent3/oldsrc/test/runtests.jl:895 [inlined]
+   [5] include(mod::Module, _path::String)
+     @ Base ./Base.jl:309
+   [6] exec_options(opts::Base.JLOptions)
+     @ Base ./client.jl:344
+   [7] _start()
+     @ Base ./client.jl:577
+Test Summary:                                 | Pass  Fail  Error  Total   Time
+PDEStudio: Scripting and agent API (headless) |   63     3      1     67  17.8s
+RNG of the outermost testset: Random.Xoshiro(0x21311d9f7fa63928, 0x5662744784087476, 0xc5437d3e653dd93b, 0x7c4567541e96cac0, 0x648fbffadc145ff1)

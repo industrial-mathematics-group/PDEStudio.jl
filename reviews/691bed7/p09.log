@@ -1,0 +1,25 @@
+OK   (studio_state()).backend => WGLMakie
+OK   studio_zoom!(2) => [(plot = 1, xlims = (0.22500000894069672, 0.7750000208616257), ylims = (0.22500000894069672, 0.7750000208616257), zlims = (0.12722855806350708, 0.9560464024543762), azimuth = 229.5, elevation = 22.5)]
+OK   studio_rotate!(30) => [(plot = 1, xlims = (0.22500000894069672, 0.7750000208616257), ylims = (0.22500000894069672, 0.7750000208616257), zlims = (0.12722855806350708, 0.9560464024543762), azimuth = 259.5, elevation = 22.5)]
+OK   studio_snapshot(joinpath(P, "p09_wgl_surface.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/probes/p09_wgl_surface.png
+OK   studio_set!(:plot_style => :heatmap_flat) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_flat), status = "Set plot_style = :heatmap_flat (apply_layout).")
+OK   studio_snapshot(joinpath(P, "p09_wgl_flat.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/probes/p09_wgl_flat.png
+--- particles reset vs automatic
+OK   studio_set!(:t => 1.0) => (values = Dict{Symbol, Any}(:t => 0.98989898989899), status = "Set t = 1.0.")
+a.xlims = (-3.011779546737671, 3.011779546737671)
+a.ylims = (-3.011779546737671, 3.011779546737671)
+OK   studio_zoom!(3) => [(plot = 1, xlims = (-1.0039265155792236, 1.0039265155792236), ylims = (-1.0039265155792236, 1.0039265155792236))]
+OK   studio_reset_view!() => [(plot = 1, xlims = (-3.011779546737671, 3.011779546737671), ylims = (-3.011779546737671, 3.011779546737671))]
+b.xlims = (-3.011779546737671, 3.011779546737671)
+b.ylims = (-3.011779546737671, 3.011779546737671)
+--- status truncation
+OK   studio_set!(:methods => [:euler, :rk2, :rk4], :plot_style => :particles_2d, :compare_target => :methods, :compare_columns => 3, :legend_base => :top) => (values = Dict{Symbol, Any}(:plot_style => :particles_2d, :compare_columns => 3, :methods => [:euler, :rk2, :rk4], :legend_base => :top, :compare_target => :methods), status = "Simulation finished in 0.0 s (3 methods).")
+(studio_state()).status = (text = "Simulation finished in 0.0 s (3 methods).", level = :ok)
+--- animation
+PDEStudio.manager.is_animating[] = true
+OK   studio_zoom!(2) => [(plot = 1, xlims = (-0.125, 0.125), ylims = (-0.125, 0.125)), (plot = 2, xlims = (-0.125, 0.125), ylims = (-0.125, 0.125)), (plot = 3, xlims = (-0.125, 0.125), ylims = (-0.125, 0.125))]
+OK   ((studio_state()).plots[1]).xlims => (-0.125, 0.125)
+OK   (studio_state()).sliders => [(name = :dt, value = 0.05, shown = "0.050", range = (0.01, 0.05, 3)), (name = :t, value = 0.18181818181818182, shown = "0.182", range = (0.0, 2.0, 100))]
+OK   studio_snapshot(joinpath(P, "p09_anim.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/probes/p09_anim.png
+PDEStudio.manager.is_animating[] = false
+OK   studio_reset_view!() => [(plot = 1, xlims = (-1.325537919998169, 1.325537919998169), ylims = (-1.325537919998169, 1.325537919998169)), (plot = 2, xlims = (-1.325537919998169, 1.325537919998169), ylims = (-1.325537919998169, 1.325537919998169)), (plot = 3, xlims = (-1.325537919998169, 1.325537919998169), ylims = (-1.325537919998169, 1.325537919998169))]

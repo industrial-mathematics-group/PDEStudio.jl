@@ -1,0 +1,115 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_AOe81r
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+Running simulations...  17%|████▋                       |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 12 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Metadata and Parameters saved to /tmp/jl_4yG1bT/cam.csv
+[ Info: Loading configuration from CSV: /tmp/jl_4yG1bT/cam.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Metadata and Parameters saved to /tmp/jl_4yG1bT/nocam.csv
+[ Info: Loading configuration from CSV: /tmp/jl_4yG1bT/nocam.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: Project configuration buffered! Press 'Run Simulation' to compute and apply.
+[ Info: Camera locked to the current view.
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Preset saved to /tmp/jl_AOe81r/Presets/mine.csv
+[ Info: Applying parsed CSV configuration...
+[ Info: No simulation data found. Loading as a visual preset.
+[ Info: Applied custom disk preset: mine
+[ Info: Applied hardcoded preset: publication
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Camera locked to the current view.
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+auto.xlims = (0.0, 0.99)
+auto.ylims = (-1.05, 1.05)
+--- 1: zoom, set_plot_preset!() (UI reset), then a slider move
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375, 0.7625), api = true, ctx = true, status = (text = "Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+OK   set_plot_preset!() => nothing
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375, 0.7625), api = true, ctx = true, status = (text = "Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+OK   studio_set!(:t => 0.5) => (values = Dict{Symbol, Any}(:t => 0.494949494949495), status = "Set t = 0.5.")
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375, 0.7625), api = true, ctx = true, status = (text = "Set t = 0.5.", level = :ok))
+--- 2: zoom, save CSV (with camera), reset, load it: a loaded camera is the user's
+OK   PDEStudio.load_and_apply_csv!(joinpath(dir, "cam.csv")) => false
+st() = (locked = true, xl = (0.0, 0.99), yl = (-1.049974630925826, 1.049974630925826), api = false, ctx = false, status = (text = "View reset: the plots follow the data.", level = :info))
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Simulation finished in 0.0 s (4 methods).")
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, ctx = false, status = (text = "Simulation finished in 0.0 s (4 methods).", level = :ok))
+--- 3: zoom, then load a CSV without a camera (saved unlocked)
+OK   PDEStudio.load_and_apply_csv!(joinpath(dir, "nocam.csv")) => false
+st() = (locked = false, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, ctx = true, status = (text = "Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+    … then Lock Camera, then a style change (the person's lock stays)
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, ctx = false, status = (text = "Camera locked to the current view.", level = :info))
+OK   studio_set!(:plot_style => :scatter_1d) => (values = Dict{Symbol, Any}(:plot_style => :scatter_1d), status = "Simulation finished in 0.0 s (4 methods).")
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, ctx = false, status = (text = "Simulation finished in 0.0 s (4 methods).", level = :ok))
+--- 4: zoom, save visual preset, reset, apply it; built-in preset while API-locked
+OK   set_plot_preset!(:mine) => true
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, ctx = false, status = (text = "View reset: the plots follow the data.", level = :info))
+OK   set_plot_preset!(:publication) => true
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = true, ctx = true, status = (text = "Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (apply_layout); the view set before follows the data again.")
+st() = (locked = false, xl = (0.0, 1.0), yl = (-1.0494832177907105, 1.0495363940584068), api = false, ctx = false, status = (text = "Set x_axis = :t (apply_layout); the view set before follows the data again.", level = :ok))
+--- 5: a zoom between a pending change (apply = false) and its press
+OK   studio_set!(:x_axis => :t; apply = false) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (not applied yet).")
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = true, ctx = true, status = (text = "Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+OK   studio_press!(:update_plot) => Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = true, ctx = true, status = (text = "Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+--- 6: Lock Camera first, then an API zoom, then a style change (whose lock?)
+st() = (locked = true, xl = (0.0, 0.99), yl = (-1.049974630925826, 1.049974630925826), api = false, ctx = false, status = (text = "Camera locked to the current view.", level = :info))
+st() = (locked = true, xl = (0.2475, 0.7424999999999999), yl = (-0.524987315462913, 0.524987315462913), api = true, ctx = true, status = (text = "Zoomed in ×2 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+OK   studio_set!(:plot_style => :scatter_1d) => (values = Dict{Symbol, Any}(:plot_style => :scatter_1d), status = "Set plot_style = :scatter_1d (apply_layout); the view set before follows the data again.")
+st() = (locked = false, xl = (0.0, 0.99), yl = (-1.049974630925826, 1.049974630925826), api = false, ctx = false, status = (text = "Set plot_style = :scatter_1d (apply_layout); the view set before follows the data again.", level = :ok))
+--- 7: style change pending (apply = false), then Update Plot (the wrong button) releases?
+OK   studio_set!(:plot_style => :scatter_1d; apply = false) => (values = Dict{Symbol, Any}(:plot_style => :scatter_1d), status = "Set plot_style = :scatter_1d (not applied yet).")
+(m.flags[:Layout])[] = true
+(m.flags[:Plot])[] = false
+OK   studio_press!(:update_plot) => View reset: the plots follow the data.
+st() = (locked = false, xl = (0.0, 0.99), yl = (-1.049974630925826, 1.049974630925826), api = false, ctx = false, status = (text = "View reset: the plots follow the data.", level = :info))
+m.active_plot_type = :lines_1d
+OK   studio_press!(:apply_layout) => View reset: the plots follow the data.
+st() = (locked = false, xl = (0.0, 0.99), yl = (-1.049974630925826, 1.049974630925826), api = false, ctx = false, status = (text = "View reset: the plots follow the data.", level = :info))
+m.active_plot_type = :scatter_1d
+--- 8: reset_plotter! and relaunch after an API zoom
+m.view_context = (context = (style = :lines_1d, mode = :eulerian, axes = (:x, :none, :none, :Solution, 1), compare = :none, plots = 1),)
+m.camera_locked[] = false
+st() = (locked = false, xl = (0.0, 0.99), yl = (-1.049974630925826, 1.049974630925826), api = false, ctx = true, status = (text = "Simulation finished in 0.0 s (4 methods).", level = :ok))
+END

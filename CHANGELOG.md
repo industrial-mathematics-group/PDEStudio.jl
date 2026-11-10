@@ -21,8 +21,26 @@ What has changed since the last release. Released versions are described in the
   kept, the data is reloaded (cached) and redrawn. Presets and CSV files store the style name, so they restore the
   particles. `set_mode!` still exists (it no longer closes the window or resets the manager) but is set by the style.
 - **Resolution page with particle styles:** only the references (particles are shown as computed).
+- **Scripting and AI agents** (docs: *Scripting & AI Agents*): the studio as functions, also without any display
+  (`studio_headless!()`): `describe_studio` / `studio_state` (what is shown, as text or data), `studio_data` (the
+  plotted numbers), `studio_snapshot` (a PNG of the plots, one subplot or the whole window; rendered by a GLMakie
+  window itself, otherwise by CairoMakie),
+  `studio_controls` / `studio_set!` / `studio_press!` (the controls by name; changes are applied), `studio_options` /
+  `studio_option!` (the look), and the camera: `studio_view!` (limits, 3D angles), `studio_zoom!`, `studio_pan!`,
+  `studio_rotate!`, `studio_reset_view!`. The view they set stays while the data updates (camera lock).
+- **The status line after a run** counts the runs that ran, were cached or failed (with the first error message),
+  and stored results made with other source code (from the `RunSummary` the next PDEStudioCore release returns; with
+  older versions it shows the time only). After `launch_plotter(config)` it reports the run made before the window
+  opened.
 
 ### Fixed
+- **`launch_plotter(config)` after another configuration** started with the view of the old one: its plotted axes,
+  slider positions and methods (e.g. the heat equation in 2D opened with `y = t`). A configuration with other swept
+  parameters or solvers now starts with its default view (also while an animation plays); launching the same setup
+  again keeps the plotted axes, slider positions and comparison. Binding such a configuration into an open window
+  (`set_sim_config!`, loading a `.jl` file, a simulation preset) resets the view the same way (it also stops a running
+  animation, ends the comparison and unlocks the camera); a CSV file applies its own. A slider that shows another parameter
+  after an edit of the sweep starts at its first value.
 - **A loaded export runs as it was exported**, at the load and at *Run Simulation*: the bundled copies run in place of
   their originals (files that aren't bundled, such as unlisted helpers and data files, are found next to them), and
   an `include` of a bundled file runs its copy (`include(path)`, `include(f, path)`, `Base.include`, `include` as a
@@ -34,6 +52,8 @@ What has changed since the last release. Released versions are described in the
   sources once an original was edited or is gone, and Run includes them from the bundle folder (only bundled files
   are found).
 - **Run Simulation** shows an error in the status line (e.g. a source file that fails) instead of failing silently.
+- **A plot that can't be drawn** (e.g. options the style can't use) says so in the status line; before, only the log
+  showed it.
 - **Symlinked sources** are bundled as files: before, the bundle held the link, so it followed later edits.
 - **Time resolution 1** (`set_resolution!(:t, 1)`, a CSV row) made all data with time fail to load; it shows the last
   snapshot now. Resolutions are whole numbers from 1 to 100000 everywhere: `set_resolution!` throws otherwise, CSV
@@ -125,6 +145,10 @@ What has changed since the last release. Released versions are described in the
   bundled files are now sources of the loaded configuration.
 
 ### Changed
+- **Shorter plot titles:** a title lists only the variables that are not on an axis (`R = 0.100 | Time (T) = 0.000`;
+  the `Position (X) = [Axis]` parts are gone, the axis labels name them), broken into lines where it would be wider
+  than the plot. The breaks are chosen for the widest value of each part, so they stay while the sliders move.
+  `studio_state` / `describe_studio` report a title in one line.
 - **Default display resolutions in space: 100 points for the data, 200 for references** (were 200 and 400; time
   stays at 50 and 100): 3-D data with time was infeasible with the old defaults. Raise them in *Files → Resolution ›*
   or with `set_resolution!` where needed.

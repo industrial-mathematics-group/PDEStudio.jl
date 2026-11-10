@@ -1,0 +1,67 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Registered statistic :pointwise_diff keeping dimensions: all
+[ Info: Module save root path set to: /tmp/jl_gvDD1F
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 2 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent/core/src/Simulations.jl:189
+[ Info: Pass 1: executing 2 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 2 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+[ Info: Eulerian representation conv_E_100x42 not cached; generating it on the fly...
+[ Info: Resampling Eulerian data from (64, 42) to (100, 42) (linear in space, nearest in time)...
+
+PDEStudio: Scripting and agent API (headless): Test Failed at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:878
+  Expression: length(s.plots) == 2 && s.compare.target === :methods
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:768
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:878 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+PDEStudio: Scripting and agent API (headless): Error During Test at /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:767
+  Got exception outside of a @test
+  ArgumentError: plot = 2: there are 1 plot(s); use 1…1 or :all
+  Stacktrace:
+    [1] _selected_axes(plot::Int64)
+      @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/AgentAPI.jl:56
+    [2] studio_snapshot(path::String; plot::Int64, area::Symbol, px_per_unit::Int64)
+      @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/src/AgentAPI.jl:291
+    [3] top-level scope
+      @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:768
+    [4] macro expansion
+      @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+    [5] macro expansion
+      @ ~/.claude/jobs/d2d299f1/tmp/review-agent/repo/test/runtests.jl:879 [inlined]
+    [6] include(mapexpr::Function, mod::Module, _path::String)
+      @ Base ./Base.jl:310
+    [7] top-level scope
+      @ ~/.claude/jobs/d2d299f1/tmp/review-agent/probes/mut.jl:34
+    [8] include(mod::Module, _path::String)
+      @ Base ./Base.jl:309
+    [9] exec_options(opts::Base.JLOptions)
+      @ Base ./client.jl:344
+   [10] _start()
+      @ Base ./client.jl:577
+Test Summary:                                 | Pass  Fail  Error  Total   Time
+PDEStudio: Scripting and agent API (headless) |   55     1      1     57  15.4s
+RNG of the outermost testset: Random.Xoshiro(0x1ba1ad9cc85b8642, 0x2ba020db155e1a31, 0xeff1f650db961de1, 0x4a9f51efdc21f45a, 0x58971d51575218b0)
+MUTATION no_apply: tests FAILED (caught)

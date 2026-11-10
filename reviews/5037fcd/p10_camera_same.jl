@@ -1,0 +1,10 @@
+# Same setup relaunch: is the camera (a view set with studio_view!) kept? (headless)
+using PDEStudio
+studio_headless!()
+set_save_path!(mktempdir())
+launch_plotter(test_heat_2d(); style = :heatmap)
+studio_view!(xlims = (0.2, 0.4), ylims = (0.3, 0.6))
+println("before: locked=", PDEStudio.manager.camera_locked[], " limits=", (studio_state().plots[1].xlims, studio_state().plots[1].ylims))
+reset_plotter!()
+launch_plotter(test_heat_2d(); style = :heatmap)
+println("after same-setup relaunch: locked=", PDEStudio.manager.camera_locked[], " limits=", (studio_state().plots[1].xlims, studio_state().plots[1].ylims))

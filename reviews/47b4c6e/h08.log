@@ -1,0 +1,23 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_xtGBZp
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+Running simulations...  17%|████▋                       |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 12 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+OK   studio_option!(:plot_style, :colors, (:red, 0.5)) => Plot Style → colors = Any[:red, 0.5]
+(m.ui[:plot_style])[:colors] = Any[:red, 0.5]
+(studio_state()).status = (text = "Plot Style → colors = Any[:red, 0.5]", level = :ok)
+--- the UI tab with the same text
+(m.ui[:plot_style])[:colors] = (:red, 0.5)
+(studio_state()).status = (text = "Plot Style → colors = (:red, 0.5)", level = :ok)

@@ -1,0 +1,32 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_B9aTPO
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+Running simulations...  17%|████▋                       |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 12 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+┌ Warning: Unsupported marker: nope, using ● instead. Available options can be printed with `available_marker_symbols()`
+└ @ Makie ~/.julia/packages/Makie/dVJIx/src/conversions.jl:2362
+--- an option that only fails when CairoMakie draws (no backend switch at all)
+OK   studio_option!(:plot_style, :line_styles, [:nope]) => Plot Style → line_styles = Symbol[:nope]
+(studio_state()).status = (text = "Plot Style → line_styles = Symbol[:nope]", level = :ok)
+m.render_failures = 0
+OK   studio_snapshot(joinpath(P, "a05_nope.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/probes/a05_nope.png
+OK   studio_snapshot(joinpath(P, "a05_nope_window.png"); area = :window) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/probes/a05_nope_window.png
+OK   studio_snapshot(joinpath(P, "a05_ok.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/probes/a05_ok.png
+--- HUD with a String colour list / marker
+OK   studio_option!(:plot_style, :markers, [:nope]) => Plot Style → markers = Symbol[:nope]
+OK   studio_set!(:plot_style => :scatter_1d) => (values = Dict{Symbol, Any}(:plot_style => :scatter_1d), status = "Set plot_style = :scatter_1d (apply_layout).")
+(studio_state()).status = (text = "Set plot_style = :scatter_1d (apply_layout).", level = :ok)
+OK   studio_snapshot(joinpath(P, "a05_marker.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent3/probes/a05_marker.png
+END

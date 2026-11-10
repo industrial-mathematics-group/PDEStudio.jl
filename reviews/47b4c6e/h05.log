@@ -1,0 +1,196 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_lCSFwf
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+Running simulations...  17%|████▋                       |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 12 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+┌ Warning: Varied parameter :cfl does not appear in the parameters of any active method and is ignored.
+└ @ PDEStudioCore ~/.claude/jobs/d2d299f1/tmp/review-agent2/core/src/Simulations.jl:189
+[ Info: No numerical simulations to run.
+[ Info: Running Simulation and Mapping UI...
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 4 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 4 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 3 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 3 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 3 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 3 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 8 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 6 run, 2 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+┌ Warning: The configuration sweeps 3 parameters, but the studio has only 2 parameter sliders. Call `set_max_params!(3)` before `launch_plotter()`; parameters without a slider stay at their first value.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:129
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 8 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 8 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Resampling Eulerian data from (50, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (50, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (50, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (50, 50) to (100, 50) (linear in space, nearest in time)...
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+Running simulations...  33%|█████████▍                  |  ETA: 0:00:02[KRunning simulations...  83%|███████████████████████▍    |  ETA: 0:00:00[KRunning simulations... 100%|████████████████████████████| Time: 0:00:01[K
+[ Info: Pass 1 finished: 6 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+┌ Warning: The configuration sweeps 3 parameters, but the studio has only 2 parameter sliders. Call `set_max_params!(3)` before `launch_plotter()`; parameters without a slider stay at their first value.
+└ @ PDEStudio ~/.claude/jobs/d2d299f1/tmp/review-agent2/repo/src/MakiePlotting.jl:129
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 6 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 6 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Resampling Eulerian data from (31, 31, 50) to (100, 100, 50) (linear in space, nearest in time)...
+[ Info: Plotter state completely cleared!
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+=== F8 reset with only the exact method
+OK   studio_set!(:methods => [:exact]) => (values = Dict{Symbol, Any}(:methods => [:exact]), status = "Simulation finished in 0.0 s (1 methods).")
+auto.xlims = (0.0, 10.0)
+auto.ylims = (0.0, 10.0)
+OK   studio_zoom!(4) => [(plot = 1, xlims = (3.75, 6.25), ylims = (3.75, 6.25))]
+OK   studio_reset_view!() => [(plot = 1, xlims = (3.75, 6.25), ylims = (3.75, 6.25))]
+((studio_state()).plots[1]).xlims = (3.75, 6.25)
+((studio_state()).plots[1]).ylims = (3.75, 6.25)
+OK   studio_set!(:t => 0.5) => (values = Dict{Symbol, Any}(:t => 0.494949494949495), status = "Set t = 0.5.")
+((studio_state()).plots[1]).xlims = (3.75, 6.25)
+((studio_state()).plots[1]).ylims = (3.75, 6.25)
+=== F8b reset after a lims option (UI tab) — reset keeps the tab's limits?
+OK   studio_option!(:x_axis_1d, :lims, [0.2, 0.6]) => X Axis (1D) → lims = Float64[0.2, 0.6]
+OK   studio_zoom!(2) => [(plot = 1, xlims = (0.30000000000000004, 0.5), ylims = (4.375, 5.625))]
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.2, 0.6), ylims = (4.375, 5.625))]
+((studio_state()).plots[1]).xlims = (0.2, 0.6)
+OK   studio_option!(:x_axis_1d, :lims, []) => X Axis (1D) → lims = Any[]
+OK   studio_set!(:methods => [:exact, :upwind]) => (values = Dict{Symbol, Any}(:methods => [:exact, :upwind]), status = "Simulation finished in 0.0 s (2 methods).")
+=== F5 non-numeric sweep
+c = (name = :scheme, kind = :slider, value = "upwind", choices = Any["upwind", "lax_friedrichs", "lax_wendroff"], label = "swept parameter (shown: upwind)", applies = :none)
+only((sl for sl = (studio_state()).sliders if sl.name === :scheme)) = (name = :scheme, value = "upwind", shown = "upwind", range = ("upwind", "lax_wendroff", 3))
+OK   studio_set!(:scheme => "lax_wendroff") => (values = Dict{Symbol, Any}(:scheme => "lax_wendroff"), status = "Set scheme = \"lax_wendroff\".")
+ERR  studio_set!(:scheme => 2) => ArgumentError: ArgumentError: slider :scheme has no value 2; values: "upwind", "lax_friedrichs", "lax_wendroff"
+OK   studio_set!(:scheme => c.value) => (values = Dict{Symbol, Any}(:scheme => "lax_wendroff"), status = "Set scheme = \"lax_wendroff\".")
+SubString{String}["Status [ok]: Set scheme = \"lax_wendroff\".", "  swept scheme = upwind, lax_friedrichs, lax_wendroff", "  x_axis [menu, applies with :update_plot] = :x  ∈ {:x, :scheme, :t} — X-Axis", "  anim_target [menu] = :t  ∈ {:none, :x, :scheme, :t} — animation target", "  compare_target [menu, applies with :apply_layout] = :none  ∈ {:none, :methods, :component, :time, :scheme} — Compare", "  scheme [slider] = \"lax_wendroff\"  (\"upwind\", \"lax_friedrichs\", \"lax_wendroff\") — swept parameter (shown: lax_wendroff)"]
+=== F9 unslid parameters
+  swept N = 50, 100
+  swept c = 1.0, 2.0
+  swept cfl = 0.25, 0.5  (no slider: the plots show the first value; set_max_params! opens more)
+  N [slider] = 50  (50, 100) — swept parameter (shown: 50)
+  c [slider] = 1.0  (1.000, 2.000) — swept parameter (shown: 1.000)
+  t [slider] = 0.494949494949495  (100 values, 0.000 … 1.000) — dimension
+ERR  studio_set!(p => if p === :N
+            100
+        else
+            if p === :c
+                2.0
+            else
+                0.5
+            end
+        end) => ArgumentError: ArgumentError: parameter :cfl is swept but has no slider: the window has 2 parameter slider(s) and draws its first value; open the studio with more (set_max_params!(3) before launch_plotter)
+OK   studio_set!(p => if p === :N
+            100
+        else
+            if p === :c
+                2.0
+            else
+                0.5
+            end
+        end) => (values = Dict{Symbol, Any}(:N => 100), status = "Set N = 100.")
+OK   studio_set!(p => if p === :N
+            100
+        else
+            if p === :c
+                2.0
+            else
+                0.5
+            end
+        end) => (values = Dict{Symbol, Any}(:c => 2.0), status = "Set c = 2.0.")
+ERR  studio_set!(:nope => 1) => ArgumentError: ArgumentError: studio_set!: no control named :nope; controls: :plot_style, :x_axis, :y_axis, :z_axis, :u_axis, :component, :anim_target, :compare_target, :compare_link, :legend_base, :legend_add, :plot_width, :plot_height, :compare_columns, :methods, :N, :c, :t
+=== azimuth wrap, 3D
+OK   studio_set!(:plot_style => :heatmap_surface) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_surface), status = "Set plot_style = :heatmap_surface (apply_layout).")
+349.5
+109.5
+229.5
+349.5
+OK   studio_rotate!(-500) => [(plot = 1, xlims = (-0.05000000074505806, 1.0500000230967999), ylims = (-0.0024999999441206455, 0.05249999975785613), zlims = (-1.0, 1.0), azimuth = 209.5, elevation = 22.5)]
+OK   studio_view!(azimuth = 725) => [(plot = 1, xlims = (-0.05000000074505806, 1.0500000230967999), ylims = (-0.0024999999441206455, 0.05249999975785613), zlims = (-1.0, 1.0), azimuth = 5.0, elevation = 22.5)]
+((studio_state()).plots[1]).azimuth = 5.0
+OK   studio_view!(elevation = 120) => [(plot = 1, xlims = (-0.05000000074505806, 1.0500000230967999), ylims = (-0.0024999999441206455, 0.05249999975785613), zlims = (-1.0, 1.0), azimuth = 5.0, elevation = 90.0)]
+((studio_state()).plots[1]).elevation = 90.0
+OK   studio_zoom!(2; dims = :z) => [(plot = 1, xlims = (-0.05000000074505806, 1.0500000230967999), ylims = (-0.0024999999441206455, 0.05249999975785613), zlims = (-0.5, 0.5), azimuth = 5.0, elevation = 90.0)]
+((studio_state()).plots[1]).azimuth = 229.5
+((studio_state()).plots[1]).elevation = 22.5
+=== volume headless: warning
+ERR  studio_set!(:plot_style => :volume_3d, :z_axis => :t) => ArgumentError: ArgumentError: z_axis has no option :t; options: :y ("Position (Y)"), :r ("R")
+(studio_state()).style = :volume_3d
+(studio_state()).status = (text = "Snapshot: CairoMakie can't draw volumes, the image shows the empty axes (use GLMakie for volumes).", level = :warn)
+ERR  studio_set!(:t => 0.0) => ArgumentError: ArgumentError: slider :t is disabled: it is a plot axis or the compare target, or the data has a single value for it
+(studio_state()).status = (text = "Snapshot: CairoMakie can't draw volumes, the image shows the empty axes (use GLMakie for volumes).", level = :warn)
+OK   studio_set!(:plot_style => :heatmap_flat, :z_axis => :none) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_flat, :z_axis => :none), status = "Set plot_style = :heatmap_flat, z_axis = :none (apply_layout).")
+=== F6 subplot crops
+OK   studio_set!(:compare_target => :methods, :compare_columns => 3) => (values = Dict{Symbol, Any}(:compare_columns => 3, :compare_target => :methods), status = "Set compare_target = :methods, compare_columns = 3 (apply_layout).")
+length(s.plots) = 3
+OK   studio_set!(:compare_link => :decoupled) => (values = Dict{Symbol, Any}(:compare_link => :decoupled), status = "Set compare_link = :decoupled (apply_layout).")
+OK   studio_set!(:compare_columns => 2) => (values = Dict{Symbol, Any}(:compare_columns => 2), status = "Set compare_columns = 2 (apply_layout).")
+OK   studio_set!(:plot_style => :heatmap_surface) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_surface), status = "Set plot_style = :heatmap_surface (apply_layout).")
+=== 1D compare with legends
+OK   studio_set!(:compare_target => :cfl, :compare_columns => 2) => (values = Dict{Symbol, Any}(:compare_columns => 2, :compare_target => :cfl), status = "Set compare_target = :cfl, compare_columns = 2 (apply_layout).")
+length((studio_state()).plots) = 4
+OK   studio_set!(:compare_link => :decoupled) => (values = Dict{Symbol, Any}(:compare_link => :decoupled), status = "Set compare_link = :decoupled (apply_layout).")

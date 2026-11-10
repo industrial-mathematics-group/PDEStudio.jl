@@ -1,0 +1,10 @@
+r = (values = Dict{Symbol, Any}(:plot_style => :heatmap_surface, :t => 0.020202020202020204), status = "Set t = 0.02, plot_style = :heatmap_surface (apply_layout).")
+s.style = :heatmap_surface
+[(x.name, x.value) for x = s.sliders] = [(:r, 0.1), (:t, 0.020202020202020204)]
+(s.plots[1]).title = "R = 0.100 | Position (X) = [Axis] | Position (Y) = [Axis] | Time (T) = 0.020"
+keys(d.methods) = [:explicit]
+d.variables = (x = :x, y = :y, z = :none, u = :Solution, component = 1)
+size(m.x) = (100,)
+size(m.y) = (100,)
+size(m.u) = (100, 100)
+typeof(m.z) = Vector{Float64}

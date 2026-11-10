@@ -735,6 +735,29 @@ end
 # Shortens a value for a status message.
 _short(s::AbstractString, n::Int = 40) = length(s) > n ? first(s, n - 1) * "…" : s
 
+# The status line after a run, `(message, level)`: what ran, was cached or failed, from the `RunSummary` of PDEStudioCore
+# (older versions return nothing: then only the time)
+function _run_status(summary, elapsed::Real, n_methods::Integer)
+    head = "Simulation finished in $(round(elapsed, digits = 1)) s"
+    all(p -> hasproperty(summary, p), (:tasks, :ran, :cached, :failed)) || return ("$head ($n_methods methods).", :ok)
+    n(field) = hasproperty(summary, field) ? length(getproperty(summary, field)) : 0
+    n(:tasks) == 0 && return ("$head: no numerical runs (references only).", :ok)
+    parts = ["$(n(:ran)) ran", "$(n(:cached)) cached"]
+    n(:empty) > 0 && push!(parts, "$(n(:empty)) without output")
+    n(:failed) > 0 && push!(parts, "$(n(:failed)) failed")
+    msg = "$head: $(n(:tasks)) runs, $(join(parts, ", "))"
+    n(:changed) > 0 && (msg *= "; $(n(:changed)) made with other source code (kept, see the log)")
+    later = n(:stats_failed) + n(:postprocessing_failed)
+    later > 0 && (msg *= "; $later statistics / post-processing step(s) failed")
+    outdated = hasproperty(summary, :postprocessing) ? get(summary.postprocessing, :outdated, 0) : 0
+    outdated > 0 && (msg *= "; $outdated post-processed by another version of the post-processor (kept, see the log)")
+    first_error = n(:failed) > 0 ? last(first(summary.failed)) :
+                  n(:stats_failed) > 0 ? last(first(summary.stats_failed)) :
+                  n(:postprocessing_failed) > 0 ? last(first(summary.postprocessing_failed)) : nothing
+    isnothing(first_error) || (msg *= ". First error: $(_short(string(first_error), 90))")
+    return msg * ".", (n(:failed) + n(:empty) + later + n(:changed) + outdated == 0 ? :ok : :warn)
+end
+
 # ------------------------------------------------------------------------------
 # Fixed widgets: placing, hiding and parking
 # ------------------------------------------------------------------------------
@@ -1403,7 +1426,9 @@ function _preset_row_action!(i::Int, which::Symbol)
     i <= length(manager.editor_row_keys) || return nothing
     name, kind = manager.editor_row_keys[i], manager.preset_kind
     if which === :a
+        failures = manager.render_failures
         ok = kind === :simulation ? !isnothing(set_sim_preset!(name)) : set_plot_preset!(name) !== false
+        manager.render_failures != failures ? nothing :   # (a drawing that failed reports itself: keep that)
         ok ? _status!("Applied $(kind === :simulation ? "simulation" : "look") preset '$name'." *
                       (kind === :simulation ? " Run Simulation to compute it." : ""), :ok) :
              _status!("Preset '$name' could not be applied (see the log).", :warn)
@@ -2001,6 +2026,8 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
             set_label!(key, strip(s) == "<empty>" ? "" : String(s))   # (as the other pages: `<empty>` is "")
         else
             val = _parse_editor_input(s, target[key])
+            # one colour for the list of colours: a list of one (a tuple such as (:red, 0.5) is one colour)
+            key === :colors && !(val isa AbstractVector) && _valid_color(val) && (val = Any[val])
             if !_valid_editor_value(s, target, key, val)
                 _report(:warn, "'$key' was not changed: '$(_short(String(strip(s)), 30))' is not a valid value. " *
                                "Use numbers, :symbols, [vectors], (tuples) or \"text\" in quotes.")
@@ -2013,8 +2040,10 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
             end
             target[key] = val
         end
+        failures = manager.render_failures
         _after_editor_change!(cat, scope, key, target)
-        _status!(_change_message(cat, scope, key, target), :ok)
+        # (a drawing that failed reports itself in the status line: keep that)
+        manager.render_failures == failures && _status!(_change_message(cat, scope, key, target), :ok)
         return true
     catch e
         @warn "Failed to apply parameter '$key': $(s)" exception=(e, catch_backtrace())
@@ -2060,8 +2089,9 @@ function _editor_row_action!(cat, scope, key, target, tb)
                  _status!("Preset '$key' could not be applied (see the log).", :warn)
         elseif action === :toggle
             target[key] = !target[key]
+            failures = manager.render_failures
             _after_editor_change!(cat, scope, key, target)
-            _status!(_change_message(cat, scope, key, target), :ok)
+            manager.render_failures == failures && _status!(_change_message(cat, scope, key, target), :ok)
         elseif action === :reset
             _apply_editor_input!(cat, scope, key, target, "default", tb) || return nothing
         end
@@ -2231,6 +2261,7 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
     btn_export = manager.widgets[:export_button]
 
     manager.listeners[:Camera_Lock_Click] = on(btn_lock.clicks) do _
+        manager.view_context = nothing   # (the person's own lock or unlock: a view set by the API is theirs now)
         is_locked = !manager.camera_locked[]
         manager.camera_locked[] = is_locked
         

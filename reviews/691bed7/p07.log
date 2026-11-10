@@ -1,0 +1,46 @@
+s.backend = :GLMakie
+s.window_size = (1212, 928)
+p.xlims = (-0.05000000074505806, 1.0500000230967999)
+p.ylims = (-0.05000000074505806, 1.0500000230967999)
+p.zlims = (-0.2871803641319275, 1.3704553246498108)
+p.azimuth = 229.5
+p.elevation = 22.5
+OK   studio_set!(:t => 0.03) => (values = Dict{Symbol, Any}(:t => 0.0297979797979798), status = "Set t = 0.03.")
+p.zlims = (-0.02786814607679844, 0.5852310713380575)
+OK   studio_zoom!(2) => [(plot = 1, xlims = (0.22500000894069672, 0.7750000208616257), ylims = (0.22500000894069672, 0.7750000208616257), zlims = (0.1254066526889801, 0.4319562613964081), azimuth = 229.5, elevation = 22.5)]
+OK   studio_rotate!(40, 5) => [(plot = 1, xlims = (0.22500000894069672, 0.7750000208616257), ylims = (0.22500000894069672, 0.7750000208616257), zlims = (0.1254066526889801, 0.4319562613964081), azimuth = 269.5, elevation = 27.5)]
+ERR  studio_snapshot(joinpath(P, "p07_gl_surface.png")) => ErrorException: Cannot register computation: Some outputs already have parent compute edges: positions_transformed
+Makie.current_backend() = GLMakie
+OK   studio_reset_view!() => [(plot = 1, xlims = (-0.05000000074505806, 1.0500000230967999), ylims = (-0.05000000074505806, 1.0500000230967999), zlims = (-0.02786814607679844, 0.5852310713380575), azimuth = 229.5, elevation = 22.5)]
+p.xlims = (-0.05000000074505806, 1.0500000230967999)
+p.ylims = (-0.05000000074505806, 1.0500000230967999)
+p.zlims = (-0.02786814607679844, 0.5852310713380575)
+p.azimuth = 229.5
+p.elevation = 22.5
+OK   studio_set!(:t => 0.0) => (values = Dict{Symbol, Any}(:t => 0.0), status = "Set t = 0.0.")
+p.zlims = (-0.2871803641319275, 1.3704553246498108)
+--- volume
+OK   studio_set!(:plot_style => :volume_3d) => (values = Dict{Symbol, Any}(:plot_style => :volume_3d), status = "Set plot_style = :volume_3d (apply_layout).")
+(studio_state()).axes = (x = :x, y = :y, z = :t, u = :Solution, component = 1)
+OK   studio_snapshot(joinpath(P, "p07_gl_volume_snapshot.png")) => /home/agent/.claude/jobs/d2d299f1/tmp/review-agent/probes/p07_gl_volume_snapshot.png
+--- px_per_unit with GL
+OK   studio_set!(:plot_style => :heatmap_flat) => (values = Dict{Symbol, Any}(:plot_style => :heatmap_flat), status = "Set plot_style = :heatmap_flat (apply_layout).")
+size(Makie.FileIO.load(f1)) = (549, 741)
+size(Makie.FileIO.load(f2)) = (1097, 1484)
+size(Makie.FileIO.load(fw)) = (928, 1259)
+(studio_state()).window_size = (1259, 928)
+--- presets/CSV after API use
+OK   studio_zoom!(2) => [(plot = 1, xlims = (0.25, 0.75), ylims = (0.25, 0.75))]
+OK   save_plot_preset("agentview") => true
+OK   studio_reset_view!() => [(plot = 1, xlims = (0.0, 1.0), ylims = (0.0, 1.0))]
+PDEStudio.manager.camera_locked[] = false
+PDEStudio.manager.camera_cache = Dict{Symbol, Any}()
+--- close with reset_plotter!
+ERR  studio_state() => ArgumentError: ArgumentError: no studio window is open: start one with `launch_plotter(config; style)` (after `studio_headless!()` to run without a display)
+ERR  studio_zoom!(2) => ArgumentError: ArgumentError: no studio window is open: start one with `launch_plotter(config; style)` (after `studio_headless!()` to run without a display)
+ERR  studio_snapshot() => ArgumentError: ArgumentError: no studio window is open: start one with `launch_plotter(config; style)` (after `studio_headless!()` to run without a display)
+ERR  studio_reset_view!() => ArgumentError: ArgumentError: no studio window is open: start one with `launch_plotter(config; style)` (after `studio_headless!()` to run without a display)
+OK   studio_options() => Dict{Symbol, Dict{Symbol, Any}}(:plot_style => Dict(:line_direction => :horizontal, :markers => [:circle, :rect, :utriangle, :dtriangle, :cross], :color_range => Any[], :labels => false, :color_map => :viridis, :line_styles => Any[:solid, :dash, :dot, (:dash, :dense), (:dot, :dense)], :marker_size => 15.0, :show_scatter => false, :method_index => 1, :line_width => 3.0, :show_lines => true, :reference => Any[], :colors => Any[(:black, 0.8), :blue, :green, :orange, :purple, :yellow], :levels => 15, :dashed_lines => false, :bottom_margin => 60), :axis_general => Dict(:label_size => 24, :font_size => 24, :ticklabel_size => 22, :sort_legend => true, :title_size => 26), :labels => Dict(:z_label => "default", :y_label => "default", :title => "default", :x_label => "default", :colorbar_label => "default", :legend_label => "Methods"), :hud => Dict(:color => :red, :mode => "lines", :visible => false, :points => Any[], :line_width => 3.0, :line_style => :dash, :close_loop => false, :marker_size => 15.0), :x_axis_1d => Dict(:tick_count => 0, :tick_format => "default", :scale_offset => 0.0, :tick_label_visibility => true, :padding => 0.0, :lims => Any[], :log_scale => false, :grid_visibility => true, :label_offset => 15.0), :y_axis_nd => Dict(:tick_count => 0, :tick_format => "default", :scale_offset => 0.0, :tick_label_visibility => true, :padding => 0.0, :lims => Any[], :log_scale => false, :grid_visibility => true, :label_offset => 40.0), :z_axis_3d => Dict(:tick_count => 0, :tick_format => "default", :scale_offset => 0.0, :tick_label_visibility => true, :padding => 0.05, :lims => Any[], :log_scale => false, :grid_visibility => true, :label_offset => 50.0), :outliers_extrema => Dict(:remove_outliers => false, :mark_outliers => false, :outlier_threshold => 1.5, :track_min => false, :track_max => false), :x_axis_nd => Dict(:tick_count => 0, :tick_format => "default", :scale_offset => 0.0, :tick_label_visibility => true, :padding => 0.0, :lims => Any[], :log_scale => false, :grid_visibility => true, :label_offset => 40.0), :y_axis_1d => Dict(:tick_count => 0, :tick_format => "default", :scale_offset => 0.0, :tick_label_visibility => true, :padding => 0.05, :lims => Any[], :log_scale => false, :grid_visibility => true, :label_offset => 15.0))
+OK   studio_options(:labels) => Dict{Symbol, Any}(:z_label => "default", :y_label => "default", :title => "default", :x_label => "default", :colorbar_label => "default", :legend_label => "Methods")
+ERR  studio_option!(:labels, :title, "x") => ArgumentError: ArgumentError: no studio window is open: start one with `launch_plotter(config; style)` (after `studio_headless!()` to run without a display)
+ERR  studio_data(1) => ArgumentError: ArgumentError: no studio window is open: start one with `launch_plotter(config; style)` (after `studio_headless!()` to run without a display)

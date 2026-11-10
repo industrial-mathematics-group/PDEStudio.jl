@@ -87,6 +87,14 @@ This function unpacks the `SimulationConfig`, maps the dynamic parameter sweeps 
 With `snapshot = true` (the default) a copy of `config` is kept as the baseline that *Reset Simulation* (see [`reset_sim_config!`](@ref)) returns to.
 """
 function set_sim_config!(config::SimulationConfig; snapshot::Bool = true)
+    # another setup (swept parameters, solvers) in an open window: the view of the old one doesn't fit (a CSV file
+    # applies its own view after this)
+    setup = _view_setup(config)
+    if !isnothing(manager.bound_setup) && setup != manager.bound_setup
+        _reset_config_view!()
+        manager.is_open && _reset_open_view!()
+    end
+    manager.bound_setup = setup
     manager.active_config = config
     manager.csv_cache = nothing  # a staged (structural) CSV is superseded by this configuration
     haskey(manager.flags, :Simulation) && (manager.flags[:Simulation][] = true)
@@ -141,6 +149,9 @@ function _map_parameters_to_sliders!(config::SimulationConfig)
             isnothing(lbl_obs) || (lbl_obs[] = frontend_key(real_params[i]) * ":")
         else
             isnothing(lbl_obs) || (lbl_obs[] = "Unused:")
+            # (a parameter that takes this slider later starts at its first value)
+            delete!(manager.slider_cache, p_key)
+            delete!(manager.pending_sliders, p_key)
             haskey(manager.widgets, p_key) && (manager.widgets[p_key].range[] = [0.0])
         end
     end
@@ -150,6 +161,13 @@ function _map_parameters_to_sliders!(config::SimulationConfig)
         haskey(manager.widgets, base_lbl_key) && (manager.widgets[base_lbl_key][] = frontend_key(base_sym) * ":")
     end
 
+    # a slider that shows another parameter now (e.g. a parameter added to the sweep): its position doesn't fit it
+    for (slot, param) in param_map
+        get(manager.param_map, slot, param) === param && continue
+        delete!(manager.slider_cache, slot)
+        delete!(manager.pending_sliders, slot)
+        haskey(manager.widgets, slot) && manager.widgets[slot].range[] != [0.0] && (manager.widgets[slot].range[] = [0.0])
+    end
     manager.param_map = param_map
     manager.reverse_map = reverse_map
     manager.plot_vars = Symbol[real_params; get_base_variables()]
@@ -231,6 +249,7 @@ function reset_plotter!()
     manager.is_open = false
     manager.master_fig = nothing
     manager.camera_locked[] = false
+    manager.view_context = nothing
     manager.pending_domain = nothing
 
     # Stop a running animation (its timer would keep driving the sliders of the closed window)
@@ -281,7 +300,10 @@ Builds the studio window and returns its `Figure` (show it with `display`, or us
   as particles (Lagrangian), all others on a grid (Eulerian); data of the other kind is converted.
 - `config`: a `SimulationConfig` to bind and run. It is run first (the results are cached), so the window starts
   with the right setup: without a `style`, particle data opens in a particle style; axes the window doesn't know
-  yet (such as a time axis `:iteration`) are added (see [`set_allowed_dims!`](@ref)).
+  yet (such as a time axis `:iteration`) are added (see [`set_allowed_dims!`](@ref)). A configuration with other
+  swept parameters or solvers than the bound one starts with its default view (plotted axes, sliders, animation
+  target, comparison, camera); launching the same setup again keeps the plotted axes, slider positions and
+  comparison of the last window (a locked camera is unlocked). `set_sim_config!` does the same in an open window.
 
 ```julia
 fig = launch_plotter(; style = :heatmap)              # empty window, heatmaps once data arrives
@@ -290,10 +312,17 @@ display(fig)
 ```
 """
 function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
-    isnothing(config) || _prepare_for_config!(config, style)
-    plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)
+    manager.launch_run = nothing
+    plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)   # (an unknown style throws before running)
+    launch_run = isnothing(config) ? nothing : _prepare_for_config!(config, style)
+    # the view of another setup doesn't fit this one (a relaunch of the same setup keeps it)
+    fresh = !isnothing(config) && _view_setup(config) != manager.bound_setup
 
     reset_plotter!()
+    if fresh   # (after `reset_plotter!`: until then the old window, e.g. its animation, can still move the sliders)
+        _reset_config_view!()
+        manager.bound_setup = _view_setup(config)
+    end
 
     master_fig = Figure()
     ctrl_layout = master_fig[1, 1] = GridLayout()
@@ -312,6 +341,7 @@ function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; styl
     resize_to_layout!(master_fig)
     if !isnothing(config)
         set_sim_config!(config)
+        manager.launch_run = launch_run   # (what the status line reports after the window's first run)
         force_simulation()
     end
     return master_fig 
@@ -377,12 +407,62 @@ function _resolve_plot_style(style::Symbol)
                         "particles) or a style ($(join(sort([grid; collect(keys(PARTICLE_STYLES))]), ", ")))"))
 end
 
+# What the view of a window depends on: the swept parameters and the solvers of a configuration
+function _view_setup(config::SimulationConfig)
+    solvers = [get(config.shared, :sim_func_name, nothing); [get(m, :sim_func_name, nothing) for m in values(config.methods)]]
+    return (sort!(string.(collect(keys(config.varied)))), sort!(unique(string.(filter(!isnothing, solvers)))))
+end
+
+# Forgets the view of the last configuration (the windows keep it in caches that outlive them): plotted axes,
+# component, slider positions, animation target, comparison and camera. The plot style, layout and look are kept.
+function _reset_config_view!()
+    empty!(manager.plot_cache)
+    empty!(manager.slider_cache)
+    empty!(manager.pending_sliders)
+    manager.exploration_cache = Dict{Symbol, Any}(:anim_target => :none, :component => 1)
+    manager.layout_cache[:compare_target] = :none
+    manager.compare_state = (:none, nothing, String[], Any[])
+    manager.camera_cache = Dict{Symbol, Any}()
+    manager.view_context = nothing
+    manager.methods.val = Symbol[]   # (the first layout of the window would look for data of the old methods)
+    return nothing
+end
+
+# The view of an open window as a new window has it: no animation, comparison or locked camera, axis menus and
+# sliders without choices (the next data chooses the axes and the slider positions again)
+function _reset_open_view!()
+    w = manager.widgets
+    timer = manager.animation_timer[]   # (its timer would keep driving a slider of the new setup)
+    isnothing(timer) || close(timer)
+    manager.animation_timer[] = nothing
+    manager.is_animating[] = false
+    manager.camera_locked[] && (manager.camera_locked[] = false)
+    if haskey(w, :compare_target)
+        i = findfirst(o -> o[2] === :none, w[:compare_target].options[])
+        isnothing(i) || w[:compare_target].i_selected[] == i || (w[:compare_target].i_selected[] = i)
+    end
+    for k in [[Symbol("param_", i) for i in 1:manager.max_params]; get_base_variables()]
+        haskey(w, k) && w[k].range[] != [0.0] && (w[k].range[] = [0.0])
+    end
+    for k in (:x_axis, :y_axis, :z_axis, :u_axis, :anim_target)
+        haskey(w, k) || continue
+        w[k].options[] = Any[menu_opt(:none)]
+        w[k].i_selected[] = 1
+    end
+    if haskey(w, :component)
+        w[:component].options[] = Any[(frontend_key(:component_1), 1)]
+        w[:component].i_selected[] = 1
+    end
+    return nothing
+end
+
 # Runs `config` (cached) and sets the data kind and the dimensions its data needs before the window is built.
 function _prepare_for_config!(config::SimulationConfig, style)
     @info "Running the configuration before opening the studio (the results are cached)..."
-    _run_simulations(config; calculate_stats = true, force_overwrite = false)
+    summary = nothing
+    elapsed = @elapsed (summary = _run_simulations(config; calculate_stats = true, force_overwrite = false))
     data = _template_data(config)
-    isnothing(data) && return nothing
+    isnothing(data) && return (summary, elapsed)
     # the style decides the data (particles or grid); without one, particle data opens in a particle style
     mode = isnothing(style) ? (data isa LSimData ? :lagrangian : :eulerian) : _style_mode(_resolve_plot_style(style))
     if mode !== manager.mode[]
@@ -390,7 +470,7 @@ function _prepare_for_config!(config::SimulationConfig, style)
         set_mode!(mode)
     end
     _allow_dims_of!(data.domain)
-    return nothing
+    return (summary, elapsed)   # (the summary of the run and its seconds)
 end
 
 # =================================
@@ -519,6 +599,9 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
                 # Keep the studio usable: the user can change the style or option that failed and update again.
                 @error "Updating the plot failed; the current plot style or options could not be drawn for this data. " *
                        "Change them (e.g. the plot style, colours or levels) and click 'Update Plot' again." exception = (e, catch_backtrace())
+                manager.render_failures += 1
+                _status!("Drawing failed: $(_short(rstrip(first(split(sprint(showerror, e), '\n')), '.'), 60)). " *
+                         "Change the style or options.", :error)
                 success = false
             end
         end
@@ -585,6 +668,9 @@ function setup_render_lift!(master_fig::Figure, plot_layout::GridLayout, ::Val{T
                 # (like the plot step: an exception must not escape into the click handler or the renderloop)
                 @error "Updating the plot style failed; change the options that can't be drawn (e.g. colours, colour " *
                        "range, levels) and click 'Update Plot' again." exception = (e, catch_backtrace())
+                manager.render_failures += 1
+                _status!("Drawing the look failed: $(_short(rstrip(first(split(sprint(showerror, e), '\n')), '.'), 60)). " *
+                         "Change the options that can't be drawn.", :error)
             end
         end
     end

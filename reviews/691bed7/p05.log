@@ -1,0 +1,11 @@
+launch: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=1 compare=none
+--- GUI way: widgets only
+GUI compare methods: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=3 compare=methods
+GUI decoupled: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=3 compare=methods
+GUI compare none: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=1 compare=none
+launch2: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=1 compare=none
+API compare methods: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=3 compare=methods
+API decoupled: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=3 compare=methods
+API none: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=1 compare=none
+launch3: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=1 compare=none
+GUI methods+decoupled in one apply: axes=(x = :x, y = :y, z = :none, u = :Solution, component = 1) sliders=[(:r, 0.1), (:t, 0.0)] nplots=3 compare=methods

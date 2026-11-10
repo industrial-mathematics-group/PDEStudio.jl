@@ -1,0 +1,78 @@
+[ Info: UI and Layout have been directly reset to defaults.
+[ Info: Module save root path set to: /tmp/jl_Hnf9Qu
+[ Info: Running the configuration before opening the studio (the results are cached)...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+Running simulations...  17%|████▋                       |  ETA: 0:00:02[KRunning simulations... 100%|████████████████████████████| Time: 0:00:00[K
+[ Info: Pass 1 finished: 12 run, 0 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Plotter state completely cleared!
+[ Info: Running dynamic calculations directly from active config...
+[ Info: Started simulation pipeline.
+[ Info: Pass 1: executing 12 simulation task(s) (parallel: false)...
+[ Info: Pass 1 finished: 0 run, 12 cached, 0 without output, 0 failed.
+[ Info: Pass 2: calculating statistics...
+[ Info: Batch simulation run complete!
+[ Info: Running Simulation and Mapping UI...
+[ Info: Camera unlocked: the view scales with the next data update.
+[ Info: Camera locked to the current view.
+[ Info: Camera locked to the current view.
+auto.xlims = (0.0, 0.99)
+auto.ylims = (-1.05, 1.05)
+--- A: zoom, x_axis => :t (release expected)
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot); the view set before follows the data again.")
+st() = (locked = false, xl = (0.0, 1.0), yl = (-1.0494832177907105, 1.0495363940584068), api = false, status = (text = "Set x_axis = :t (update_plot); the view set before follows the data again.", level = :ok))
+--- B: zoom, style change (scatter) — release expected
+PDEStudio._api_view_locked() = true
+OK   studio_set!(:plot_style => :scatter_1d) => (values = Dict{Symbol, Any}(:plot_style => :scatter_1d), status = "Set plot_style = :scatter_1d (apply_layout).")
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375, 0.7625), api = false, status = (text = "Set plot_style = :scatter_1d (apply_layout).", level = :ok))
+--- C: zoom, then an option that rebuilds the layout (log scale on and off), then x_axis => :t
+PDEStudio._api_view_locked() = true
+objectid(PDEStudio.manager.camera_cache) = 0x1d005e40fdd0455e
+OK   studio_option!(:x_axis_1d, :grid_visibility, false) => X Axis (1D) → grid_visibility = false
+PDEStudio._api_view_locked() = true
+objectid(PDEStudio.manager.camera_cache) = 0x1d005e40fdd0455e
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot); the view set before follows the data again.")
+st() = (locked = false, xl = (0.0, 1.0), yl = (-1.0494832177907105, 1.0495363940584068), api = false, status = (text = "Set x_axis = :t (update_plot); the view set before follows the data again.", level = :ok))
+--- D: zoom, slider change (layout rebuild?), then x_axis => :t
+OK   studio_set!(:t => 0.5) => (values = Dict{Symbol, Any}(:t => 0.494949494949495), status = "Set t = 0.5.")
+PDEStudio._api_view_locked() = true
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot); the view set before follows the data again.")
+st() = (locked = false, xl = (0.0, 1.0), yl = (-1.0494832177907105, 1.0495363940584068), api = false, status = (text = "Set x_axis = :t (update_plot); the view set before follows the data again.", level = :ok))
+--- E: zoom, update_plot press (no change), then x_axis => :t
+OK   studio_press!(:update_plot) => Zoomed in ×4 (camera locked: `studio_reset_view!()` or Lock Camera releases it)
+PDEStudio._api_view_locked() = true
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot); the view set before follows the data again.")
+st() = (locked = false, xl = (0.0, 1.0), yl = (-1.0494832177907105, 1.0495363940584068), api = false, status = (text = "Set x_axis = :t (update_plot); the view set before follows the data again.", level = :ok))
+--- F: zoom, compare change
+OK   studio_set!(:compare_target => :methods) => (values = Dict{Symbol, Any}(:compare_target => :methods), status = "Set compare_target = :methods (apply_layout).")
+s.camera_locked = true
+[p.xlims for p = s.plots] = [(0.17625, 0.42374999999999996), (0.17625, 0.42374999999999996), (0.17625, 0.42374999999999996), (0.17625, 0.42374999999999996)]
+PDEStudio._api_view_locked() = false
+--- G: zoom with apply=false x_axis change, then press update_plot
+OK   studio_set!(:x_axis => :t; apply = false) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (not applied yet).")
+OK   studio_press!(:update_plot) => Set x_axis = :t (not applied yet).
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = true, status = (text = "Set x_axis = :t (not applied yet).", level = :ok))
+ERR  studio_set!(:t => 0.2) => ArgumentError: ArgumentError: slider :t is disabled: it is a plot axis or the compare target, or the data has a single value for it
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = true, status = (text = "Set x_axis = :t (not applied yet).", level = :ok))
+--- H: zoom, then studio_set! of the same x axis (no change)
+OK   studio_set!(:x_axis => :x) => (values = Dict{Symbol, Any}(:x_axis => :x), status = "Set x_axis = :x (update_plot).")
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = true, status = (text = "Set x_axis = :x (update_plot).", level = :ok))
+--- I: zoom, lock button twice (unlock and lock), then x_axis
+st() = (locked = false, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, status = (text = "Camera unlocked: the view scales with the next data update.", level = :info))
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, status = (text = "Camera locked to the current view.", level = :info))
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot).")
+st() = (locked = true, xl = (0.17625, 0.42374999999999996), yl = (0.2375063422685435, 0.7624936577314565), api = false, status = (text = "Set x_axis = :t (update_plot).", level = :ok))
+--- J: lock button, then API zoom (API takes over), then x_axis
+st() = (locked = true, xl = (0.2475, 0.7424999999999999), yl = (-0.524987315462913, 0.524987315462913), api = true, status = (text = "Zoomed in ×2 (camera locked: `studio_reset_view!()` or Lock Camera releases it)", level = :info))
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot); the view set before follows the data again.")
+st() = (locked = false, xl = (0.0, 1.0), yl = (-1.0494832177907105, 1.0495363940584068), api = false, status = (text = "Set x_axis = :t (update_plot); the view set before follows the data again.", level = :ok))
+--- K: API zoom, then set_plot_preset / load CSV with camera? (camera from CSV)
+ERR  save_config(f) => UndefVarError: UndefVarError: `save_config` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+ERR  load_config(f) => UndefVarError: UndefVarError: `load_config` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+st() = (locked = false, xl = (0.0, 0.99), yl = (-1.049974630925826, 1.049974630925826), api = false, status = (text = "View reset: the plots follow the data.", level = :info))
+OK   studio_set!(:x_axis => :t) => (values = Dict{Symbol, Any}(:x_axis => :t), status = "Set x_axis = :t (update_plot).")
+st() = (locked = false, xl = (0.0, 1.0), yl = (-1.0494832177907105, 1.0495363940584068), api = false, status = (text = "Set x_axis = :t (update_plot).", level = :ok))
