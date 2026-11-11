@@ -183,7 +183,6 @@ const STYLE_DEPENDENCIES = Dict{Symbol, Vector{Symbol}}(
 
 # In UIStyles.jl
 const PRESET_DESCRIPTIONS = Dict{Symbol, String}(
-    :convergence => "Optimized for 1D error convergence plots.",
     :publication => "Clean, high-contrast style for papers.",
     :heatmap     => "Optimized layout and margins for 2D heatmaps.",
     :component   => "Splits components into separate linked plots.",
@@ -401,8 +400,6 @@ function apply_plot_preset!(::Val{:publication})
     apply_layout_options!(Dict(
         :legend_base => :top,
         :legend_add  => :detached,
-        :plot_width  => 500,
-        :plot_height => 400
     ))
 end
 
