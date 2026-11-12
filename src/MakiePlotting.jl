@@ -42,7 +42,7 @@ Parses the active plot axis observables and returns a vector of indices correspo
 Used to generate dynamic plot titles and axis labels.
 """
 function _get_active_title_indices(::Val{:eulerian}, x_sel, y_sel, z_sel, sim_data)
-    active_plot_axes_syms = filter(s -> !isnothing(s) && s != :None, [x_sel[], y_sel[], z_sel[]])
+    active_plot_axes_syms = filter(s -> !isnothing(s) && s != :none, [x_sel[], y_sel[], z_sel[]])
     return [findfirst(isequal(occursin("|", string(ax)) ? Symbol(split(string(ax), "|")[2]) : ax), manager.plot_vars) for ax in active_plot_axes_syms]
 end
 function _get_active_title_indices(::Val{:lagrangian}, x_sel, y_sel, z_sel, sim_data)
@@ -79,14 +79,19 @@ end
 # ==============================================================================
 
 """
-    set_sim_config!(config::SimulationConfig; snapshot = true)
+    set_sim_config!(config::SimulationConfig; snapshot = true, copy_config = true)
 
 The primary injection point for connecting a `PDEStudioCore` physics configuration to the `PDEStudio` interactive UI.
 
 This function unpacks the `SimulationConfig`, maps the dynamic parameter sweeps to the available UI sliders, builds the backend-to-frontend symbolic translation dictionaries, and flags the simulation for a (re)run.
 With `snapshot = true` (the default) a copy of `config` is kept as the baseline that *Reset Simulation* (see [`reset_sim_config!`](@ref)) returns to.
+The studio works on a copy of `config` (returned; `copy_config = false` binds the object itself, for configurations the
+studio already owns): what is edited in the window (methods, parameters, the sweep) does not change the
+configuration passed in. A configuration without `methods` runs its shared parameters alone, shown
+as the single method `:default`.
 """
-function set_sim_config!(config::SimulationConfig; snapshot::Bool = true)
+function set_sim_config!(config::SimulationConfig; snapshot::Bool = true, copy_config::Bool = true)
+    copy_config && (config = deepcopy(config))   # the studio edits its own copy: the caller's configuration stays as it was
     # another setup (swept parameters, solvers) in an open window: the view of the old one doesn't fit (a CSV file
     # applies its own view after this)
     setup = _view_setup(config)
@@ -112,6 +117,12 @@ function set_sim_config!(config::SimulationConfig; snapshot::Bool = true)
     active_m = isempty(config.defaults) ? sort_methods_robust(collect(keys(config.methods))) :
                Symbol[Symbol(m) for m in unique(config.defaults)]
     filter!(k -> k !== :shared, active_m)
+    if isempty(active_m) && isempty(config.methods)
+        # a configuration without methods runs the shared parameters alone (`generate_tasks`): one pseudo-method,
+        # which runs with the shared parameters as well (`assemble_params` of a method that has no overrides)
+        active_m = [DEFAULT_METHOD]
+        haskey(manager.labels, DEFAULT_METHOD) || set_label!(DEFAULT_METHOD, "Default")
+    end
     config.defaults = active_m
     snapshot && (manager.base_config = deepcopy(config))
     manager.methods[] = copy(active_m)
@@ -503,7 +514,7 @@ function setup_plot_window!(master_fig::Figure, plot_layout::GridLayout)
         
         sim_data = nothing
         if !isempty(manager.plot_data[])
-            sim_data = _get_first_valid(first(values(manager.plot_data[])))
+            sim_data = _get_first_valid(_primary_sweep(manager.plot_data[]))
         end
 
         # Safely clear old observers

@@ -92,7 +92,7 @@ function _handle_plot_trigger!(
             data_tuples = apply_outlier_mask(axes[i], data_tuples, valid_methods, is_3d_axis)
             plot_extrema_lines_manager!(axes[i], data_tuples, valid_methods, is_3d_axis)
 
-            sim_data = _get_first_valid(first(values(data)))
+            sim_data = _get_first_valid(_primary_sweep(data))
             active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
             
             parts = _title_parts(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
@@ -167,7 +167,7 @@ end
 
 # The floating-point type of the loaded data (its round-off decides when a range counts as constant).
 function _data_precision(data)
-    d = isempty(data) ? nothing : _get_first_valid(first(values(data)))
+    d = isempty(data) ? nothing : _get_first_valid(_primary_sweep(data))
     T = isnothing(d) ? Float64 : eltype(d.domain.mins)
     return T <: AbstractFloat ? T : Float64
 end
@@ -263,7 +263,7 @@ function _param_slider_range(data, i::Int)
     end
     isempty(all_vals) && return [0.0]
     _is_numeric_sweep(all_vals) && return sort(unique(identity.(all_vals)))
-    n = length(first(values(data)).active_param_values[i])
+    n = length(_primary_sweep(data).active_param_values[i])
     return collect(1:max(n, 1))
 end
 
@@ -310,7 +310,7 @@ function _handle_data_trigger!(
     is_3d_axis = PLOT_DIM_MAP[T] == 3 || is_surface(T)
     
     sel_vals = [to_value(obs) for obs in selector_obs]
-    sim_data = _get_first_valid(first(values(data)))
+    sim_data = _get_first_valid(_primary_sweep(data))
     
     # Create pooling dictionaries for data triggers
     plot_x_slices = Dict{Int, Any}()
@@ -567,7 +567,7 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
 
     sim_data = nothing
     if !isempty(manager.plot_data[])
-        pd_first = first(values(manager.plot_data[]))
+        pd_first = _primary_sweep(manager.plot_data[])
         sim_data = _get_first_valid(pd_first)
         
         if !isnothing(sim_data)

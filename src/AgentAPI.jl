@@ -698,7 +698,7 @@ end
 function _param_values(key)
     param = get(manager.param_map, key, nothing)
     (isnothing(param) || isempty(manager.plot_data[])) && return nothing
-    pd = first(values(manager.plot_data[]))
+    pd = _primary_sweep(manager.plot_data[])
     i = findfirst(==(param), pd.active_param_keys)
     return isnothing(i) ? nothing : pd.active_param_values[i]
 end
@@ -903,7 +903,7 @@ end
 function _statistics_hint(stat = nothing)
     data = manager.plot_data[]
     isempty(data) && return ""
-    pd = first(values(data))
+    pd = _primary_sweep(data)
     sim = _get_first_valid(pd)
     isnothing(sim) && return ""
     offered = Set(o[2] for o in manager.widgets[:u_axis].options[])
@@ -935,6 +935,9 @@ function _set_style_control!(value)
     _is_plot_style_name(style) || throw(ArgumentError("plot_style = :$style is no plot style; styles: " *
                                                        join(repr.(_style_choices()), ", ")))
     public = _resolve_plot_style(style)
+    if style === :particles && !(public in _style_choices())   # the particles' dimension picks the style
+        public = first(_particle_styles_for_data())
+    end
     public in _style_choices() || throw(ArgumentError("plot_style = :$public is not available for this data; " *
                                                        "available: " * join(repr.(_style_choices()), ", ")))
     _set_public_style!(manager.widgets[:plot_style], public)
@@ -948,9 +951,10 @@ function _set_methods_control!(value)
          value isa Union{AbstractVector, Tuple} ? Symbol[Symbol(v) for v in value] :
          throw(ArgumentError("methods: a list of method names, got $(repr(value))"))
     isempty(ms) && throw(ArgumentError("methods: at least one method"))
-    unknown = setdiff(ms, collect(keys(config.methods)))
+    known = isempty(config.methods) ? [DEFAULT_METHOD] : collect(keys(config.methods))
+    unknown = setdiff(ms, known)
     isempty(unknown) || throw(ArgumentError("methods: unknown $(join(repr.(unknown), ", ")); methods: " *
-                                            join(repr.(sort!(collect(keys(config.methods)))), ", ")))
+                                            join(repr.(sort!(known)), ", ")))
     if unique(ms) != config.defaults
         config.defaults = unique(ms)
         manager.flags[:Simulation][] = true

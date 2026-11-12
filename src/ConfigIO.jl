@@ -83,9 +83,11 @@ function _csv_text(v)
     return _needs_type(v) ? _typed_text(v) : v
 end
 
-# Values `val2str` writes without their type: `Float32`/`Float16` numbers (as `1.5`, read back as `Float64`) and
-# static vectors (as `Float64[…]`, read back as `Vector`), also inside tuples and untyped vectors.
-_needs_type(v) = v isa Union{Float32, Float16} || v isa SVector || (v isa Tuple && any(_needs_type, v)) ||
+# Values `val2str` writes without their type: `Float32`/`Float16` numbers (as `1.5`, read back as `Float64`),
+# integers other than `Int` and `Bool` (as `5`, read back as `Int`) and static vectors (as `Float64[…]`, read back
+# as `Vector`), also inside tuples and untyped vectors.
+_needs_type(v) = v isa Union{Float32, Float16} || (v isa Integer && !(v isa Union{Int, Bool})) || v isa SVector ||
+                 (v isa Tuple && any(_needs_type, v)) ||
                  (v isa AbstractVector && !isconcretetype(eltype(v)) && any(_needs_type, v))
 
 # The literal of `v` with these types (`1.5f0`, `Float16(1.5)`, `SA{Float64}[1.0, 2.0]`), which `str2val` reads back;
@@ -93,6 +95,7 @@ _needs_type(v) = v isa Union{Float32, Float16} || v isa SVector || (v isa Tuple 
 function _typed_text(v)
     _needs_type(v) || return val2str(v; top_level = false)
     v isa Union{Float32, Float16} && return repr(v)
+    v isa Integer && return "$(typeof(v))($(string(v)))"
     elements = join(map(_typed_text, collect(v)), ", ")
     v isa SVector && return "SA{$(eltype(v))}[$elements]"
     v isa Tuple && return length(v) == 1 ? "($elements,)" : "($elements)"
@@ -137,6 +140,7 @@ end
 function _parse_csv_value(s::AbstractString)
     txt = strip(String(s))
     txt == "Nothing" && return nothing  # `val2str(nothing)` writes "Nothing"
+    txt == "Missing" && return missing  # ... and `val2str(missing)` "Missing"
     return str2val(txt)
 end
 
@@ -388,6 +392,11 @@ Returns `(config, ran, sources_of)`: the `SimulationConfig` returned by the last
 arguments it ends with, as for [`load_config_file!`](@ref)) if every file ran (otherwise `nothing`), the sources of the
 files that ran, and the source of each original (original path => source).
 """
+# Where the bundled copy `name` of an export in `dir` may be: bundled as `<export>_sources/<file>`, by earlier
+# versions as `<export>_source_<i>.jl` next to the CSV, or given as a path. (`_load_key` hashes the same files.)
+_bundled_candidates(dir::AbstractString, name::AbstractString) =
+    unique([joinpath(dir, name), joinpath(dir, basename(name)), name])
+
 function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     manager.source_note = ""
     meta = get(get(parsed, "Metadata", Dict()), "General", Dict())
@@ -399,9 +408,8 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     origins = origins isa AbstractVector ? String[string(o) for o in origins] : String[]
 
     dir = dirname(abspath(filepath))
-    # bundled as `<export>_sources/<file>`, by earlier versions as `<export>_source_<i>.jl` next to the CSV
     function copy_of(name)
-        candidates = unique([joinpath(dir, string(name)), joinpath(dir, basename(string(name))), string(name)])
+        candidates = _bundled_candidates(dir, string(name))
         idx = findfirst(isfile, candidates)
         return isnothing(idx) ? "" : abspath(candidates[idx])
     end
@@ -921,7 +929,7 @@ end
 The primary serialization engine. It writes the full state of the studio—the `SimulationConfig`, scene (axes,
 sliders, layout, camera, labels, exploration), UI styles, structural limits and display resolutions—plus Git and
 Julia environment information to `<save_dir>/<base_filename>.csv`. The configuration's source files are copied next
-to the CSV (`<name>_source_<i>.jl`) so the export can be reloaded elsewhere.
+to the CSV (`<name>_sources/<file>`, with their originals recorded) so the export can be reloaded elsewhere.
 
 Returns `true` on a successful write.
 """
