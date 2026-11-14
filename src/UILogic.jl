@@ -370,14 +370,18 @@ end
 function _load_key(path::AbstractString)
     files = [path]
     if !endswith(lowercase(path), ".jl")
-        names = try
-            get(get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict()), "bundled_sources", String[])
+        meta = try
+            get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict())
         catch
-            String[]
+            Dict{String, Any}()
         end
+        names = get(meta, "bundled_sources", String[])
+        origins = get(meta, "source_origins", String[])
+        # every file `_run_bundled_sources` may run: the bundled copy, wherever it finds it, and the original
         for name in (names isa AbstractVector ? names : [names])
-            append!(files, filter(isfile, [joinpath(dirname(abspath(path)), string(name)), string(name)]))
+            append!(files, filter(isfile, _bundled_candidates(dirname(abspath(path)), string(name))))
         end
+        append!(files, filter(isfile, String[string(o) for o in (origins isa AbstractVector ? origins : [origins])]))
     end
     h = hash(abspath(path))
     for f in files
@@ -491,6 +495,11 @@ function receive_upload!(files::AbstractVector)
         _report(:warn, "Nothing was uploaded.")
         return nothing
     end
+    big = findall(f -> length(last(f)) > MAX_UPLOAD_BYTES, files)
+    if !isempty(big)   # (the page checks the size too; the server must not rely on it)
+        _report(:warn, "Not uploaded: $(join(names[big], ", ")) exceeds $(MAX_UPLOAD_BYTES ÷ 2^20) MiB.")
+        return nothing
+    end
     ext(n) = lowercase(splitext(n)[2])
     csvs = findall(n -> ext(n) == ".csv", names)
     # without a CSV: the Julia file none of the other files mentions (those are the helpers it includes)
@@ -592,8 +601,8 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
             Base.invokelatest() do
                 _allow_dims_of!(domain)
                 fig = launch_plotter()
-                display(fig)
-                set_sim_config!(config; snapshot = false)
+                _in_browser() || display(fig)   # (a served window is shown by the page)
+                set_sim_config!(config; snapshot = false, copy_config = false)   # (the studio's own configuration again)
                 force_simulation()
             end
             return
@@ -615,7 +624,7 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
             #    then apply the cached configuration to the NEW widgets and run it.
             Base.invokelatest() do
                 fig = launch_plotter()
-                display(fig)
+                _in_browser() || display(fig)   # (a served window is shown by the page)
                 load_and_apply_csv!(staged.parsed, staged.raw; config = staged.config, sources = staged.sources)
                 force_simulation()
             end
@@ -959,8 +968,9 @@ function _invalid_ui_reason(key::Symbol, val)
     key === :color_map && !_valid_colormap(val) && return "colormap (e.g. :viridis)"
     key in (:markers, :line_styles) && !(val isa AbstractVector && !isempty(val)) &&
         return "list of $(key === :markers ? "markers" : "line styles") (at least one, e.g. [:circle, :rect])"
-    key === :color_range && !(val isa Union{AbstractVector, Tuple} && length(val) in (0, 2) && all(v -> v isa Real, val)) &&
-        return "colour range: [] (automatic) or [lo, hi]"
+    key === :color_range && !(val isa Union{AbstractVector, Tuple} && (isempty(val) || (length(val) == 2 &&
+                               all(v -> v isa Real && isfinite(v), val) && val[1] < val[2]))) &&
+        return "colour range: [] (automatic) or [lo, hi] with lo < hi"
     key === :levels && !(val isa Integer && val >= 2) && return "number of contour levels (an integer ≥ 2)"
     key in (:animation_FPS, :animation_time, :dpi) && !(val isa Real && isfinite(val) && val > 0) &&
         return "$(key === :animation_FPS ? "frame rate" : key === :dpi ? "resolution" : "duration") (a positive number)"
@@ -1157,7 +1167,7 @@ end
 # The particle styles for the spatial dimension of the bound data (all of them before there is data)
 function _particle_styles_for_data()
     data = manager.plot_data[]
-    sim = isempty(data) ? nothing : _get_first_valid(first(values(data)))
+    sim = isempty(data) ? nothing : _get_first_valid(_primary_sweep(data))
     isnothing(sim) && return sort(collect(keys(PARTICLE_STYLES)); by = s -> PLOT_DIM_MAP[PARTICLE_STYLES[s]])
     D = count(!=(sim.domain.time_dim), sim.domain.dim_keys)
     return get(PARTICLE_STYLES_BY_DIM, D, PARTICLE_STYLES_BY_DIM[3])
@@ -1226,7 +1236,7 @@ function _editor_keys(cat, scope)
         if scope === :components
             c_max = 1
             if !isempty(manager.plot_data[])
-                sim_data = _get_first_valid(first(values(manager.plot_data[])))
+                sim_data = _get_first_valid(_primary_sweep(manager.plot_data[]))
                 if !isnothing(sim_data) && haskey(manager.widgets, :u_axis)
                     u_val = manager.widgets[:u_axis].selection[]
                     target_field = (isnothing(u_val) || u_val === :none) ? :Solution : u_val
@@ -2390,6 +2400,14 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
             end
         end
 
+        # a playing animation would move the slider while the frames are recorded
+        if manager.is_animating[]
+            manager.is_animating[] = false
+            timer = manager.animation_timer[]
+            isnothing(timer) || close(timer)
+            manager.animation_timer[] = nothing
+        end
+
         was_locked = manager.camera_locked[]
         manager.camera_locked[] = true 
         extract_and_store_camera_state!(plot_layout)
@@ -2539,7 +2557,7 @@ Helper function that grabs the first structurally valid (non-null) `AbstractSimD
 """
 function _get_active_sim_data(plot_data_dict)
     isempty(plot_data_dict) && return nothing, nothing
-    pd_first = first(values(plot_data_dict))
+    pd_first = _primary_sweep(plot_data_dict)
     
     sim_data = _get_first_valid(pd_first)
     
@@ -2571,7 +2589,7 @@ function _setup_chain_A!(::Val{:eulerian})
         @with_lock :Menu_A begin
             isempty(plot_data_dict) && return
             (isnothing(style_sel) || style_sel == :none) && return
-            pd_first = first(values(plot_data_dict))
+            pd_first = _primary_sweep(plot_data_dict)
             n_params = length(pd_first.active_param_keys)
             # The swept parameters of the computed data (the bound config may already sweep others: re-run pending)
             dim_names = Symbol[Symbol.(pd_first.active_param_keys); get_base_variables()]
@@ -2682,7 +2700,7 @@ function _setup_chain_A!(::Val{:lagrangian})
         @with_lock :Menu_A begin
             isempty(plot_data_dict) && return
             
-            pd_first = first(values(plot_data_dict))
+            pd_first = _primary_sweep(plot_data_dict)
             l_data = _get_first_valid(pd_first)
             isnothing(l_data) && return
             
@@ -2760,7 +2778,7 @@ function _setup_chain_B!(::Val{:eulerian})
         @with_lock :Menu_B begin
             isempty(plot_data_dict) && return
 
-            pd_first = first(values(plot_data_dict))
+            pd_first = _primary_sweep(plot_data_dict)
             sim_data = _get_first_valid(pd_first)
             isnothing(sim_data) && return
             
@@ -2812,7 +2830,7 @@ function _setup_chain_B!(::Val{:lagrangian})
         @with_lock :Menu_B begin
             isempty(plot_data_dict) && return
             
-            pd_first = first(values(plot_data_dict))
+            pd_first = _primary_sweep(plot_data_dict)
             l_data = _get_first_valid(pd_first)
             isnothing(l_data) && return
             

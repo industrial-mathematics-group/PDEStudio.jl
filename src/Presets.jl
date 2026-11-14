@@ -24,12 +24,14 @@ Folder of the simulation presets: `<save path>/Presets/Simulation`.
 """
 sim_preset_dir() = joinpath(preset_dir(), "Simulation")
 
-# Presets are stored under lower-case, underscore-separated names ("My Preset" -> :my_preset).
-_preset_symbol(name) = Symbol(lowercase(replace(strip(string(name)), r"\s+" => "_")))
+# Presets are stored under lower-case, underscore-separated names ("My Preset" -> :my_preset); path separators and
+# leading dots are replaced, so a name cannot leave the preset folder ("../x", "/etc/x").
+_preset_symbol(name) = Symbol(lowercase(replace(strip(string(name)), r"[\\/]" => "_", r"^\.+" => "", r"\s+" => "_")))
 
 function _preset_file(dir::AbstractString, name)
     for candidate in unique([string(name), string(_preset_symbol(name))])
         path = joinpath(dir, candidate * ".csv")
+        dirname(abspath(path)) == abspath(dir) || continue   # (a name with a path would leave the preset folder)
         isfile(path) && return path
     end
     return nothing
@@ -234,7 +236,7 @@ function set_sim_preset!(name; mode::Union{Nothing, Symbol} = nothing)
     current = manager.active_config
     config = csv_to_simulation_config(parsed; base = (apply_mode === :patch ? current : nothing))
     isnothing(current) || (config.sources = copy(current.sources))  # the code (solvers) stays as it is
-    set_sim_config!(config; snapshot = false)
+    config = set_sim_config!(config; snapshot = false, copy_config = false)   # (built here: nothing else holds it)
 
     manager.sim_presets[Symbol(splitext(basename(path))[1])] = _preset_description(raw, "Custom simulation preset")
     _render_editor!()
@@ -255,5 +257,5 @@ function reset_sim_config!()
         return nothing
     end
     @info "Simulation configuration reset to its baseline. Press 'Run Simulation' to compute it."
-    return set_sim_config!(deepcopy(base); snapshot = false)
+    return set_sim_config!(deepcopy(base); snapshot = false, copy_config = false)
 end

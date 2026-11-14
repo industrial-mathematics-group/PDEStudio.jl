@@ -127,7 +127,7 @@ function _title_values(i::Int, is_param::Bool, dim::Symbol, sim_data)
         if is_param
             data = manager.plot_data[]
             isempty(data) && return String[]
-            pd = first(values(data))
+            pd = _primary_sweep(data)
             i <= length(pd.active_param_values) || return String[]
             return unique!([_fmt_value(v) for v in pd.active_param_values[i]])
         end

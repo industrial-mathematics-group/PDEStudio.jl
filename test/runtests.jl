@@ -1226,6 +1226,92 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     reset_plotter!()
 end
 
+ingroup("agent") && @testset "Review fixes 2026-11-12 (headless)" begin
+    studio_headless!()
+    set_save_path!(mktempdir())
+    reset_plotter!()
+    set_stat_preset!("hyperbolic")
+    shared = create_param_dict(:N => 48, :cfl => 0.5, :sim_func_name => :advection_solver_1d)
+    methods = create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
+                                 :lax_friedrichs => create_param_dict(:scheme => "lax_friedrichs"))
+
+    # 1. The studio works on a copy of the configuration
+    cfg = SimulationConfig(shared, methods, [:upwind, :lax_friedrichs]; reference = :exact_advection_factory)
+    launch_plotter(cfg)
+    @test manager.active_config !== cfg
+    studio_set!(:methods => :upwind)
+    @test manager.active_config.defaults == [:upwind] && cfg.defaults == [:upwind, :lax_friedrichs]
+
+    # 2. A reference method first in the plot data does not hide the statistics
+    @test PDEStudio._primary_sweep(Dict(:analytic => :A, :upwind => :B)) === :B   # whatever the Dict order
+    @test PDEStudio._primary_sweep(Dict(:analytic => :A)) === :A
+    cfg2 = SimulationConfig(shared, create_method_dict(:analytic => create_param_dict(), :upwind => methods[:upwind]),
+                            [:analytic, :upwind]; reference = :exact_advection_factory)
+    launch_plotter(cfg2)
+    @test Set(keys(manager.plot_data[])) == Set([:analytic, :upwind])
+    studio_set!(:x_axis => :t, :u_axis => :l1error)   # threw when the reference came first in the plot data
+    @test studio_state().axes.u === :l1error
+
+    # 3. A configuration without methods runs and is drawn (the shared parameters as one pseudo-method)
+    launch_plotter(SimulationConfig(shared))
+    s = studio_state()
+    @test s.status.level === :ok && s.config.active_methods == [PDEStudio.DEFAULT_METHOD]
+    @test collect(keys(studio_data(1).methods)) == [PDEStudio.DEFAULT_METHOD]
+    @test does_sim_data_exist(shared)                 # the same data as a method-less run of PDEStudioCore
+    @test studio_set!(:methods => PDEStudio.DEFAULT_METHOD).status isa String
+
+    # 4. Resetting the manager closes an open window first
+    launch_plotter(cfg)
+    @test manager.is_open
+    reset_manager!()
+    @test !manager.is_open && isnothing(manager.master_fig) && isempty(manager.widgets)
+    @test isnothing(manager.animation_timer[]) && !manager.is_animating[]
+
+    # 5. Display resolutions are limited in total, not only per axis
+    for d in (:x, :t); set_resolution!(d, 100_000); end
+    @test_throws ArgumentError PDEStudio.build_res_tuple((:x, :t))   # 10^10 points
+    @test PDEStudio.build_res_tuple((:x,)) == (100_000,)
+    for d in (:x, :t); set_resolution!(d, PDEStudio._default_resolution(d, false)); end
+
+    # 6. Preset names stay in the preset folder
+    @test PDEStudio._preset_symbol("../evil") === :_evil && PDEStudio._preset_symbol("a/b c") === :a_b_c
+    parent = mktempdir(); pdir = joinpath(parent, "Presets"); mkpath(pdir)
+    write(joinpath(parent, "x.csv"), ""); write(joinpath(pdir, "y.csv"), "")
+    @test isnothing(PDEStudio._preset_file(pdir, "../x"))
+    @test PDEStudio._preset_file(pdir, "y") == joinpath(pdir, "y.csv")
+
+    # 7. Colour ranges must be ordered and finite
+    @test isnothing(PDEStudio._invalid_ui_reason(:color_range, [0.0, 1.0])) && isnothing(PDEStudio._invalid_ui_reason(:color_range, Any[]))
+    for bad in ([1.0, 0.0], [1.0, 1.0], [NaN, 1.0], [0.0, Inf])
+        @test !isnothing(PDEStudio._invalid_ui_reason(:color_range, bad))
+    end
+
+    # 8. CSV values keep their types: small integers, missing, empty strings inside containers
+    for v in (Int32(5), UInt8(7), Int128(3), big(9), Int8(-2), missing, ["", "x"], 1.5f0, (Int16(1), "a"))
+        back = PDEStudio._parse_csv_value(val2str(PDEStudio._csv_text(v)))
+        @test isequal(back, v) && typeof(back) == typeof(v)
+    end
+
+    # 9. Uploads over the size limit are refused by the server as well
+    launch_plotter(cfg)
+    @test isnothing(PDEStudio.receive_upload!(["big.csv" => zeros(UInt8, PDEStudio.MAX_UPLOAD_BYTES + 1)]))
+    @test occursin("exceeds", studio_state().status.text)
+
+    # 10. The load confirmation covers the originals of bundled sources
+    edir = mktempdir(); src = joinpath(edir, "solver.jl"); write(src, "f() = 1\n")
+    mkpath(joinpath(edir, "export_sources")); write(joinpath(edir, "export_sources", "solver.jl"), "f() = 1\n")
+    rows = PDEStudio._CSVRows()
+    PDEStudio.add_row!(rows, "Metadata", "General", "bundled_sources", ["export_sources/solver.jl"])
+    PDEStudio.add_row!(rows, "Metadata", "General", "source_origins", [src])
+    csv = PDEStudio._write_rows(joinpath(edir, "export.csv"), rows)
+    key1 = PDEStudio._load_key(csv)
+    write(src, "f() = 2\n")                        # the original changed: another confirmation
+    key2 = PDEStudio._load_key(csv)
+    @test key2 != key1
+    write(joinpath(edir, "export_sources", "solver.jl"), "f() = 3\n")   # so does the copy
+    @test PDEStudio._load_key(csv) != key2
+end
+
 any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" begin
     # 0. Setup Temporary Environment & 3D Simulation Sweep
     set_stat_preset!("hyperbolic")
@@ -2893,7 +2979,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test :heatmap_flat in manager.editor_page_scopes && :particles_1d in manager.editor_page_scopes
         @test !(:particles_2d in manager.editor_page_scopes)
         PDEStudio._choose_plot_style!(:particles_lines)
-        @test manager.mode[] === :lagrangian && manager.master_fig === fig && manager.active_config === lag
+        @test manager.mode[] === :lagrangian && manager.master_fig === fig && manager.active_config.shared == lag.shared
         @test w()[:plot_style].selection[] === :scatter_lines && w()[:plot_style].button.label[] == "Particle Lines  ›"
         @test sim(:a) isa LSimData && occursin("as particles", status())
         @test haskey(manager.listeners, :Lagrangian_Chain_A) && !haskey(manager.listeners, :Eulerian_Chain_A)

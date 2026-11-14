@@ -108,6 +108,15 @@ function _get_first_valid(pd)
     return nothing
 end
 
+# The sweep data that stands for the plotted data: the first non-reference method's. A reference dataset carries no
+# error statistics, so with a reference first in the dictionary the menus (and `studio_set!`) lost every statistic.
+function _primary_sweep(data::AbstractDict)
+    for (m, pd) in data
+        is_reference_method(m) || return pd
+    end
+    return first(values(data))
+end
+
 # ==============================================================================
 # --- SWEEP VALUES (numeric and non-numeric parameters) ---
 # ==============================================================================
@@ -139,7 +148,7 @@ end
 function _param_display_value(i::Int, sel)
     data = manager.plot_data[]
     isempty(data) && return sel
-    pd = first(values(data))
+    pd = _primary_sweep(data)
     i <= length(pd.active_param_values) || return sel
     vals = pd.active_param_values[i]
     (isempty(vals) || _is_numeric_sweep(vals)) && return sel
