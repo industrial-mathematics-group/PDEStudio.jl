@@ -2,10 +2,10 @@
 # Scheme: https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#ai-assisted-contributions
 version = 4
 
-
 # Line by line: the commit that landed a line on main declares it. For a pull request into main that is its
-# merge commit, whose message is the PR description with the ticked AI declaration of the template. Lines
-# whose commit declares nothing keep the file-level declarations of the annotations below.
+# merge commit, whose message is the PR description with the ticked AI declaration of the template; main_dev
+# lands through the "Main dev" pull requests on GitHub. Lines whose commit declares nothing keep the
+# file-level declarations of the annotations below.
 [history]
 default-branch = "main"
 merge-method = "merge"
@@ -55,6 +55,9 @@ Reviewed-by = "blhackslash <dev@blackslash.win>"
 AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation"
 
+# The file lists below stay until SIGNOFF.snapshot.json holds the levels they give: `aisignoff freeze` on main
+# after the next "Main dev" merge, then the lists are deleted. Their review levels are already the
+# attestations at the end of this file; generation, and reviews below the folder defaults, can't be attested.
 
 # Changed on claude/agent-feedback by Claude (issues found with the agent API: particle lines, statistic hints, the
 # order of studio_set!, value and label formatting, long titles of compared methods; reviewed by a new session).

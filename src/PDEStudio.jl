@@ -241,6 +241,11 @@ function set_resolution!(dim::Symbol, val::Int; is_ref::Bool=false)
 end
 
 const MAX_RESOLUTION = 100_000
+# Points of one displayed dataset (the product of the resolutions of its axes): the per-axis limit alone would let a
+# configuration file ask for 10^10 points.
+const MAX_TOTAL_POINTS = 50_000_000
+# The method a configuration without `methods` is shown as (it runs the shared parameters alone)
+const DEFAULT_METHOD = :default
 # A display resolution: 1 point is allowed for every axis (a flat particle cloud along an axis; a time axis then
 # shows its last snapshot).
 _valid_resolution(n) = n isa Integer && 1 <= n <= MAX_RESOLUTION
@@ -266,7 +271,12 @@ end
 Dynamically generates the `NTuple{D, Int}` required by the backend, ensuring the spatial and temporal resolutions are ordered exactly according to the backend's expected `dim_keys` tuple.
 """
 function build_res_tuple(dim_keys::Union{AbstractVector{Symbol},Tuple{Vararg{Symbol}}}; is_ref::Bool=false)
-    return Tuple(get_resolution(d; is_ref=is_ref) for d in dim_keys)
+    res = Tuple(get_resolution(d; is_ref=is_ref) for d in dim_keys)
+    total = prod(Int128.(res); init = Int128(1))
+    total <= MAX_TOTAL_POINTS || throw(ArgumentError(
+        "the display resolution $(join(res, " × ")) would need $total points (at most $MAX_TOTAL_POINTS): lower it " *
+        "(Files → Settings › resolution, or `set_resolution!`)"))
+    return res
 end
 
 """
@@ -448,10 +458,12 @@ end
 
 Returns the `PlotManager` to its pristine state: detaches every listener, drops the UI dictionaries,
 widgets, caches, labels and the bound configuration, rebuilds the trigger tree and reloads the default
-styles and the presets found on disk. The mode, the allowed dimensions, the number of parameter
-sliders and the window handle are kept (see [`reset_plotter!`](@ref) for the window).
+styles and the presets found on disk. The mode, the allowed dimensions and the number of parameter
+sliders are kept; an open window is closed first ([`reset_plotter!`](@ref)), since it would be left without
+widgets, with its animation running.
 """
 function reset_manager!()
+    manager.is_open && reset_plotter!()
     for (_, listener_node) in manager.listeners
         if listener_node isa Vector
             for l in listener_node; off(l); end

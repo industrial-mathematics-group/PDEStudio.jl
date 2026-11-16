@@ -6,6 +6,27 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### Fixed
+- **A reference method first in the plot data hid every statistic** (e.g. methods `(:analytic, :godunov)`: the
+  axis menus lost the errors and `studio_set!(:u_axis => :l2error)` threw). The menus and the agent API now take a
+  non-reference method's data as the template.
+- **Configurations without `methods`** (the shared parameters alone, supported by PDEStudioCore) ran and were drawn
+  as the single method `:default` instead of "No methods selected".
+- **The studio works on a copy of the bound `SimulationConfig`**: edits in the window (methods, parameters, the
+  sweep) no longer change the configuration passed to `set_sim_config!` / `launch_plotter`.
+- `reset_manager!()` with an open window closes it first (it was left without widgets and with its animation running).
+- An animation export stops a playing animation first (its timer moved the slider while the frames were recorded).
+- Display resolutions are limited in total (50 million points of one dataset), not only per axis.
+- Relaunching the window after Run (more dimensions, a structural CSV) no longer calls `display` in a browser session.
+- Uploads over the size limit are refused by the server as well, not only by the page.
+- The load confirmation of an export covers every file it may run (the bundled copies wherever they are found and
+  their originals).
+- `studio_set!(:plot_style => :particles)` picks the particle style of the data's dimension (it chose the 1D style).
+- CSV files keep small integer types (`Int32(5)`), `missing` and empty strings inside containers; `_needs_type`
+  writes integers other than `Int` with their type.
+- Preset names cannot contain path separators or `..` (a preset file is only looked up inside the preset folder).
+- Colour ranges must be finite and ordered (`[hi, lo]`, `[a, a]` and `NaN` were accepted).
+- The docstring of `save_params_to_csv` described the old `<name>_source_<i>.jl` layout; a `:None` typo in the
+  title helper.
 - **`particles_lines` joins the particles along the axis**, not in storage order: particle management stores inserted
   particles last, so the lines ran back and forth across the plot.
 - **`studio_set!` makes the changes of one call in the order the controls depend on each other** (style, methods,
