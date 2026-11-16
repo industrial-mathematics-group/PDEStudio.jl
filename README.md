@@ -9,9 +9,9 @@
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://industrial-mathematics-group.github.io/PDEStudio.jl/dev/)
 [![Stable Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://industrial-mathematics-group.github.io/PDEStudio.jl/stable/)
 
-![AI generation](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-generation.json)
-![Human review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-human-review.json)
-![AI review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-ai-review.json)
+[![AI generation](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-generation.json)](https://industrial-mathematics-group.github.io/PDEStudio.jl/dev/aisignoff/)
+[![Human review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-human-review.json)](https://industrial-mathematics-group.github.io/PDEStudio.jl/dev/aisignoff/)
+[![AI review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/PDEStudio.jl/badges/aisignoff-ai-review.json)](https://industrial-mathematics-group.github.io/PDEStudio.jl/dev/aisignoff/)
 </div>
 
 **PDEStudio.jl** is a highly interactive, Makie-driven graphical frontend engineered for the real-time visualization and exploration of Partial Differential Equation (PDE) simulations. It serves as the visual counterpart to the autonomous numerical backend, [PDEStudioCore.jl](https://github.com/industrial-mathematics-group/PDEStudioCore.jl).
