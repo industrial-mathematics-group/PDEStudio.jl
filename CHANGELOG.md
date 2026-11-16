@@ -1,7 +1,7 @@
 # Changelog
 
 What has changed since the last release. Released versions are described in the
-[releases](https://github.com/blhackslash/PDEStudio.jl/releases) and the git history.
+[releases](https://github.com/industrial-mathematics-group/PDEStudio.jl/releases) and the git history.
 
 ## Unreleased
 
