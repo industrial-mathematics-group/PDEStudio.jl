@@ -37,7 +37,7 @@ reset_sim_config!()           # back to the configuration bound with set_sim_con
 set_plot_preset!()            # back to the default look
 ```
 
-Built-in look presets: `:convergence`, `:publication`, `:heatmap`, `:component`, `:compact3d`, `:nolabels` and `:darkmode`.
+Built-in look presets: `:publication`, `:heatmap`, `:component`, `:compact3d`, `:nolabels` and `:darkmode`.
 
 ## Replace or Patch
 

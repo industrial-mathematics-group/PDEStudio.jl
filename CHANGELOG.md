@@ -48,6 +48,10 @@ What has changed since the last release. Released versions are described in the
   unavailable `:u_axis` value name the statistics the current axes don't offer and the call that plots them (e.g.
   `studio_set!(:x_axis => :t, :u_axis => :l1error)`, with `:plot_style => :lines` in 2D/3D and particle styles).
   `studio_state` reports titles as one line of text.
+- The `:publication` look preset no longer sets the plot size (it set 500×400); it only places the legend.
+
+### Removed
+- The `:convergence` look preset: it was listed in the menu but changed nothing.
 
 ## 0.6.0
 
