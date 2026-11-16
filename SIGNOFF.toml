@@ -1,6 +1,6 @@
 # AI declarations, checked by aisignoff: file-level annotations below, line-level declarations from [history].
 # Scheme: https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#ai-assisted-contributions
-version = 3
+version = 4
 exclude = ["reviews/**"]   # committed AI reviews (CONTRIBUTING.md) need no declaration
 
 # Line by line: the commit that landed a line on main declares it. For a pull request into main that is its
@@ -17,7 +17,7 @@ AI-Generation = "G3"
 Human-Review = "H1"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -26,7 +26,7 @@ AI-Generation = "G2"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
 Human-Review = "H2"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -35,7 +35,7 @@ AI-Generation = "G3"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
 Human-Review = "H1"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -44,7 +44,7 @@ AI-Generation = "G3"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
 Human-Review = "H2"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -53,7 +53,7 @@ AI-Generation = "G2"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5"
 Human-Review = "H2"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 # The file lists below stay until SIGNOFF.snapshot.json holds the levels they give: `aisignoff freeze` on main
@@ -66,7 +66,7 @@ AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generati
 path = ["src/AgentAPI.jl", "src/PDEStudio.jl", "src/PlottingLogic.jl", "src/PlottingUtils.jl", "src/ConfigIO.jl", "src/Controls.jl", "src/Presets.jl", "src/UILogic.jl"]
 AI-Generation = "G3"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Assisted-by = ["Claude (Anthropic), claude-opus-5-5"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
@@ -78,7 +78,7 @@ Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 path = "src/AgentAPI.jl"
 blob = "61b6dbd9fc57c01013783cf581679f36ba84bd76"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 
@@ -86,7 +86,7 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 path = "src/PDEStudio.jl"
 blob = "f6ac8a196942b7f853e42acadd413180674c1cdd"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 
@@ -94,7 +94,7 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 path = "src/PlottingLogic.jl"
 blob = "89dfa4e461f1f7eee47a81b50888348c2d7a58b9"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 
@@ -102,7 +102,7 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 path = "src/PlottingUtils.jl"
 blob = "679d6ae77f21af7e44d63d6875320f50184385ca"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 
@@ -110,7 +110,7 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 path = "src/ConfigIO.jl"
 blob = "f080a2a5340b24f92b2e7eaeb325dfa93c7c64ca"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 
@@ -118,7 +118,7 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 path = "src/Controls.jl"
 blob = "a7222f50d6100b95a1f2fc31fe878165900a0701"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 
@@ -126,7 +126,7 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 path = "src/Presets.jl"
 blob = "df9e97cebe206513514bafec7a605d4976d7077a"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 
@@ -134,6 +134,6 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 path = "src/UILogic.jl"
 blob = "e46ba01fdc617393cb0a95fdff6a499725fd7dc0"
 Human-Review = "H1"
-AI-Review = "A2"
+AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
