@@ -101,7 +101,7 @@ window with them.
 `test_advection_1d()` is one of the built-in examples of PDEStudioCore, each a function returning a ready
 `SimulationConfig`: `test_advection_1d`, `test_burgers_1d`, `test_heat_1d`, `test_heat_2d`, `test_poisson_2d` and
 `test_particles_2d` (Lagrangian data, opened as particles). Their solvers, in PDEStudioCore's
-[`src/Examples/`](https://github.com/blhackslash/PDEStudioCore.jl/tree/main/src/Examples), show how to write your own;
+[`src/Examples/`](https://github.com/industrial-mathematics-group/PDEStudioCore.jl/tree/main/src/Examples), show how to write your own;
 a configuration of your own is bound the same way:
 
 ```julia
