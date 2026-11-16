@@ -14,6 +14,7 @@ julia --project=test -e 'using Pkg; Pkg.instantiate()'      # once
 julia -t 8 --project=test test/runtests.jl                  # same suite, faster to iterate
 PDESTUDIO_TEST_GROUP=editors julia --project=test test/runtests.jl   # one test group (helpers, plots-1, plots-2, editors, browser)
 julia --project=docs docs/make.jl                           # docs (instantiate docs env first)
+pipx run --spec aisignoff==1.0.0rc8 aisignoff report --html docs/src/assets/aisignoff.html --with-source  # optional, before make.jl: the AI Signoff Report page (CI does it)
 (cd test/browser && npm ci)                                 # once: playwright-core for the browser tests
 ```
 
