@@ -5,6 +5,12 @@ What has changed since the last release. Released versions are described in the
 
 ## Unreleased
 
+### New
+- **`set_figure_path!` / `get_figure_path`:** the folder for exports (`figures/`, `animations/`) and
+  `studio_snapshot` (`snapshots/`), so figures can be saved on your own computer while the data stays on a server
+  (`set_save_path!`). The default is still the save path; configuration files are also searched for in the figure
+  path's export folders.
+
 ### Fixed
 - **A reference method first in the plot data hid every statistic** (e.g. methods `(:analytic, :godunov)`: the
   axis menus lost the errors and `studio_set!(:u_axis => :l2error)` threw). The menus and the agent API now take a

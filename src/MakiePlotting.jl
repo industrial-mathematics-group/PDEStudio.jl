@@ -186,11 +186,48 @@ function _map_parameters_to_sliders!(config::SimulationConfig)
     return nothing
 end
 
+const _FIGURE_PATH = Ref{Union{Nothing, String}}(nothing)
+
+"""
+    set_figure_path!(path = nothing) -> String
+
+Sets the folder the studio saves its figures in: exports go to `<figure path>/figures` (static frames) and
+`<figure path>/animations`, and [`studio_snapshot`](@ref) writes to `<figure path>/snapshots`. `nothing` (the
+default) uses the save path of the data (`get_save_path()`). With data on a server, e.g. a mounted drive given to
+`set_save_path!`, this keeps the figures on your own computer:
+
+```julia
+set_save_path!("/mnt/cluster/results")    # the data (cached runs) stays on the server
+set_figure_path!("~/Pictures/study")      # figures and animations are saved locally
+```
+
+The folder is created (`~` is expanded). Presets and browser uploads stay under the save path. Returns the figure
+path (see [`get_figure_path`](@ref)).
+"""
+function set_figure_path!(path::Union{Nothing, AbstractString} = nothing)
+    if isnothing(path)
+        _FIGURE_PATH[] = nothing
+    else
+        dir = abspath(expanduser(String(path)))
+        mkpath(dir)
+        _FIGURE_PATH[] = dir
+    end
+    return get_figure_path()
+end
+
+"""
+    get_figure_path() -> String
+
+The folder the studio saves figures, animations and snapshots in: the one set with [`set_figure_path!`](@ref), or the
+save path of the data (`get_save_path()`).
+"""
+get_figure_path() = something(_FIGURE_PATH[], get_save_path())
+
 """
     find_config_csv(name::AbstractString)
 
 Locates a configuration file (CSV, or a Julia file given with its `.jl` extension) by file name: an existing path is returned as is; otherwise the working directory,
-`<save path>/figures`, `<save path>/animations`, the preset folders and `./Experiments` (one level of subfolders each) are searched.
+the export folders `figures` and `animations` of the figure path (see [`set_figure_path!`](@ref)) and of the save path, the preset folders and `./Experiments` (one level of subfolders each) are searched.
 Returns the path or `nothing`.
 """
 function find_config_csv(name::AbstractString)
@@ -199,11 +236,9 @@ function find_config_csv(name::AbstractString)
     filename = any(ext -> endswith(lowercase(candidate), ext), (".csv", ".jl")) ? String(candidate) : candidate * ".csv"
     isfile(filename) && return filename
 
-    save_root = get_save_path()
     search_dirs = [
         pwd(),
-        joinpath(save_root, "figures"),
-        joinpath(save_root, "animations"),
+        (joinpath(root, sub) for root in unique([get_figure_path(), get_save_path()]) for sub in ("figures", "animations"))...,
         preset_dir(),
         sim_preset_dir(),
         joinpath(pwd(), "Experiments"),

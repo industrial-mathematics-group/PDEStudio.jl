@@ -2429,7 +2429,7 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
 
             # --- ANIMATION EXPORT ---
             if is_anim
-                save_path = joinpath(get_save_path(), "animations")
+                save_path = joinpath(get_figure_path(), "animations")
                 fname = joinpath(save_path, base_name * "." * ext)
                 mkpath(dirname(fname))
                 
@@ -2453,7 +2453,7 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 
             # --- STATIC FRAME EXPORT ---
             elseif !isempty(formats)
-                save_dir = joinpath(get_save_path(), "figures")
+                save_dir = joinpath(get_figure_path(), "figures")
                 if get(manager.ui[:export], :create_savefolder, false) === true
                     save_dir = joinpath(save_dir, base_name)
                 end
