@@ -57,8 +57,10 @@ const SYMBOL_TO_LABEL_MAP = Dict{Symbol, String}(
 """
     set_label!(sym::Symbol, label::AbstractString)
 
-Registers a custom UI display name for a backend Symbol (e.g. `set_label!(:rk4, "RK4")`). Labels only change what
-is displayed; files always store the backend names.
+Registers a custom display name for a backend Symbol: a method (`set_label!(:rk4, "RK4")`), a parameter
+(`set_label!(:Grid_Ns__1, "N")` instead of the automatic "Grid Ns[1]"), a statistic or a dimension. It is used in
+menus, axis labels, titles, legends and slider labels. Labels only change what is displayed; files always store the
+backend names.
 """
 function set_label!(sym::Symbol, label::AbstractString)
     return manager.labels[sym] = String(label)
@@ -276,7 +278,7 @@ function create_master_ui_dict()
         :line_direction  => :horizontal,
         :line_styles     => [:solid, :dash, :dot, (:dash, :dense), (:dot, :dense)],
         :markers         => [:circle, :rect, :utriangle, :dtriangle, :cross],
-        :marker_size     => 15.0,
+        :marker_size     => 8.0,
         :levels          => 15,
         :method_index    => 1,
         :bottom_margin   => 60,
@@ -345,7 +347,7 @@ function set_plot_preset!()
     manager.exploration_cache = Dict{Symbol, Any}(:anim_target => :none, :component => 1)
 
     manager.triggers[:Layout][] += 1
-    @info "UI and Layout have been directly reset to defaults."
+    @debug "UI and Layout have been directly reset to defaults."
     return
 end
 

@@ -583,6 +583,7 @@ function load_and_apply_csv!(filepath::AbstractString)
     empty!(manager.source_failures)
     parsed, raw = _read_csv(filepath)
     bundled_config, ran, sources_of = _run_bundled_sources(parsed, filepath)
+    _note_missing_statistics!(parsed, filepath)   # (after the bundled sources: they may register them)
     # The files that ran are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
     # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
     sources = isnothing(bundled_config) ? ran : unique([_relocate_sources(bundled_config.sources, sources_of); ran])
@@ -920,6 +921,69 @@ function get_julia_info(git_repo_names::Vector{String})
 end
 
 # ------------------------------------------------------------------------------
+# --- Code the export can't run again ---------------------------------------------------------------------------
+
+# The functions a configuration names (solvers, reference, post-processor) and the `calc_stat` methods of the
+# registered statistics that are defined neither in one of its `sources` nor in a package: an export bundles the
+# sources and records the package versions, so it can't run these again elsewhere (e.g. defined in the REPL, or in a
+# script that isn't a source). Returns descriptions such as "post-processor my_post"; names that don't resolve are
+# left out (running the configuration reports them).
+function _code_outside_sources(config::SimulationConfig)
+    sources = Set(normpath(abspath(s)) for s in config.sources)
+    in_package(m::Method) = !isnothing(pkgdir(Base.moduleroot(m.module)))
+    in_sources(m::Method) = (file = string(m.file); isabspath(file) && normpath(file) in sources)
+    covered(ms) = all(m -> in_package(m) || in_sources(m), ms)
+    outside = String[]
+    function check!(what, name)
+        (isnothing(name) || Symbol(name) === :none) && return
+        f = Base.CoreLogging.with_logger(() -> PDEStudioCore.resolve_dynamic_function(name), Base.CoreLogging.NullLogger())
+        isnothing(f) || covered(methods(f)) || push!(outside, "$what $name")
+    end
+    solvers = [get(config.shared, :sim_func_name, nothing); [get(m, :sim_func_name, nothing) for m in values(config.methods)]]
+    foreach(s -> check!("solver", s), unique(filter(!isnothing, solvers)))
+    check!("reference", config.reference)
+    check!("post-processor", config.postprocess)
+    for stat in sort!(collect(keys(get_stat_registry())))
+        stat === :Solution && continue
+        # (a statistic without a `calc_stat` method comes with the data, e.g. from the solver)
+        ms = [m for m in methods(PDEStudioCore.calc_stat) if _calc_stat_of(m, stat)]
+        isempty(ms) || covered(ms) || push!(outside, "statistic $stat")
+    end
+    return outside
+end
+
+function _calc_stat_of(m::Method, stat::Symbol)
+    sig = Base.unwrap_unionall(m.sig)
+    return length(sig.parameters) >= 2 && sig.parameters[2] === Val{stat}
+end
+
+# The note an export adds to the status line (and the log) when it can't run some code again; "" otherwise
+function _export_code_note()
+    config = manager.active_config
+    isnothing(config) && return ""
+    outside = _code_outside_sources(config)
+    isempty(outside) && return ""
+    note = "defined outside the configuration's sources and packages, so the export can't run them elsewhere: " *
+           join(outside, ", ") * " (add their files to the sources, Advanced)"
+    @warn "Export: $note."
+    return note
+end
+
+# Warns (and notes for the status line) when a loaded export computed statistics this session doesn't register
+function _note_missing_statistics!(parsed::Dict, filepath::AbstractString)
+    names = get(get(get(parsed, "Metadata", Dict()), "General", Dict()), "statistics", nothing)
+    names isa AbstractString && (names = isempty(names) ? String[] : [names])
+    names isa AbstractVector || return nothing
+    missing_stats = sort!(setdiff(Symbol.(string.(names)), keys(get_stat_registry())))
+    isempty(missing_stats) && return nothing
+    note = "the export used statistics this session doesn't register: " * join(string.(missing_stats), ", ") *
+           " (set_stat_preset! / register_stat!, or add their files to the sources)"
+    @warn "Loading $(basename(filepath)): $note."
+    manager.source_note = join(filter(!isempty, [manager.source_note, note]), "; ")
+    return nothing
+end
+
+# ------------------------------------------------------------------------------
 # Full exports and visual presets
 # ------------------------------------------------------------------------------
 
@@ -929,7 +993,9 @@ end
 The primary serialization engine. It writes the full state of the studio—the `SimulationConfig`, scene (axes,
 sliders, layout, camera, labels, exploration), UI styles, structural limits and display resolutions—plus Git and
 Julia environment information to `<save_dir>/<base_filename>.csv`. The configuration's source files are copied next
-to the CSV (`<name>_sources/<file>`, with their originals recorded) so the export can be reloaded elsewhere.
+to the CSV (`<name>_sources/<file>`, with their originals recorded) so the export can be reloaded elsewhere. The
+registered statistics are recorded (`Metadata, General, statistics`), and so is code the export can't run again
+(`code_outside_sources`: solvers, reference, post-processor or statistics defined outside the sources and packages).
 
 Returns `true` on a successful write.
 """
@@ -976,6 +1042,13 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
                 add_row!(rows, "Metadata", "General", "bundled_sources", bundled_names)
                 add_row!(rows, "Metadata", "General", "source_origins", origins)
             end
+        end
+        if !isnothing(config)
+            # what a load elsewhere needs besides the sources: the statistics, and the code it can't rerun
+            add_row!(rows, "Metadata", "General", "statistics",
+                     sort!([string(k) for k in keys(get_stat_registry()) if k !== :Solution]))
+            outside = _code_outside_sources(config)
+            isempty(outside) || add_row!(rows, "Metadata", "General", "code_outside_sources", outside)
         end
 
         # --- 2. Git (Scope = Repo Name) & Julia (Scope = Main Project or Local Sub-Package) ---

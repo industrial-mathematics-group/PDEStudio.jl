@@ -232,6 +232,7 @@ end
 # --- HELPERS (no window needed) ---
 # ==============================================================================
 ingroup("helpers") && @testset "PDEStudio: Helpers" begin
+    @test_logs min_level = Base.CoreLogging.Info reset_manager!()   # (also what loading the package runs: no output)
     @testset "Export formats" begin
         @test PDEStudio._export_formats(["PNG", ".pdf", "mp4", "tiff"]) == ["png", "pdf"]
         @test PDEStudio._export_formats("svg") == ["svg"]       # a single entry typed into the editor
@@ -492,6 +493,47 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test PDEStudio.save_params_to_csv("exp", out3, Dict("Save Type" => "test"))
         @test isfile(joinpath(out3, "exp_sources", "cfg.jl")) && bundled_N(out3) == 24
         reset_manager!()
+    end
+
+    @testset "Exports name the code they can't run again and the statistics they used" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        srcdir = mktempdir()
+        src = joinpath(srcdir, "post_src.jl")
+        write(src, """
+            sourced_post(data) = nothing
+            PDEStudioCore.register_stat!(:sourced_stat, :time)
+            PDEStudioCore.calc_stat(::Val{:sourced_stat}, fixed_coords, u, ana, domain::DomainInfo) = sum(u)
+            """)
+        include(src)
+        cfg = SimulationConfig(create_param_dict(:N => 16, :sim_func_name => :advection_solver_1d),
+                               create_method_dict(:m => create_param_dict()), [:m]; postprocess = :sourced_post,
+                               sources = [src])
+        outside = PDEStudio._code_outside_sources(cfg)
+        @test "solver advection_solver_1d" in outside          # (defined in this test file, which is no source)
+        @test "statistic pointwise_diff" in outside            # (its calc_stat method, too)
+        @test !("post-processor sourced_post" in outside) && !("statistic sourced_stat" in outside)   # (in a source)
+        # functions of a package (the built-in examples) are found again through the recorded package versions
+        @test !any(startswith("solver"), PDEStudio._code_outside_sources(test_advection_1d()))
+        # an export records the statistics and the code it can't run again, and the status line says so
+        set_sim_config!(cfg)
+        out = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
+        meta = PDEStudio._read_csv(joinpath(out, "exp.csv"))[1]["Metadata"]["General"]
+        @test "sourced_stat" in meta["statistics"] && "pointwise_diff" in meta["statistics"]
+        @test "solver advection_solver_1d" in meta["code_outside_sources"]
+        note = @test_logs (:warn, r"can't run them elsewhere") match_mode = :any PDEStudio._export_code_note()
+        @test occursin("solver advection_solver_1d", note) && !occursin("sourced_post", note)
+        # a load warns about statistics the session doesn't register (here: after the export's sources ran)
+        delete!(get_stat_registry(), :sourced_stat)
+        PDEStudio.manager.source_note = ""
+        parsed = Dict("Metadata" => Dict("General" => Dict("statistics" => ["no_such_stat", "pointwise_diff"])))
+        @test_logs (:warn, r"no_such_stat") PDEStudio._note_missing_statistics!(parsed, "x.csv")
+        @test occursin("no_such_stat", PDEStudio.manager.source_note) && !occursin("pointwise_diff", PDEStudio.manager.source_note)
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))   # (its bundled source registers :sourced_stat again)
+        @test haskey(get_stat_registry(), :sourced_stat) && !occursin("doesn't register", PDEStudio.manager.source_note)
+        delete!(get_stat_registry(), :sourced_stat)
     end
 
     @testset "Bundled sources: files that aren't bundled, absolute paths, Run, symlinks" begin
@@ -1071,7 +1113,7 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
               ("Simulation finished in 1.2 s: 2 runs, 1 ran, 1 cached.", :ok)
         msg, level = PDEStudio._run_status(RunSummary(tasks = [a, b], cached = [b], changed = [b], failed = [a => "boom"],
                                                       postprocessing_failed = [b => "late"]), 2.0, 2)
-        @test level === :warn && occursin("0 ran, 1 cached, 1 failed", msg) && occursin("1 made with other source code", msg)
+        @test level === :warn && occursin("0 ran, 1 cached, 1 failed", msg) && occursin("1 made with earlier source code", msg)
         @test occursin("1 statistics / post-processing step(s) failed", msg) && endswith(msg, "First error: boom.")
     end
 
@@ -1156,6 +1198,16 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     s = studio_state()
     @test s.axes.x === :t && s.axes.u === :l1error && s.plots[1].ylabel == "L1Error"
     studio_set!(:u_axis => :l1error, :x_axis => :cfl)   # (over the swept parameter, at the time of the slider)
+    # (the title names the time of the statistic, not the position it doesn't keep)
+    @test occursin("Time (T)", studio_state().plots[1].title) && !occursin("Position", studio_state().plots[1].title)
+    # (log axes: decades with 2, 3, 5 between them, written as numbers)
+    studio_option!(:x_axis_1d, :log_scale, true)
+    @test only(b for b in manager.master_fig.content if b isa Axis).xticks[] === PDEStudio._log10_ticks
+    studio_option!(:x_axis_1d, :log_scale, false)
+    @test only(b for b in manager.master_fig.content if b isa Axis).xticks[] !== PDEStudio._log10_ticks
+    @test PDEStudio._log10_ticks(100.0, 1000.0) == [100.0, 200.0, 300.0, 500.0, 1000.0]
+    @test PDEStudio._log10_ticks(0.25, 1.0) == [0.3, 0.5, 1.0] && length(PDEStudio._log10_ticks(1e-6, 1.0)) == 7
+    @test PDEStudio._log10_ticks(150.0, 180.0) == [150.0, 160.0, 180.0] && isempty(PDEStudio._log10_ticks(-1.0, 1.0))
     @test studio_state().axes.x === :cfl && length(first(values(studio_data(1).methods)).x) == 4
     studio_set!(:x_axis => :x, :u_axis => :Solution)
     # (2D styles: the hint switches to a 1D style, and following it works)

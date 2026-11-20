@@ -755,7 +755,7 @@ function _run_status(summary, elapsed::Real, n_methods::Integer)
     n(:empty) > 0 && push!(parts, "$(n(:empty)) without output")
     n(:failed) > 0 && push!(parts, "$(n(:failed)) failed")
     msg = "$head: $(n(:tasks)) runs, $(join(parts, ", "))"
-    n(:changed) > 0 && (msg *= "; $(n(:changed)) made with other source code (kept, see the log)")
+    n(:changed) > 0 && (msg *= "; $(n(:changed)) made with earlier source code (kept)")
     later = n(:stats_failed) + n(:postprocessing_failed)
     later > 0 && (msg *= "; $later statistics / post-processing step(s) failed")
     outdated = hasproperty(summary, :postprocessing) ? get(summary.postprocessing, :outdated, 0) : 0
@@ -764,7 +764,8 @@ function _run_status(summary, elapsed::Real, n_methods::Integer)
                   n(:stats_failed) > 0 ? last(first(summary.stats_failed)) :
                   n(:postprocessing_failed) > 0 ? last(first(summary.postprocessing_failed)) : nothing
     isnothing(first_error) || (msg *= ". First error: $(_short(string(first_error), 90))")
-    return msg * ".", (n(:failed) + n(:empty) + later + n(:changed) + outdated == 0 ? :ok : :warn)
+    # (results of earlier source code are kept on purpose, e.g. after editing a config: noted, not a warning)
+    return msg * ".", (n(:failed) + n(:empty) + later + outdated == 0 ? :ok : :warn)
 end
 
 # ------------------------------------------------------------------------------
@@ -2449,7 +2450,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 metadata = Dict("Save Type" => "Animation", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
                 save_params_to_csv(base_name, save_path, metadata) 
                 @info "Animation saved: $fname"
-                _status!("Animation saved: $fname", :ok)
+                note = _export_code_note()
+                _status!("Animation saved: $fname" * (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
                 
             # --- STATIC FRAME EXPORT ---
             elseif !isempty(formats)
@@ -2472,7 +2474,9 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 metadata = Dict("Save Type" => "Static Frame", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
                 save_params_to_csv(base_name, save_dir, metadata)
                 # an absolute path in the name box replaces the save folder (joinpath)
-                _status!("Exported $(basename(base_name)) ($(join(formats, ", "))) to $(dirname(joinpath(save_dir, base_name)))", :ok)
+                note = _export_code_note()
+                _status!("Exported $(basename(base_name)) ($(join(formats, ", "))) to $(dirname(joinpath(save_dir, base_name)))" *
+                         (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
                 
             else
                 _report(:warn, "No valid static formats selected and no animation extension provided. Export bypassed.")
