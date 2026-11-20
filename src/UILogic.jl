@@ -2449,7 +2449,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 metadata = Dict("Save Type" => "Animation", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
                 save_params_to_csv(base_name, save_path, metadata) 
                 @info "Animation saved: $fname"
-                _status!("Animation saved: $fname", :ok)
+                note = _export_code_note()
+                _status!("Animation saved: $fname" * (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
                 
             # --- STATIC FRAME EXPORT ---
             elseif !isempty(formats)
@@ -2472,7 +2473,9 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 metadata = Dict("Save Type" => "Static Frame", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
                 save_params_to_csv(base_name, save_dir, metadata)
                 # an absolute path in the name box replaces the save folder (joinpath)
-                _status!("Exported $(basename(base_name)) ($(join(formats, ", "))) to $(dirname(joinpath(save_dir, base_name)))", :ok)
+                note = _export_code_note()
+                _status!("Exported $(basename(base_name)) ($(join(formats, ", "))) to $(dirname(joinpath(save_dir, base_name)))" *
+                         (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
                 
             else
                 _report(:warn, "No valid static formats selected and no animation extension provided. Export bypassed.")

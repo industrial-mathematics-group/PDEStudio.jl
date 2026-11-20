@@ -70,6 +70,15 @@ Configuration files that reload reliably, from the studio and from any bundled c
     configuration. Packages must be installed in the environment that loads the file.
 4.  **Data files** (meshes, initial conditions) are read relative to `@__DIR__` and are not bundled; keep them with the
     configuration (an export finds them there while that folder exists) or in a package.
+5.  **Post-processor, reference and statistics too:** an export records only their names, and the statistics are
+    global (not part of the configuration). Define the post-processor, the reference, custom statistics
+    (`register_stat!` + `calc_stat`) and the `set_stat_preset!` call in a file of `sources`, or in a package.
+
+An export checks this: solvers, reference, post-processor and statistics defined neither in a file of `sources` nor
+in a package (e.g. in the REPL, or in a script that isn't a source) are named in the status line and the log, and
+recorded in the CSV (`Metadata, General, code_outside_sources`): the export can't run them elsewhere. The CSV also
+lists the registered statistics (`statistics`); loading it warns about the ones the session doesn't register
+(after its bundled sources ran).
 
 ```julia
 # configs/advection.jl

@@ -10,6 +10,10 @@ What has changed since the last release. Released versions are described in the
   `studio_snapshot` (`snapshots/`), so figures can be saved on your own computer while the data stays on a server
   (`set_save_path!`). The default is still the save path; configuration files are also searched for in the figure
   path's export folders.
+- **Exports name the code they can't run again:** solvers, reference, post-processor and statistics (`calc_stat`
+  methods) defined neither in a file of the configuration's `sources` nor in a package are named in the status line
+  and the log, and recorded in the CSV (`Metadata, General, code_outside_sources`). The CSV also lists the registered
+  statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
 - **A reference method first in the plot data hid every statistic** (e.g. methods `(:analytic, :godunov)`: the
