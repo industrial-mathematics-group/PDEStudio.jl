@@ -16,6 +16,15 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- **Titles of statistics** no longer show the slider value of a dimension the statistic doesn't keep (an error over
+  `N` showed "Position (X) = −0.0101").
+- **Log axes** have ticks at 1, 2, 3, 5 × 10ᵏ (as the range allows), written as numbers, instead of ticks like
+  `10^2.5`.
+- **Smaller default markers** (8 px, were 15 px) in the 1-D and particle styles.
+- **Loading the package prints nothing** (the reset of the look at start-up logged an Info line).
+- **Results of earlier source code** (kept after editing a configuration) are still counted in the status line, but no
+  longer turn it orange.
+
 - **A reference method first in the plot data hid every statistic** (e.g. methods `(:analytic, :godunov)`: the
   axis menus lost the errors and `studio_set!(:u_axis => :l2error)` threw). The menus and the agent API now take a
   non-reference method's data as the template.
@@ -54,6 +63,8 @@ What has changed since the last release. Released versions are described in the
   stay distinct; at most two lines, one line on 3D axes) instead of running into the next plot.
 
 ### Changed
+- **`set_label!` is exported:** give parameters, methods, statistics and dimensions display names, e.g.
+  `set_label!(:Grid_Ns__1, "N")` instead of the automatic "Grid Ns[1]".
 - **Statistics for agents:** the `:u_axis` entry of `studio_controls` / `describe_studio` and the error of an
   unavailable `:u_axis` value name the statistics the current axes don't offer and the call that plots them (e.g.
   `studio_set!(:x_axis => :t, :u_axis => :l1error)`, with `:plot_style => :lines` in 2D/3D and particle styles).

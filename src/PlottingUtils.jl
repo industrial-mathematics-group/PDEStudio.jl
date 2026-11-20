@@ -99,12 +99,14 @@ function _title_parts(plot_dims::Tuple, dim_names::Vector{Symbol}, sel_vals, sim
     parts = Tuple{String, Vector{String}}[]
     base_vars = get_base_variables()
     n_params = length(dim_names) - length(base_vars)
+    kept = _kept_by_field(sim_data)
 
     for i in 1:length(dim_names)
         name_sym = dim_names[i]
 
-        # Skip base variables that do not physically exist in this simulation
-        if !isnothing(sim_data) && (name_sym in base_vars) && !(name_sym in sim_data.domain.dim_keys)
+        # Skip base variables that do not physically exist in this simulation, or that the plotted statistic doesn't
+        # keep (an error over N has no position: its slider value would be meaningless in the title)
+        if !isnothing(sim_data) && (name_sym in base_vars) && (!(name_sym in sim_data.domain.dim_keys) || !(name_sym in kept))
             continue
         end
 
@@ -119,6 +121,14 @@ function _title_parts(plot_dims::Tuple, dim_names::Vector{Symbol}, sel_vals, sim
         end
     end
     return parts
+end
+
+# The dimensions the plotted field keeps: every dimension for the solution, those of a statistic otherwise
+function _kept_by_field(sim_data)
+    isnothing(sim_data) && return Symbol[]
+    u = haskey(manager.widgets, :u_axis) ? manager.widgets[:u_axis].selection[] : :Solution
+    (u isa Symbol && u !== :Solution && haskey(sim_data.stats, u)) || return collect(Symbol, sim_data.domain.dim_keys)
+    return collect(Symbol, PDEStudioCore.get_kept_dims(u, sim_data.domain))
 end
 
 # The texts the value of title part `i` can show: every swept value of a parameter, the ends of an axis of the data
@@ -469,8 +479,34 @@ function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFl
     # NOW update the scales safely
     if ax.xscale[] !== new_xscale; ax.xscale[] = new_xscale; end
     if ax.yscale[] !== new_yscale; ax.yscale[] = new_yscale; end
+    _set_ticks!(ax, ui_x, ui_y)
 
     return
+end
+
+# The ticks of an axis: on a log10 axis decades with 2, 3 or 5 between them as the range allows, so the labels are
+# numbers (Makie's default gives ticks like 10^2.5); otherwise the UI's tick count, or Makie's default
+function _set_ticks!(ax::Axis, ui_x, ui_y)
+    xt, yt = _axis_ticks(ui_x, ax.xscale[]), _axis_ticks(ui_y, ax.yscale[])
+    ax.xticks[] === xt || (ax.xticks = xt)   # (only on a change: every assignment redraws the ticks)
+    ax.yticks[] === yt || (ax.yticks = yt)
+    return nothing
+end
+
+_axis_ticks(ui, scale) = scale === log10 ? _log10_ticks : get(ui, :tick_count, 0) > 0 ? LinearTicks(ui[:tick_count]) : Makie.automatic
+
+function _log10_ticks(vmin, vmax)
+    (isfinite(vmin) && isfinite(vmax) && 0 < vmin < vmax) || return Float64[]
+    lo, hi = floor(Int, log10(vmin)), ceil(Int, log10(vmax))
+    decades = hi - lo
+    tick(m, e) = e >= 0 ? m * 10.0^e : m / 10.0^(-e)   # (0.3, not 0.30000000000000004)
+    ticks = decades <= 1 ? [tick(m, e) for e in lo:hi for m in (1, 2, 3, 5)] :
+            decades <= 3 ? [tick(m, e) for e in lo:hi for m in (1, 2, 5)] :
+            [tick(1, e) for e in lo:cld(decades, 6):hi]   # (many decades: every k-th one)
+    ticks = filter(t -> vmin <= t <= vmax, ticks)
+    length(ticks) >= 2 && return ticks
+    # (less than one step of that grid in range: three round values)
+    return unique(filter(t -> vmin <= t <= vmax, round.([vmin, sqrt(vmin * vmax), vmax]; sigdigits = 2)))
 end
 
 """
@@ -905,14 +941,14 @@ function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::Str
     ax.xgridvisible, ax.xticklabelsvisible = x_ui[:grid_visibility], x_ui[:tick_label_visibility] 
     ax.ygridvisible, ax.yticklabelsvisible = y_ui[:grid_visibility], y_ui[:tick_label_visibility] 
 
-    x_ui[:tick_count] > 0 && (ax.xticks = ax.xscale[] == log10 ? LogTicks(LinearTicks(x_ui[:tick_count])) : LinearTicks(x_ui[:tick_count])) 
-    y_ui[:tick_count] > 0 && (ax.yticks = ax.yscale[] == log10 ? LogTicks(LinearTicks(y_ui[:tick_count])) : LinearTicks(y_ui[:tick_count])) 
-
     x_off = x_ui[:scale_offset] 
     ax.xtickformat = x_off != 0.0 ? (t -> map(v -> "$(round(x_off, sigdigits=3)) + $(@sprintf("%.1e", v - x_off))", t)) : (x_ui[:tick_format] == "default" ? Makie.automatic : x_ui[:tick_format]) 
 
     y_off = y_ui[:scale_offset] 
     ax.ytickformat = y_off != 0.0 ? (t -> map(v -> "$(round(y_off, sigdigits=3)) $(v - y_off < 0 ? "-" : "+") $(@sprintf("%.1e", abs(v - y_off)))", t)) : (y_ui[:tick_format] == "default" ? Makie.automatic : y_ui[:tick_format]) 
+
+    # (after the formats: the ticks are drawn with them)
+    _set_ticks!(ax, x_ui, y_ui)
 end
 
 function set_axis_styles!(ax::Axis3, def_x::String, def_y::String, def_z::String, def_title::String)
