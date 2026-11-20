@@ -59,7 +59,7 @@ Controls (studio_set! / studio_press!):
 
 ## Looking at it
 
-[`studio_snapshot`](@ref) writes a PNG and returns its path (by default a new file in `<save path>/snapshots/`):
+[`studio_snapshot`](@ref) writes a PNG and returns its path (by default a new file in `<figure path>/snapshots/`, see [`set_figure_path!`](@ref)):
 
 ```julia
 studio_snapshot()                                   # the plot grid with colorbars and legends

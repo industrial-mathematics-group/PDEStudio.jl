@@ -949,6 +949,10 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_snapshot(joinpath(snapdir, "x.jpg"))   # PNG only
     @test isfile(studio_snapshot())                                       # a new file under the save path
     @test startswith(studio_snapshot(), joinpath(get_save_path(), "snapshots"))
+    figdir = mktempdir()   # (snapshots go to the figure path when one is set)
+    @test set_figure_path!(figdir) == get_figure_path() == abspath(figdir)
+    @test startswith(studio_snapshot(), joinpath(figdir, "snapshots"))
+    @test set_figure_path!() == get_figure_path() == get_save_path()
     @test_throws ArgumentError studio_snapshot(; area = :nope)
     @test_throws ArgumentError studio_snapshot(; area = :window, plot = 1)
 
@@ -1576,6 +1580,19 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         manager.widgets[:export_text].stored_string[] = joinpath(export_dir, "run_dt0.5")
         click_button!(:export_button)
         @test isfile(joinpath(export_dir, "run_dt0.5.png"))
+
+        # A plain name goes to the figure path: the save path by default, or the folder set with set_figure_path!
+        # (e.g. on this computer while the data stays on a server); configuration files are found there, too
+        local_dir = joinpath(mktempdir(), "local")
+        @test set_figure_path!(local_dir) == local_dir && isdir(local_dir)
+        manager.widgets[:export_text].stored_string[] = "plain_name"
+        click_button!(:export_button)
+        @test isfile(joinpath(local_dir, "figures", "plain_name.png"))
+        @test !isfile(joinpath(get_save_path(), "figures", "plain_name.png"))
+        @test PDEStudio.find_config_csv("plain_name") == joinpath(local_dir, "figures", "plain_name.csv")
+        set_figure_path!()
+        click_button!(:export_button)
+        @test isfile(joinpath(get_save_path(), "figures", "plain_name.png"))
         
         # 4. Bind the time dimension to the animation target
         click_menu!(manager.widgets[:anim_target], :t)

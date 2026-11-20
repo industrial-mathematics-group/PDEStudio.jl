@@ -329,7 +329,7 @@ end
     studio_snapshot(path = nothing; plot = :all, area = :plots, px_per_unit = 1) -> String
 
 Renders what the studio shows to a PNG file and returns its path (by default a new file in
-`<save path>/snapshots/`), without changing the window. `area = :plots` gives the plot grid (with colorbars and
+`<figure path>/snapshots/`, see [`set_figure_path!`](@ref)), without changing the window. `area = :plots` gives the plot grid (with colorbars and
 legends), `:window` the whole studio with the control panel, as a person sees it; `plot = i` gives subplot `i` with
 its axis labels, title and its own colorbar or legend. `px_per_unit` scales the image (2 for twice the resolution).
 
@@ -356,7 +356,7 @@ function studio_snapshot(path::Union{Nothing, AbstractString} = nothing; plot = 
           _subplot_box(only(_selected_axes(plot)))
     img, renderer = _render_window(fig, Float64(px_per_unit))
     isnothing(box) || (img = _crop(img, box, fig, _controls_right(fig); margin = plot === :all ? 6 : 3))
-    file = something(path, joinpath(get_save_path(), "snapshots",
+    file = something(path, joinpath(get_figure_path(), "snapshots",
                                     "studio_" * Dates.format(Dates.now(), "yyyy-mm-dd_HH-MM-SS-sss") *
                                     "_$(_SNAPSHOTS[] += 1).png"))
     isempty(dirname(file)) || mkpath(dirname(file))

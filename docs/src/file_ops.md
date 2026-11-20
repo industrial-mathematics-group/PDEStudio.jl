@@ -16,7 +16,7 @@ Simulations that already exist on disk (same parameters, same hash) are loaded i
 
 ### 📂 Loading a Saved State
 
-In the **Files** tab, choose the file with **Browse…** (the system's file dialog; in a browser, an upload), type its path into the **Name / path** box and click **Load**, or drop it anywhere onto the window; the status line reports the result. A bare file name is enough: the studio searches the working directory, `<save path>/figures`, `<save path>/animations`, the preset folders and `./Experiments` (each including one level of subfolders; a name without extension means a CSV). The same works from code: `set_sim_config!("my_run.csv")`, `set_sim_config!("configs/euler2d.jl")`.
+In the **Files** tab, choose the file with **Browse…** (the system's file dialog; in a browser, an upload), type its path into the **Name / path** box and click **Load**, or drop it anywhere onto the window; the status line reports the result. A bare file name is enough: the studio searches the working directory, the `figures` and `animations` folders of the figure path and of the save path, the preset folders and `./Experiments` (each including one level of subfolders; a name without extension means a CSV). The same works from code: `set_sim_config!("my_run.csv")`, `set_sim_config!("configs/euler2d.jl")`.
 
 Two kinds of files can be loaded:
 
@@ -84,7 +84,16 @@ SimulationConfig(create_param_dict(:N => 100, :cfl => 0.5, :sim_func_name => :ad
 
 ### 💾 Exporting (Images & Animations)
 
-The **Name / path** box is also the gateway for saving your work. Exports land in `<save path>/figures` (static frames; with the export option `create_savefolder`, in a subfolder per name) and `<save path>/animations`. A path in the name (`study/run_1`, or an absolute path) is honoured.
+The **Name / path** box is also the gateway for saving your work. Exports land in `<figure path>/figures` (static frames; with the export option `create_savefolder`, in a subfolder per name) and `<figure path>/animations`. A path in the name (`study/run_1`, or an absolute path) is honoured.
+
+The figure path is the save path of the data unless [`set_figure_path!`](@ref) sets another folder. When the data lies on a remote machine, e.g. a server drive mounted locally and given to `set_save_path!`, this keeps figures, animations and snapshots on your own computer while the cached runs stay on the server:
+
+```julia
+set_save_path!("/mnt/cluster/results")   # the data
+set_figure_path!("~/Pictures/study")     # figures, animations, snapshots
+get_figure_path()                        # where exports go now
+set_figure_path!()                       # back to the save path
+```
 
 **The Direct Format Trick:**
 By default, **Export** saves the figure in every format listed in the export setting `save_formats` (*Files → Settings ›*, usually `png`). Typing an extension into the filename bypasses that list:
