@@ -3436,7 +3436,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
             yield()
         end
         @test length(ax.finallimits.listeners) - n0 < 3
-        @test count(p -> haskey(p, :label) && p.label[] == "Reference Lines", ax.scene.plots) == 1
+        @test count(p -> haskey(p, :label) && p.label[] == "Reference Lines", ax.scene.plots) == 2   # (the line and its label)
         manager.ui[:plot_style][:reference] = Any[]
 
         # 3. Style values the renderer can't draw are refused by the editor; filled contours draw with levels = 1
