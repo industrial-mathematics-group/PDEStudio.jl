@@ -998,6 +998,22 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_snapshot(; area = :nope)
     @test_throws ArgumentError studio_snapshot(; area = :window, plot = 1)
 
+    # --- exports: the Export button's files, returned (headless: nothing opens a viewer, see studio_headless!) ---
+    set_figure_path!(figdir)
+    files = studio_export("adv")
+    @test files == joinpath.(figdir, "figures", ["adv.png", "adv.csv"]) && all(isfile, files)
+    @test basename.(studio_export("adv2"; formats = [:svg, "pdf"])) == ["adv2.svg", "adv2.pdf", "adv2.csv"]
+    @test basename.(studio_export("sub/adv3.pdf")) == ["adv3.pdf", "adv3.csv"] && isdir(joinpath(figdir, "figures", "sub"))
+    @test_throws ArgumentError studio_export("adv.png"; formats = :pdf)   # (extension or formats)
+    @test_throws ArgumentError studio_export("adv"; formats = [:mp4])     # (animations by the name)
+    @test_throws ArgumentError studio_export("adv"; formats = String[])
+    studio_set!(:anim_target => :cfl)
+    @test basename.(studio_export("anim.gif"; fps = 2, duration = 1)) == ["anim.gif", "anim.csv"]
+    @test_throws ErrorException studio_export("anim2.gif"; fps = 0)       # (the status line says why)
+    @test manager.ui[:export][:animation_FPS] == 30 && manager.ui[:export][:dpi] == 300   # (for that export only)
+    @test studio_state().plots == before && isnothing(manager.export_request)
+    studio_set!(:anim_target => :none); set_figure_path!()
+
     # --- layout: comparison, styles (2D, 3D), the camera of 3D plots ---
     studio_set!(:compare_target => :methods, :compare_columns => 2)
     s = studio_state()

@@ -2367,7 +2367,10 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         return export_fig, export_obs
     end
     manager.listeners[:Export_Click] = on(btn_export.clicks) do _
-        raw_filename = _box_text(saveBox)
+        # (`studio_export` passes its name and formats instead of the name box and the export settings)
+        request, manager.export_request = manager.export_request, nothing
+        empty!(manager.last_export)
+        raw_filename = isnothing(request) ? _box_text(saveBox) : request.name
         isempty(raw_filename) && (raw_filename = "plot_export")
         
         name_part, ext = splitext(raw_filename)
@@ -2384,7 +2387,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         else
             # no (or an unknown) extension, e.g. "run_dt0.5": the whole text is the name
             base_name = raw_filename
-            formats = _export_formats(get(manager.ui[:export], :save_formats, String[]))
+            formats = _export_formats(isnothing(request) || isnothing(request.formats) ?
+                                      get(manager.ui[:export], :save_formats, String[]) : request.formats)
         end
 
         target_name = anim_target_obs[] 
@@ -2414,6 +2418,7 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         extract_and_store_camera_state!(plot_layout)
         
         target_widget = is_anim ? get_target_widget(target_name) : nothing
+        target_value = isnothing(target_widget) ? nothing : target_widget.value[]   # (put back after recording)
         export_obs = nothing
 
         try
@@ -2448,7 +2453,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 end
                 
                 metadata = Dict("Save Type" => "Animation", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
-                save_params_to_csv(base_name, save_path, metadata) 
+                push!(manager.last_export, fname)
+                save_params_to_csv(base_name, save_path, metadata) && push!(manager.last_export, joinpath(save_path, base_name * ".csv"))
                 @info "Animation saved: $fname"
                 note = _export_code_note()
                 _status!("Animation saved: $fname" * (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
@@ -2468,11 +2474,12 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                     else
                         save(full_path, export_fig; backend=CairoMakie)
                     end
+                    push!(manager.last_export, full_path)
                     @info "Pristine Image ($fmt) saved to $full_path"
                 end
                 
                 metadata = Dict("Save Type" => "Static Frame", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
-                save_params_to_csv(base_name, save_dir, metadata)
+                save_params_to_csv(base_name, save_dir, metadata) && push!(manager.last_export, joinpath(save_dir, base_name * ".csv"))
                 # an absolute path in the name box replaces the save folder (joinpath)
                 note = _export_code_note()
                 _status!("Exported $(basename(base_name)) ($(join(formats, ", "))) to $(dirname(joinpath(save_dir, base_name)))" *
@@ -2496,11 +2503,14 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
             end
             
             @info "Restoring main UI..."
-            manager.skip_next_camera_extract = true 
+            # (the recording leaves the animated slider at its end; the window shows what it showed before)
+            isnothing(target_widget) || target_widget.value[] == target_value || set_close_to!(target_widget, target_value)
+            manager.skip_next_camera_extract = was_locked   # (consumed by the rebuild of a locked camera only)
             manager.triggers[:Layout][] += 1
             
-            # Force the OpenGL context to bring the main window back to life
-            display(master_fig)
+            # Force the OpenGL context to bring the main window back to life (not without a window: CairoMakie
+            # would open the image in a viewer, which never returns in a headless session)
+            _backend_name() in (:CairoMakie, :none) || display(master_fig)
         end
     end
 

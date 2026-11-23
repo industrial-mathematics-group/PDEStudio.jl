@@ -13,8 +13,9 @@
 
 Makes CairoMakie the active Makie backend, so the studio runs without any display (no window, no X server, no
 browser): `launch_plotter` then builds the studio in memory, and an agent or script works with it through the
-`studio_*` functions (see [`describe_studio`](@ref)) and looks at it with [`studio_snapshot`](@ref). Not needed
-for snapshots of a visible window (they are always rendered by CairoMakie).
+`studio_*` functions (see [`describe_studio`](@ref)), looks at it with [`studio_snapshot`](@ref) and exports figures
+with [`studio_export`](@ref). Figures are never opened in an image viewer then (`visible = false`). Not needed for
+snapshots of a visible window (they are always rendered by CairoMakie).
 
 ```julia
 using PDEStudio
@@ -25,7 +26,7 @@ studio_snapshot("heat.png")
 ```
 """
 function studio_headless!()
-    CairoMakie.activate!()
+    CairoMakie.activate!(visible = false)   # (`display` of a figure would open an image viewer, which may never return)
     return nothing
 end
 
@@ -368,6 +369,64 @@ function studio_snapshot(path::Union{Nothing, AbstractString} = nothing; plot = 
 end
 
 const _SNAPSHOTS = Ref(0)   # (numbers the default file names: two snapshots in the same millisecond)
+
+"""
+    studio_export(name = "plot_export"; formats = nothing, dpi = nothing, fps = nothing, duration = nothing) -> Vector{String}
+
+Exports the plots as the *Export* button does (Files tab), and returns the paths of the files written: a clean
+figure without the controls, in `<figure path>/figures/` (see [`set_figure_path!`](@ref)), with the state of the
+studio as a CSV file next to it, which reloads the view. `name` is what the person types into the *Name / path* box:
+
+- without an extension, the formats of the export settings are written (Files → Settings: PNG by default) or
+  those given as `formats` (`formats = [:png, :pdf]`);
+- `"figure.pdf"` writes that format only;
+- `"run.mp4"` (also `.gif`, `.webm`, `.mkv`) records an animation of the animation target (`studio_set!(:anim_target
+  => :t)`) into `<figure path>/animations/`.
+
+An absolute path or one with folders (`"mixture/profiles"`) places the files there. Unlike
+[`studio_snapshot`](@ref) (a PNG of what the window shows), the export draws the figure anew at the export
+resolution. `dpi` (PNG/JPEG and animations), `fps` and `duration` (animations, in seconds) replace the export
+settings for this export. A failed export throws an `ErrorException` with the status line.
+
+```julia
+studio_export("profiles")                          # profiles.png, profiles.pdf, profiles.csv
+studio_export("profiles"; formats = [:svg])
+studio_set!(:anim_target => :t); studio_export("evolution.mp4"; fps = 24, duration = 5)
+```
+"""
+function studio_export(name::AbstractString = "plot_export"; formats = nothing, dpi = nothing, fps = nothing,
+                       duration = nothing)
+    _studio_window()
+    isempty(_plot_axes()) && throw(ArgumentError("nothing is plotted yet: run a simulation first (`studio_press!(:run)`)"))
+    ext = lowercase(lstrip(splitext(name)[2], '.'))
+    fmts = nothing
+    if !isnothing(formats)
+        (ext in STATIC_EXPORT_FORMATS || ext in ANIMATION_EXPORT_FORMATS) &&
+            throw(ArgumentError("studio_export: give the format as the extension of the name ($(repr(name))) or as " *
+                                "`formats`, not both"))
+        items = formats isa Union{AbstractString, Symbol} ? [formats] : collect(formats)
+        fmts = String[lowercase(lstrip(string(f), '.')) for f in items]
+        isempty(fmts) && throw(ArgumentError("studio_export: no formats given"))
+        bad = filter(!in(STATIC_EXPORT_FORMATS), fmts)
+        isempty(bad) || throw(ArgumentError("studio_export: formats $(repr(bad)) can't be exported; formats: " *
+                                            join(STATIC_EXPORT_FORMATS, ", ") * " (animations: name ending in " *
+                                            join("." .* ANIMATION_EXPORT_FORMATS, ", ") * ")"))
+    end
+    settings = manager.ui[:export]
+    given = filter(p -> !isnothing(p[2]), [:dpi => dpi, :animation_FPS => fps, :animation_time => duration])
+    saved = [k => get(settings, k, nothing) for (k, _) in given]
+    empty!(manager.last_export)
+    manager.export_request = (name = String(name), formats = fmts)
+    try
+        for (k, v) in given; settings[k] = v; end   # (checked by the export, which reports invalid ones)
+        manager.widgets[:export_button].clicks[] += 1
+    finally
+        manager.export_request = nothing   # (the button didn't take it, e.g. a widget without the listener)
+        for (k, v) in saved; settings[k] = v; end
+    end
+    isempty(manager.last_export) && throw(ErrorException("studio_export: nothing was exported: " * _status_text()))
+    return copy(manager.last_export)
+end
 
 _backend_name() = (b = Makie.current_backend(); ismissing(b) || isnothing(b) ? :none : Symbol(nameof(b)))
 

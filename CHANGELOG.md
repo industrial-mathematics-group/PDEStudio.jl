@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **`studio_export(name; formats, dpi, fps, duration)`:** the *Export* button for scripts and agents. It writes the
+  figure (or an animation for a name ending in `.mp4`, `.gif`, …) and the CSV state, and returns the paths.
 - **`set_figure_path!` / `get_figure_path`:** the folder for exports (`figures/`, `animations/`) and
   `studio_snapshot` (`snapshots/`), so figures can be saved on your own computer while the data stays on a server
   (`set_save_path!`). The default is still the save path; configuration files are also searched for in the figure
@@ -16,6 +18,11 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- **Exports in a headless studio no longer hang:** the export ended with `display` of the window, which with
+  CairoMakie opened the image in a viewer (`xdg-open`) that never returned. `studio_headless!` also turns that
+  viewer off (`CairoMakie.activate!(visible = false)`).
+- **An animation export leaves the view as it was:** the animated slider is put back after recording (it stayed at
+  its last value), and a locked camera's view is no longer skipped once after an export without a lock.
 - **Titles of statistics** no longer show the slider value of a dimension the statistic doesn't keep (an error over
   `N` showed "Position (X) = −0.0101").
 - **Log axes** have ticks at 1, 2, 3, 5 × 10ᵏ (as the range allows), written as numbers, instead of ticks like
