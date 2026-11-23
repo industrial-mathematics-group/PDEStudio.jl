@@ -368,19 +368,32 @@ function _request_load(path::AbstractString)
     _handle_load(path)
 end
 
-# The numeric columns `x, y` of a plain CSV file (no studio header; a header line and other text are skipped), or
-# `nothing` if it is not one: a studio CSV, fewer than two points, or a Julia file
-function _series_csv_points(path::AbstractString)
-    (isfile(path) && endswith(lowercase(path), ".csv")) || return nothing
+# Whether a CSV file has the studio's header (`Category, Scope, Parameter, Value`)
+function _is_studio_csv(path::AbstractString)
     first_line = try
         first(eachline(path))
     catch
+        return false
+    end
+    return occursin("Category", first_line) && occursin("Parameter", first_line)
+end
+
+# The numeric columns `x, y` of a plain CSV file: one point per line, its first two numbers, separated by a comma, a
+# semicolon, a tab or spaces (with a semicolon or tab a decimal comma is read, `0,25;2e-3`); quotes, a header line
+# and other text are skipped. `nothing` if it is not one: a studio CSV, fewer than two points, or a Julia file.
+function _series_csv_points(path::AbstractString)
+    (isfile(path) && endswith(lowercase(path), ".csv") && !_is_studio_csv(path)) || return nothing
+    lines = try
+        readlines(path)
+    catch
         return nothing
     end
-    occursin("Category", first_line) && occursin("Parameter", first_line) && return nothing
     x, y = Float64[], Float64[]
-    for line in eachline(path)
-        cells = split(line, r"[,;\t]")
+    for line in lines
+        line = strip(replace(line, '"' => "", '\'' => ""))
+        isempty(line) && continue
+        cells = occursin(r"[;\t]", line) ? replace.(split(line, r"[;\t]"), ',' => '.') :
+                occursin(',', line) ? split(line, ',') : split(line)
         length(cells) >= 2 || continue
         a, b = tryparse(Float64, strip(cells[1])), tryparse(Float64, strip(cells[2]))
         (isnothing(a) || isnothing(b)) && continue
@@ -397,8 +410,11 @@ function _load_series_csv!(path::AbstractString)
     label = first(splitext(basename(path)))
     try
         n = studio_add_series!(label, pts[1], pts[2])
+        ui = manager.ui[:series]
+        one_d = get(PLOT_DIM_MAP, _base_style(manager.widgets[:plot_style].selection[]), 1) == 1
         _status!("Added $(basename(path)) ($(length(pts[1])) points) as the external series '$label' (UI → External " *
-                 "Series, $n series): drawn while the plot shows the axes of now; loading it again replaces it.", :ok)
+                 "Series, $n): drawn by the 1D styles while the plot shows x = $(ui[:x_axis]), u = $(ui[:u_axis])" *
+                 (one_d ? "" : " (not with this plot style)") * "; loading it again replaces it.", one_d ? :ok : :warn)
         haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightgreen)
     catch e
         e isa InterruptException && rethrow()
@@ -438,6 +454,12 @@ function _handle_load(path::AbstractString)
     w = manager.widgets
     load_btn, run_btn = w[:load_config_button], w[:run_button]
     _load_series_csv!(path) && return nothing   # (a plain two-column CSV: data from outside)
+    if endswith(lowercase(path), ".csv") && !_is_studio_csv(path)
+        _status!("$(basename(path)) is neither a studio CSV (header Category, Scope, Parameter, Value) nor a table of " *
+                 "two numeric columns (x, y per line; comma, semicolon, tab or spaces between them).", :error)
+        load_btn.buttoncolor[] = :lightcoral
+        return nothing
+    end
     local structural
     try
         structural = endswith(lowercase(path), ".jl") ? load_config_file!(path) : load_and_apply_csv!(path)

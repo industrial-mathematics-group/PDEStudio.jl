@@ -131,9 +131,11 @@ Presets are listed under **Presets ›** in the Files tab, with **Apply** and **
 *   **Number tables:** a name ending in `.md` or `.txt` makes **Export** write the plotted numbers of the 1D subplots
     (`studio_export_data`: the points with the local log-log slopes, a Markdown table per subplot or CSV text) instead
     of a figure; `md` or `txt` among the export formats (*Settings ›*) writes them next to the figure.
-*   **Data from outside:** **Load** (or a drop) of a plain CSV file with two numeric columns (`x, y`; a header line is
-    skipped) draws it in the 1D plots as an *External Series* named after the file (`studio_add_series!`), in the
-    plotted x variable and field: it is hidden while the plot shows other axes. The series are an option page, *UI →
+*   **Data from outside:** **Load** (or a drop) of a plain CSV file with two numeric columns draws it in the 1D plots
+    as an *External Series* named after the file (`studio_add_series!`), in the plotted x variable and field: it is
+    hidden while the plot shows other axes. The format: one point per line, its first two numbers, separated by a
+    comma, a semicolon, a tab or spaces (a decimal comma is read with a semicolon or tab, `0,25;2e-3`); quotes and a
+    header line are skipped. A file that is neither this nor a studio CSV is reported in the status line. The series are an option page, *UI →
     External Series* (points per label, line style, width, marker size; colours and markers continue the methods'
     lists), get legend entries and are saved with the look (presets, exports). Loading the same file again replaces
     it; `studio_clear_series!()` removes them.

@@ -1755,6 +1755,17 @@ ingroup("agent") && @testset "Studio features: window access, lines with compare
     PDEStudio._handle_load(csv)                                             # the same file again replaces it
     @test length(ui[:data]) == 1
     @test isnothing(PDEStudio._series_csv_points(joinpath(dir, "none.csv")))
+    # other layouts: quoted cells, semicolons with decimal commas, spaces, a third column, CRLF
+    for (text, pts) in (("\"cfl\";\"error\"\n0,25;2e-3\n0,5;5e-4\n", [(0.25, 2e-3), (0.5, 5e-4)]),
+                        ("0.25 2e-3\n0.5   5e-4\n", [(0.25, 2e-3), (0.5, 5e-4)]),
+                        ("i,cfl,error\r\n0.25,2e-3,9\r\n0.5,5e-4,9\r\n", [(0.25, 2e-3), (0.5, 5e-4)]))
+        write(csv, text)
+        PDEStudio._handle_load(csv)
+        @test ui[:data]["paper"] == pts
+    end
+    write(csv, "label,note\na,b\n")                                        # no numbers: a clear message
+    PDEStudio._handle_load(csv)
+    @test occursin("neither a studio CSV", studio_state().status.text)
     @test PDEStudio.save_params_to_csv("series_export", dir, Dict("Save Type" => "Test"))
     studio_clear_series!()
     @test isempty(manager.ui[:series][:data])

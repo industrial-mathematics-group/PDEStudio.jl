@@ -1294,8 +1294,9 @@ the plot shows those; they are hidden when the axes change and shown again when 
 continue the methods' lists (`plot_style`); line style, width and marker size are the options of *UI → External
 Series* (`studio_option!(:series, …)`), where the points can be edited too (`data`: `Dict("label" => [(x, u), …])`),
 and which presets and exports save. The same label again replaces the series; adding a series under other axes
-replaces all of them. In the window, a plain CSV file with two numeric columns (`x, y`; a header line is skipped)
-loads the same way, named after the file (*Load*, or drop it). Returns the number of series.
+replaces all of them. In the window, a plain CSV file with two numeric columns loads the same way, named after the
+file (*Load*, or drop it): one point per line, its first two numbers, separated by a comma, a semicolon, a tab or
+spaces (a decimal comma with a semicolon or tab); quotes and a header line are skipped. Returns the number of series.
 """
 function studio_add_series!(label::AbstractString, x::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     length(x) == length(y) || throw(ArgumentError("studio_add_series!: x has $(length(x)) values, y $(length(y))"))
