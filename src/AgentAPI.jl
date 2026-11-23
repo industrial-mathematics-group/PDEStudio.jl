@@ -683,6 +683,8 @@ const _STUDIO_BUTTONS = (run = (:run_button, "Run Simulation"), apply_layout = (
 const _MENU_LABELS = Dict(:x_axis => "X-Axis", :y_axis => "Y-Axis", :z_axis => "Z-Axis", :u_axis => "dependent field",
                           :component => "component", :anim_target => "animation target", :compare_target => "Compare",
                           :compare_link => "Compare Link", :legend_base => "Legend", :legend_add => "Legend Placement")
+const _VALUES_LABEL = "the values compared: :all, or a list (swept values or times: the nearest one each; components: " *
+                      "numbers; methods and non-numeric values: names)"
 const _NUMBER_LABELS = Dict(:plot_width => "Plot Width (px)", :plot_height => "Plot Height (px)",
                             :compare_columns => "Grid Columns")
 
@@ -696,7 +698,8 @@ _control_step(name) = name in PLOT_AXIS_OPTIONS ? :update_plot : name in LAYOUT_
 The controls of the studio, as [`studio_set!`](@ref) and [`studio_press!`](@ref) take them: `(name, kind, value,
 choices, label, applies)`, where `kind` is `:slider` (choices: the slider values), `:menu`, `:number` (choices:
 `(lo, hi)`), `:style` (the plot styles the data allows), `:methods` (the methods of the configuration; the value is
-the active ones, in drawing order) or `:button`, and `applies` the button that applies a change (`studio_set!`
+the active ones, in drawing order), `:values` (`compare_values`: the values a comparison shows, `"all"` or a list) or
+`:button`, and `applies` the button that applies a change (`studio_set!`
 presses it for you). Sliders are named by their parameter or dimension (e.g. `:N`, `:t`).
 """
 function studio_controls()
@@ -721,6 +724,9 @@ function studio_controls()
         push!(out, (name = key, kind = :number, value = nb.selection[], choices = (nb.lo, nb.hi),
                     label = _NUMBER_LABELS[key], applies = :apply_layout))
     end
+    haskey(w, :compare_values) &&
+        push!(out, (name = :compare_values, kind = :values, value = w[:compare_values].selection[], choices = nothing,
+                    label = _VALUES_LABEL, applies = :apply_layout))
     config = manager.active_config
     isnothing(config) || push!(out, (name = :methods, kind = :methods, value = copy(config.defaults),
                                      choices = sort!(collect(keys(config.methods))),
@@ -790,6 +796,7 @@ common output time or a statistic of the final state). For lines with markers us
 studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
 studio_set!(:N => 128)
 studio_set!(:compare_target => :methods, :compare_columns => 3)
+studio_set!(:compare_target => :epsilon, :compare_values => [1e-2, 1e-4])   # (some of the swept values)
 studio_set!(:compare_target => :none, :cfl => 0.5)   # (the slider the comparison held)
 ```
 """
@@ -852,7 +859,7 @@ end
 # Throws the error `studio_set!` gives for a name that is no control (before anything is set)
 function _check_control_name(n::Symbol)
     w = manager.widgets
-    (n in (:plot_style, :methods) || (n in keys(_MENU_LABELS) && haskey(w, n)) ||
+    (n in (:plot_style, :methods) || (n in keys(_MENU_LABELS) && haskey(w, n)) || (n === :compare_values && haskey(w, n)) ||
      (n in keys(_NUMBER_LABELS) && haskey(w, n)) || !isnothing(_slider_key(n))) && return nothing
     n in _unslid_parameters() && throw(_unslid_error(n))
     throw(_no_control_error(n))
@@ -868,10 +875,13 @@ _slider_enabled(n) = (key = _slider_key(n); !isnothing(key) && length(manager.wi
 
 # The order `studio_set!` sets controls in (stable within a rank)
 const _SLIDER_RANK = 9
-const _CONTROL_RANKS = Dict(:plot_style => 1, :methods => 2, :compare_target => 3, :compare_link => 3, :compare_columns => 3,
+const _CONTROL_RANKS = Dict(:plot_style => 1, :methods => 2, :compare_target => 3, :compare_link => 3, :compare_columns => 3, :compare_values => 3,
                             :legend_base => 3, :legend_add => 3, :plot_width => 3, :plot_height => 3, :x_axis => 4,
                             :y_axis => 5, :z_axis => 6, :u_axis => 7, :component => 8, :anim_target => 8)
 _control_rank(name::Symbol) = get(_CONTROL_RANKS, name, _SLIDER_RANK)
+
+# An entry of *Compare Values* as text (numbers exactly, so the nearest value is the one meant)
+_values_entry(v) = v isa AbstractFloat ? repr(v) : string(v)
 
 function _apply_steps!(steps)
     f = manager.flags
@@ -890,6 +900,12 @@ function _set_control!(name::Symbol, value)
     if name in keys(_MENU_LABELS) && haskey(w, name)
         _set_menu_control!(name, w[name], value)
         return _control_step(name)
+    end
+    if name === :compare_values && haskey(w, name)
+        ok = value isa Union{Symbol, AbstractString, Real} || (value isa Union{AbstractVector, Tuple} && !isempty(value))
+        ok || throw(ArgumentError("compare_values = $(repr(value)): " * _VALUES_LABEL))
+        _set_values_text!(w[name], value isa Union{AbstractVector, Tuple} ? [_values_entry(v) for v in value] : _values_entry(value))
+        return :apply_layout
     end
     if name in keys(_NUMBER_LABELS) && haskey(w, name)
         nb = w[name]

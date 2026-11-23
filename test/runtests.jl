@@ -221,6 +221,14 @@ function shuffled_particle_solver(params::ParamDict)
                            [[SVector(sin(2π * x0[i])) for i in perm] for _ in t], t, params)
 end
 
+# Three components (for comparisons of components)
+function vector_solver_1d(params::ParamDict)
+    x = collect(range(0.0, 1.0, length = params[:N]))
+    t = [0.0, 0.5]
+    u = [SVector{3, Float64}(1.0 + xi, 2.0 + ti, 3.0) for xi in x, ti in t]
+    return create_sim_data(x, u, t, params; time_dim = :t)
+end
+
 function dummy_tuple_solver(params::ParamDict)
     Nx, Ny = params[:Ns]
     x = collect(range(0.0, 1.0, length=Nx))
@@ -1258,6 +1266,32 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     launch_plotter(test_particles_2d())
     @test occursin("in a 1D grid style", only(c for c in studio_controls() if c.name === :u_axis).label)
 
+    # --- a comparison of some components; reference slopes next to the curve they match ---
+    vec_config = SimulationConfig(create_param_dict(:N => 16, :sim_func_name => :vector_solver_1d), create_method_dict(), Symbol[];
+                                  varied = create_varied_dict(:N => [16, 32, 64]))
+    reset_plotter!()
+    launch_plotter(vec_config)
+    studio_set!(:compare_target => :component, :compare_values => [3, 1])
+    @test [p.title for p in studio_state().plots] == ["Component 3", "Component 1"]
+    @test manager.compare_state[4] == [3, 1]
+    studio_set!(:compare_target => :none)
+    ax = Axis(Figure()[1, 1]; xscale = log10, yscale = log10)
+    curves = [[(x, 2.0 * x^-1.0) for x in (10.0, 100.0, 1000.0)], [(x, 0.5 * x^-2.0) for x in (10.0, 100.0, 1000.0)]]
+    limits!(ax, 5.0, 2000.0, 1e-8, 10.0)
+    drawn = PDEStudio.plot_reference_lines!(ax, [-2, -1]; label = "Test Slopes", curves = curves)
+    @test length(drawn) == 4 && [only(d.text[]) for d in drawn[2:2:end]] == ["slope −2", "slope −1"]
+    pts2, pts1 = drawn[1][1][], drawn[3][1][]
+    @test pts2[1][2] ≈ 0.25 * 10.0^-2 rtol = 1e-4   # (half of the curve it matches)
+    @test pts1[1][2] ≈ 1.0 * 10.0^-1 rtol = 1e-4
+    @test PDEStudio._loglog_slope(curves[2]) ≈ -2 && PDEStudio._fmt_exponent(1.5) == "1.5"
+    @test PDEStudio.delete_plots_by_label!(ax, "Test Slopes") && length(PDEStudio.plot_reference_lines!(ax, [1])) == 1   # (no data: from a corner)
+    # (references of 1-D data: 1000 points in space unless a resolution is set)
+    @test PDEStudio.build_res_tuple([:x, :t]; is_ref = true) == (1000, 100)
+    @test PDEStudio.build_res_tuple([:x, :y, :t]; is_ref = true) == (200, 200, 100)
+    set_resolution!(:x, 300; is_ref = true)
+    @test PDEStudio.build_res_tuple([:x, :t]; is_ref = true) == (300, 100)
+    delete!(manager.resolution_ref, :x)
+
     # --- a slider the comparison held can be set in the same call that ends the comparison ---
     reset_plotter!()
     launch_plotter(config)
@@ -1271,6 +1305,27 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     r = studio_set!(:t => 1.0, :plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
     @test studio_state().axes.y === :t && occursin("not set: :t", r.status)
     studio_set!(:plot_style => :lines, :x_axis => :x)
+    # --- the values a comparison shows (Compare Values), the axis labels of a grid once per row and column ---
+    r = studio_set!(:compare_target => :cfl, :compare_values => [1.0, 0.25])
+    @test [p.title for p in studio_state().plots] == ["Cfl = 1.0", "Cfl = 0.25"] && r.values[:compare_values] == "1.0, 0.25"
+    @test manager.layout_cache[:compare_values] == "1.0, 0.25"   # (a layout option: presets and CSV files keep it)
+    r = studio_set!(:compare_values => "0.7, nope")               # (the nearest value; unknown entries are reported)
+    @test [p.title for p in studio_state().plots] == ["Cfl = 0.75"] && occursin("no match for \"nope\"", r.status)
+    studio_set!(:compare_target => :methods, :compare_values => [:lax_friedrichs])
+    @test [p.title for p in studio_state().plots] == ["lax_friedrichs"]
+    @test only(PDEStudio._subplot_methods(true, 1)) === :lax_friedrichs
+    studio_set!(:compare_values => :all, :compare_columns => 1)
+    axs = PDEStudio._plot_axes()
+    @test length(axs) == 2 && [(a.xlabelvisible[], a.ylabelvisible[]) for a in axs] == [(false, true), (true, true)]
+    studio_set!(:compare_columns => 2)
+    @test [(a.xlabelvisible[], a.ylabelvisible[]) for a in PDEStudio._plot_axes()] == [(true, true), (true, false)]
+    @test all(p -> p.ylabel == "Solution", studio_state().plots)   # (hidden, not removed)
+    @test_throws ArgumentError studio_set!(:compare_values => Int[])
+    @test PDEStudio._values_text(" 1e-5 ;0.001,, ") == "1e-5, 0.001" && PDEStudio._values_text(" ALL ") == "all"
+    @test PDEStudio._compare_selection("3, 1, 3", collect(1:4), :components) == [3, 1]
+    @test PDEStudio._compare_selection("5", collect(1:4), :components) == 1:4   # (nothing matches: all)
+    @test PDEStudio._compare_selection("b, 1", ["a", "b"], :names) == [2, 1]
+    studio_set!(:compare_target => :none)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)
@@ -1286,7 +1341,13 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test PDEStudio._fmt_value.((1e-5, 0.0015, 0.002, 0.0125, 0.013, 0.25, 0.0, 2.5e6, 3, 1.5e-12, 3e100)) ==
           ("1e-5", "0.0015", "0.002", "0.0125", "0.013", "0.250", "0.000", "2.5e6", "3", "1.5e-12", "3e100")
     @test PDEStudio._fmt_compare.((1e-5, 1.5e-7, 2.5e6, 0.0001, 0.001, 1.0, 0.123456, -2e-5, 0.0, 4)) ==
-          ("1e-5", "1.5e-7", "2.5e6", "0.0001", "0.001", "1.0", "0.1235", "-2e-5", "0.0", "4")
+          ("1e-5", "1.5e-7", "2.5e6", "1e-4", "0.001", "1.0", "0.1235", "-2e-5", "0.0", "4")
+    # (tuples by their elements; one notation for the values of a set)
+    @test PDEStudio._fmt_value.(((0.2,), (0.1, 2.0), [1, 2])) == ("0.200", "(0.100, 2.000)", "(1, 2)")
+    @test PDEStudio._fmt_compare((0.2,)) == "0.2" && PDEStudio._fmt_value(0.5; sci = true) == "5e-1"
+    vals = [1e-2, 1e-3, 1e-4, 1e-5]
+    @test PDEStudio._fmt_compare.(vals; sci = PDEStudio._sci_set(vals)) == ["1e-2", "1e-3", "1e-4", "1e-5"]
+    @test !PDEStudio._sci_set([0.25, 0.5, (0.2,)]) && PDEStudio._sci_set([(0.1, 1e-6)])
 
     # --- long method names in the titles of compared methods are broken into lines to fit the plot ---
     long = SimulationConfig(create_param_dict(:N => 32, :cfl => 0.5, :sim_func_name => :advection_solver_1d),

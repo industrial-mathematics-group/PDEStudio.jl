@@ -208,11 +208,11 @@ function set_allowed_dims!(dims::Tuple{Vararg{Symbol}})
     @info "Plotter UI configured for dimensions: $dims"
 end
 
-# Makes sure every allowed dimension has a display resolution (the time axis gets coarser defaults).
+# Makes sure every allowed dimension has a display resolution for the data (the time axis gets coarser defaults);
+# references keep only the resolutions set, their defaults depend on the data (see `_default_resolution`).
 function _sync_resolution_dims!()
     for d in manager.allowed_dims
         get!(manager.resolution_base, d, _default_resolution(d, false))
-        get!(manager.resolution_ref, d, _default_resolution(d, true))
     end
     return nothing
 end
@@ -252,20 +252,26 @@ const DEFAULT_METHOD = :default
 # A display resolution: 1 point is allowed for every axis (a flat particle cloud along an axis; a time axis then
 # shows its last snapshot).
 _valid_resolution(n) = n isa Integer && 1 <= n <= MAX_RESOLUTION
-# The default display resolution of a dimension (data / references); time axes are coarser.
-_default_resolution(dim::Symbol, is_ref::Bool) = is_ref ? (dim === :t ? 100 : 200) : (dim === :t ? 50 : 100)
+# The default display resolution of a dimension (data / references); time axes are coarser. A reference of data with
+# one space dimension (`n_space`) gets 1000 points, so shocks and steps stay sharp next to the data.
+_default_resolution(dim::Symbol, is_ref::Bool, n_space::Int = 0) =
+    is_ref ? (dim === :t ? 100 : n_space == 1 ? 1000 : 200) : (dim === :t ? 50 : 100)
 # `k` indices evenly spread over `1:n`, the last one included (the last one alone for `k == 1`).
 _spread_indices(n::Integer, k::Integer) = k == 1 ? [n] : unique(round.(Int, range(1, n, length = min(k, n))))
 
 """
     get_resolution(dim::Symbol; is_ref::Bool=false)
 
-Retrieves the active UI resolution for a given dimension, automatically falling back to the defaults (100 for the data, 200 for references; 50 and 100 for `:t`) if the dimension was dynamically generated during a sweep.
+Retrieves the active UI resolution for a given dimension, automatically falling back to the defaults (100 for the data, 200 for references; 50 and 100 for `:t`) if the dimension was dynamically generated during a sweep. References of
+data with one space dimension are drawn at 1000 points in space unless a resolution was set.
 """
-function get_resolution(dim::Symbol; is_ref::Bool=false)
+get_resolution(dim::Symbol; is_ref::Bool=false) = _resolution(dim, is_ref)
+
+# The resolution of a dimension; `n_space`: the space dimensions of the data (for the defaults of references)
+function _resolution(dim::Symbol, is_ref::Bool, n_space::Int = 0)
     target = is_ref ? manager.resolution_ref : manager.resolution_base
     # Fallback default if a completely new dimension is requested dynamically
-    return get(target, dim, _default_resolution(dim, is_ref))
+    return get(target, dim, _default_resolution(dim, is_ref, n_space))
 end
 
 """
@@ -274,7 +280,8 @@ end
 Dynamically generates the `NTuple{D, Int}` required by the backend, ensuring the spatial and temporal resolutions are ordered exactly according to the backend's expected `dim_keys` tuple.
 """
 function build_res_tuple(dim_keys::Union{AbstractVector{Symbol},Tuple{Vararg{Symbol}}}; is_ref::Bool=false)
-    res = Tuple(get_resolution(d; is_ref=is_ref) for d in dim_keys)
+    n_space = count(!=(:t), dim_keys)
+    res = Tuple(_resolution(d, is_ref, n_space) for d in dim_keys)
     total = prod(Int128.(res); init = Int128(1))
     total <= MAX_TOTAL_POINTS || throw(ArgumentError(
         "the display resolution $(join(res, " × ")) would need $total points (at most $MAX_TOTAL_POINTS): lower it " *

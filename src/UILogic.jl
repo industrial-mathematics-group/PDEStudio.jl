@@ -120,6 +120,9 @@ function apply_options!(cache::AbstractDict, option_keys::Tuple, new_options::Di
             if widget isa NumberBox
                 _set_number!(widget, val)
                 continue
+            elseif widget isa ValuesBox
+                _set_values_text!(widget, val)
+                continue
             elseif widget isa StyleChoice
                 _set_public_style!(widget, val)   # a particle style switches to the Lagrangian data
                 continue
@@ -1718,6 +1721,13 @@ end
 
 # --- Files tab: the resolution of the data and the references -----------------------------------------------------
 
+# The space dimensions of the data shown (0 without data)
+function _data_space_dims()
+    isempty(manager.plot_data[]) && return 0
+    sd = _get_first_valid(_primary_sweep(manager.plot_data[]))
+    return isnothing(sd) ? 0 : count(!=(:t), sd.domain.dim_keys)
+end
+
 # The rows of the resolution page: every dimension for the data, then for the references.
 # Particle data is shown as it is: in the Lagrangian mode only the references (evaluated on a grid) have a resolution.
 _resolution_items() = manager.mode[] === :lagrangian ? Any[(d, true) for d in manager.allowed_dims] :
@@ -1727,7 +1737,7 @@ function _bind_resolution_row!(i::Int, item)
     dim, is_ref = item
     w = manager.widgets
     w[Symbol("editor_row_", i, "_label")][] = "$(frontend_key(dim))  ·  $(is_ref ? "reference" : "data")"
-    _show_editor_text!(w[Symbol("editor_row_", i, "_text")], string(get_resolution(dim; is_ref = is_ref)))
+    _show_editor_text!(w[Symbol("editor_row_", i, "_text")], string(_resolution(dim, is_ref, _data_space_dims())))
     btn = w[Symbol("editor_row_", i, "_button")]
     btn.label[] = "↺"
     btn.buttoncolor[] = _ROW_NEUTRAL
@@ -1744,6 +1754,13 @@ the data at the new resolution (resampled representations are cached).
 function _set_resolution_from_ui!(item, s::AbstractString)
     dim, is_ref = item
     txt = strip(s)
+    if txt == "default" && is_ref   # (the default of the data drawn: see `_default_resolution`)
+        delete!(manager.resolution_ref, dim)
+        manager.flags[:Simulation][] = true
+        _status!("Resolution of $(frontend_key(dim)) (references): the default. Run Simulation to reload.", :ok)
+        _render_editor!()
+        return nothing
+    end
     n = txt == "default" ? _default_resolution(dim, is_ref) : tryparse(Int, txt)
     if isnothing(n) || !_valid_resolution(n)
         _report(:warn, "The resolution is a whole number of points (1 to $(MAX_RESOLUTION)), not '$(_short(String(txt), 20))'.")

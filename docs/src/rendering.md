@@ -14,7 +14,9 @@ The Layout Options section dictates the physical structure of the Makie grid. Be
 Instead of constantly tweaking sliders to compare states, you can unroll your dimensions across a multi-column grid.
 *   **Compare Target:** You can compare *almost anything* side-by-side. You can unroll different **Methods** (e.g., comparing an Upwind solver vs. a WENO solver), split vector **Components** into separate plots, compare **Time** steps, or compare across any **Varied Parameter** (e.g., different grid resolutions `N`, or text-valued sweeps such as scheme names; each subplot is titled with its value).
 *   **Grid Columns:** the number of subplots per row of a comparison, any whole number from 1 to 12.
-*   **At most 12 subplots:** comparisons over time or over long sweeps show up to 12 evenly spaced values (always including the first and the last), so a run with hundreds of time steps does not create hundreds of axes. The compared variable's slider is disabled while the comparison is active.
+*   **Compare Values:** which values the comparison shows: `all`, or a list in the order of the subplots, e.g. `1e-5, 1e-3` (swept values or times: the nearest one each), `1, 4` (components) or names (methods, text-valued sweeps). Entries that match nothing are named in the status line. Scripts set it with `studio_set!(:compare_values => [1e-5, 1e-3])`.
+*   **At most 12 subplots:** with `all`, comparisons over time or over long sweeps show up to 12 evenly spaced values (always including the first and the last), so a run with hundreds of time steps does not create hundreds of axes. The compared variable's slider is disabled while the comparison is active.
+*   **Axis labels** are shown once per row (y) and column (x) of the grid: on the leftmost and the lowest subplot.
 *   **Compare Link (Coupling):** When comparing multiple plots, this dropdown dictates how they share visual limits:
     *   *Fully Coupled:* All subplots share the exact same X/Y/Z axis limits and a single global Colorbar. Perfect for 1-to-1 visual comparisons.
     *   *Axes Only:* Limits are locked together, but each plot gets its own local color range.
@@ -43,7 +45,8 @@ With a particle style, *Files → Resolution ›* lists only the references (eva
 **References and the drawn time:** a reference solution (a method recognised as one, e.g. `analytical_solution`) is
 evaluated for every sweep point on the domain of that point's numerical data (a sweep over the final time or the
 domain size moves it) and at the times of that data, so at every position of the time slider the numerical curve and
-the reference show the same time; *Files → Resolution ›* sets the reference's points in space. Data drawn with a
+the reference show the same time; *Files → Resolution ›* sets the reference's points in space (by default 1000 for
+data with one space dimension, so shocks stay sharp, and 200 per axis otherwise). Data drawn with a
 grid style (grid data, and particle data scattered to the grid) is not interpolated in time: it shows its stored
 snapshots at their own times, all of them up to the time resolution of *Resolution ›* (default 50), otherwise that
 many, evenly spread over the stored ones. A time resolution of 1 shows the last snapshot: curves over time are a

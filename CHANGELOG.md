@@ -6,6 +6,11 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Compare Values** (Plot tab, `studio_set!(:compare_values => …)`): a comparison shows the values listed, e.g.
+  `1e-5, 1e-3` (the nearest swept values or times), `1, 4` (components) or method names; `all` as before. It is a
+  layout option, so presets and exported CSV files keep it.
+- **Reference slopes** (`:reference`) are labelled (`slope −2`) and run just below the curve whose log-log slope is
+  closest to them, instead of from an axis corner across the whole plot.
 - **`studio_export(name; formats, dpi, fps, duration)`:** the *Export* button for scripts and agents. It writes the
   figure (or an animation for a name ending in `.mp4`, `.gif`, …) and the CSV state, and returns the paths.
 - **`set_figure_path!` / `get_figure_path`:** the folder for exports (`figures/`, `animations/`) and
@@ -18,6 +23,11 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- **Titles:** a tuple value shows its elements (`jitter = 0.200`, was `(0.2,)`), and the values of one parameter or
+  comparison use one notation (`1e-5, 1e-4, 1e-3`, was `1e-5, 0.0001, 0.001`).
+- **A grid of subplots shows the axis labels once** per row and column (they repeated on every subplot).
+- **References of 1-D data are drawn at 1000 points** in space by default (were 200), so shocks stay sharp; a
+  resolution set with `set_resolution!(…; is_ref = true)` or on the Resolution page is kept.
 - **Log-axis ticks fit the panel:** narrow panels get decades or every k-th decade instead of overlapping 1-2-5
   labels such as `2×10⁻⁵` (the label sizes are estimated from the axis size and the tick label size), and the
   axis option `tick_count` limits the number of log ticks (it was ignored on log axes).

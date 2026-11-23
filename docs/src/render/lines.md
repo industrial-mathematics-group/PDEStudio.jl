@@ -18,7 +18,7 @@ The standard, classical two-axis line plot. It maps a single independent variabl
 *   **Colors (`:colors`):** Assigns distinct categorical colors to each active numerical method.
 *   **Line Styles (`:line_styles`):** Differentiates methods using stroke patterns (e.g., `:solid`, `:dash`, `:dot`).
 *   **Dashed Lines (`:dashed_lines`):** A boolean toggle to enable or disable the application of `line_styles`.
-*   **Reference Lines (`:reference`):** Allows the injection of analytical slopes (e.g., convergence rates) directly onto the axis bounds.
+*   **Reference Lines (`:reference`):** Reference slopes `C xᵖ` for the exponents given (e.g., `[-1, -2]` for convergence rates over `N`), labelled `slope −2`. Each slope runs just below the curve whose slope on the log-log plot is closest to it, over that curve's range.
 
 For lines with markers at the data points (e.g., a convergence plot over a swept parameter), use **Scatter Lines**
 (`:scatter_lines`, in the [Scatter](scatter.md) family): the same options plus markers.
