@@ -725,7 +725,7 @@ Statistics are dependent fields (`:u_axis`) over the dimensions they keep or ove
 (particle data is converted): an error over time is `studio_set!(:plot_style => :lines, :x_axis => :t, :u_axis =>
 :l1error)`, over a swept parameter `studio_set!(:x_axis => :N, :u_axis => :l1error)`. The latter takes each run at its
 stored time nearest to the `:t` slider (runs with other time steps can differ there; for convergence studies use a
-common output time or a statistic of the final state).
+common output time or a statistic of the final state). For lines with markers use `:plot_style => :scatter_lines`.
 
 ```julia
 studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
