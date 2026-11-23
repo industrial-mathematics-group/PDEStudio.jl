@@ -54,9 +54,8 @@ Reviewed-by = "blhackslash <dev@blackslash.win>"
 AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation"
 
-# The file lists below stay until SIGNOFF.snapshot.json holds the levels they give: `aisignoff freeze` on main
-# after the next "Main dev" merge, then the lists are deleted. Their review levels are already the
-# attestations at the end of this file; generation, and reviews below the folder defaults, can't be attested.
+# The file list below declares the lines of these files whose commit declares nothing. It stays: since aisignoff
+# 0.17 there is no `aisignoff freeze` or SIGNOFF.snapshot.json, and every line is worked out from the history.
 
 # Changed on claude/agent-feedback by Claude (issues found with the agent API: particle lines, statistic hints, the
 # order of studio_set!, value and label formatting, long titles of compared methods; reviewed by a new session).

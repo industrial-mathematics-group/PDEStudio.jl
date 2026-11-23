@@ -14,7 +14,7 @@ julia --project=test -e 'using Pkg; Pkg.instantiate()'      # once
 julia -t 8 --project=test test/runtests.jl                  # same suite, faster to iterate
 PDESTUDIO_TEST_GROUP=editors julia --project=test test/runtests.jl   # one test group (helpers, plots-1, plots-2, editors, browser)
 julia --project=docs docs/make.jl                           # docs (instantiate docs env first)
-pipx run --spec aisignoff==1.0.0rc8 aisignoff report --html docs/src/assets/aisignoff.html --with-source  # optional, before make.jl: the AI Signoff Report page (CI does it)
+pipx run --spec aisignoff==0.20.1 aisignoff report --html docs/src/assets/aisignoff.html --with-source  # optional, before make.jl: the AI Signoff Report page (CI does it)
 (cd test/browser && npm ci)                                 # once: playwright-core for the browser tests
 ```
 
@@ -80,3 +80,11 @@ fix without having looked at the result.
   missing docs and cross references, but don't add new ones). UI changes: update the
   matching page in `docs/src/` (the plot styles: `docs/src/render/`).
 - Commit subjects: short and imperative, describing the user-visible change.
+
+<!-- aisignoff:begin -->
+## AI signoff
+
+This repository declares AI use with [aisignoff](https://industrial-mathematics-group.github.io/aisignoff/).
+Before you commit or open a pull request, run `aisignoff guide --role dev` and follow it.
+If you are reviewing a change instead, run `aisignoff guide --role review`: a reviewer only reviews and changes nothing.
+<!-- aisignoff:end -->
