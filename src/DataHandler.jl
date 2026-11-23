@@ -121,6 +121,16 @@ end
 # --- SWEEP VALUES (numeric and non-numeric parameters) ---
 # ==============================================================================
 
+# The values a sweep is shown with (sliders, axes, titles): a joint sweep of several parameters (`joint_sweep`: a key
+# joining them with `&`, with tuples of values) over its first parameter if that has distinct numbers, e.g. the grid
+# size of `joint_sweep(:Grid_Ns__1 => Ns, :IC_cell => 6 ./ Ns)`; other sweeps as they are.
+function _shown_sweep_values(key::Symbol, vals::AbstractVector)
+    occursin('&', String(key)) || return vals
+    all(v -> v isa Tuple && !isempty(v) && first(v) isa Real, vals) || return vals
+    firsts = Any[first(v) for v in vals]
+    return allunique(firsts) ? firsts : vals
+end
+
 """
     _is_numeric_sweep(vals)
 
@@ -324,6 +334,32 @@ function _make_reference(ref_factory, params::ParamDict, domain, mode::Val, t_ax
     end
 end
 
+# The statistics of a reference dataset, so that derived fields can be drawn against the reference: the registered ones
+# that need no reference (fields such as a pressure: errors need one, come out NaN and are left out) and the fields the
+# configuration's post-processor adds (`add_stat!`). A post-processor that can't handle reference data (e.g. it needs
+# fields only the solver stores) is reported once per session; the reference is drawn without its fields.
+function _reference_stats!(ref, post_func, post_name)
+    try
+        calculate_all_stats!(ref, nothing; save = false)
+    catch e
+        e isa InterruptException && rethrow()
+        @debug "Statistics of the reference failed" exception = (e, catch_backtrace())
+    end
+    isnothing(post_func) && return ref
+    try
+        Base.invokelatest(post_func, ref)
+    catch e
+        e isa InterruptException && rethrow()
+        if !(post_name in _REFERENCE_POST_WARNED)
+            push!(_REFERENCE_POST_WARNED, post_name)
+            @warn "The post-processor $post_name failed on the reference data, so the reference is drawn without the " *
+                  "fields it adds: $(_short(sprint(showerror, e), 200)) (said once per session)."
+        end
+    end
+    return ref
+end
+const _REFERENCE_POST_WARNED = Set{Any}()
+
 # The dataset of a numerical method at the sweep point `idx` (the first of `numeric` that has one), or `nothing`.
 function _numeric_at(numeric, idx::Tuple)
     for pd in numeric
@@ -357,7 +393,8 @@ function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_confi
 
     grid_dims = isempty(active_values) ? (1,) : Tuple(length.(active_values))
     data_store = Array{Union{Nothing, AbstractSimData}, length(grid_dims)}(nothing, grid_dims...)
-    result = PlotSweepData{length(grid_dims)}(data_store, active_keys, active_values)
+    shown = Vector{Any}[_shown_sweep_values(k, v) for (k, v) in zip(active_keys, active_values)]
+    result = PlotSweepData{length(grid_dims)}(data_store, active_keys, shown)
     isnothing(domain) && return result
 
     is_reference = is_reference_method(method_name)
@@ -369,6 +406,7 @@ function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_confi
         return result
     end
 
+    post_func = is_reference ? resolve_dynamic_function(sim_config.postprocess) : nothing
     # Numerical data of the same sweep grid (data of an earlier configuration is not used)
     numeric = [pd for pd in numeric if size(pd.data) == grid_dims && pd.active_param_keys == active_keys]
     loaded = Dict{Any, Union{Nothing, AbstractSimData}}()   # identical tasks (and domains) share one dataset
@@ -382,8 +420,12 @@ function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_confi
         end
         sim_data = get!(loaded, key) do
             # invokelatest: the factory may come from source files included by the run that just finished
-            is_reference ? Base.invokelatest(_make_reference, ref_factory, params, ref_domain, mode, t_axis) :
-                           _load_for_display(params, domain, mode)
+            if is_reference
+                ref = Base.invokelatest(_make_reference, ref_factory, params, ref_domain, mode, t_axis)
+                isnothing(ref) ? ref : _reference_stats!(ref, post_func, sim_config.postprocess)
+            else
+                _load_for_display(params, domain, mode)
+            end
         end
 
         if !isnothing(sim_data) && validate_plot_dimensions(sim_data)

@@ -67,6 +67,18 @@ studio_snapshot("window.png"; area = :window)       # the whole studio, control 
 studio_snapshot("detail.png"; plot = 2, px_per_unit = 2)   # subplot 2 alone, twice the resolution
 ```
 
+Figures for a paper or report come from [`studio_export`](@ref), which does what the *Export* button does. It draws
+the plots anew without the controls and writes them to `<figure path>/figures/`, together with a CSV of the studio
+state that reloads the view. It returns the paths of the files:
+
+```julia
+studio_export("profiles")                                  # the formats of the export settings (PNG), plus profiles.csv
+studio_export("profiles"; formats = [:pdf, :svg], dpi = 600)
+studio_set!(:anim_target => :t); studio_export("evolution.mp4"; fps = 24, duration = 5)
+```
+
+In a headless studio (`studio_headless!()`) nothing is opened in an image viewer.
+
 ## Operating the controls
 
 [`studio_controls`](@ref) lists every control with its kind, value and choices, under the names

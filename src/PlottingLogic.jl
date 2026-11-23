@@ -83,7 +83,7 @@ function _handle_plot_trigger!(
             manager.caches[i] = Dict{Symbol, _cache_type(Val(manager.mode[]))}()
             
             mutated_sel_vals = is_compare ? _mutate_compare_vals(sel_vals, i) : sel_vals
-            target_c_int = (is_compare && target == :component) ? i : c_sel[]
+            target_c_int = (is_compare && target == :component) ? manager.compare_state[4][i] : c_sel[]
             local_methods = _subplot_methods(is_compare && target == :methods, i)
             
             data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
@@ -177,7 +177,9 @@ end
 function _subplot_methods(per_method::Bool, i::Int)
     methods = manager.methods[]
     per_method || return methods
-    return i <= length(methods) ? [methods[i]] : Symbol[]
+    picks = manager.compare_state[4]   # (the compared methods: indices into the active ones)
+    j = i <= length(picks) && picks[i] isa Integer ? picks[i] : i
+    return j <= length(methods) ? [methods[j]] : Symbol[]
 end
 
 """
@@ -321,7 +323,7 @@ function _handle_data_trigger!(
 
     for i in 1:num_plots
         mutated_sel_vals = is_compare ? _mutate_compare_vals(sel_vals, i) : sel_vals
-        target_c_int = (is_compare && target == :component) ? i : c_sel[]
+        target_c_int = (is_compare && target == :component) ? manager.compare_state[4][i] : c_sel[]
         local_methods = _subplot_methods(is_compare && target == :methods, i)
         
         data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
@@ -410,14 +412,16 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
     ui_app = manager.ui[:plot_style]
     is_3d_axis = PLOT_DIM_MAP[T] == 3 || is_surface(T)
 
-    target, _, old_compare_labels, _ = manager.compare_state
+    target, _, old_compare_labels, picks = manager.compare_state
     is_compare = target != :none
     
+    # (labels set since the layout was built: `set_label!`; `picks` are the compared methods / components)
     dyn_compare_labels = copy(old_compare_labels)
     if target == :methods
-        dyn_compare_labels = String[frontend_key(m) for m in manager.methods[]]
+        methods = manager.methods[]
+        dyn_compare_labels = String[frontend_key(methods[j]) for j in picks if j isa Integer && j <= length(methods)]
     elseif target == :component
-        dyn_compare_labels = String[frontend_key(Symbol("component_$j")) for j in 1:length(axes)]
+        dyn_compare_labels = String[frontend_key(Symbol("component_$j")) for j in picks]
     end
 
     # Calculate Global Colorrange for Linked Colorbars
@@ -448,7 +452,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
         if !is_3d_axis && haskey(ui_app, :reference)
             delete_plots_by_label!(ax, "Reference Lines")
             ref_exp = ui_app[:reference]
-            !isempty(ref_exp) && plot_reference_lines!(ax, ref_exp; label="Reference Lines")
+            !isempty(ref_exp) && plot_reference_lines!(ax, ref_exp; label = "Reference Lines", curves = _drawn_curves(i))
         end
         
         if haskey(manager.caches, i)
@@ -571,33 +575,36 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
         sim_data = _get_first_valid(pd_first)
         
         if !isnothing(sim_data)
+            chosen = haskey(w, :compare_values) ? w[:compare_values].selection[] : "all"
             if target == :methods
-                compare_labels = String[frontend_key(m) for m in manager.methods[]]
+                names = collect(manager.methods[])
+                picks = _compare_selection(chosen, names, :names)
+                compare_labels = String[frontend_key(m) for m in names[picks]]
+                compare_vals = picks   # (indices into the active methods, see `_subplot_methods`)
                 num_plots = length(compare_labels)
             elseif target == :component
                 target_tensor = get(sim_data.stats, u_sel[], sim_data.stats[:Solution])
-                num_plots = _get_component_num_plots(Val(manager.mode[]), target_tensor)
-
-                compare_labels = String[]
-                for i in 1:num_plots
-                    sym = Symbol("component_$i")
-                    push!(compare_labels, frontend_key(sym))
-                end
-                compare_vals = collect(1:num_plots)
+                picks = _compare_selection(chosen, collect(1:_get_component_num_plots(Val(manager.mode[]), target_tensor)),
+                                           :components)
+                compare_labels = String[frontend_key(Symbol("component_$i")) for i in picks]
+                compare_vals = picks
+                num_plots = length(compare_vals)
             elseif target === :time
                 t_dim = sim_data.domain.time_dim
                 if !isnothing(t_dim)
                     t_vals = _get_time_vals(Val(manager.mode[]), sim_data, findfirst(==(t_dim), sim_data.domain.dim_keys))
-                    compare_vals = collect(t_vals[_compare_picks(length(t_vals))])
-                    compare_labels = ["$(t_dim) = $(_fmt_compare(t))" for t in compare_vals]
+                    compare_vals = collect(t_vals[_compare_selection(chosen, collect(t_vals), :numbers)])
+                    sci = _sci_set(compare_vals)
+                    compare_labels = ["$(t_dim) = $(_fmt_compare(t; sci))" for t in compare_vals]
                     num_plots = length(compare_vals)
                 end
             elseif target in manager.plot_vars
                 idx = findfirst(isequal(target), manager.plot_vars)
                 if idx <= length(pd_first.active_param_values)
                     vals = pd_first.active_param_values[idx]
-                    picks = _compare_picks(length(vals))
-                    compare_labels = ["$(frontend_key(target)) = $(_fmt_compare(v))" for v in vals[picks]]
+                    picks = _compare_selection(chosen, vals, _is_numeric_sweep(vals) ? :numbers : :names)
+                    sci = _sci_set(vals[picks])   # (one notation for all: 1e-5, 1e-4, not 1e-5, 0.0001)
+                    compare_labels = ["$(frontend_key(target)) = $(_fmt_compare(v; sci))" for v in vals[picks]]
                     # Non-numeric sweeps are addressed by index (like their sliders).
                     compare_vals = _is_numeric_sweep(vals) ? collect(vals[picks]) : collect(picks)
                     num_plots = length(compare_vals)

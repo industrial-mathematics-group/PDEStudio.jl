@@ -221,6 +221,18 @@ function shuffled_particle_solver(params::ParamDict)
                            [[SVector(sin(2π * x0[i])) for i in perm] for _ in t], t, params)
 end
 
+# A post-processor adding a field (also evaluated on references), and one that fails on them
+double_post(data) = (add_stat!(data, :double, map(v -> 2 .* v, data.stats[:Solution]), collect(data.domain.dim_keys)); true)
+failing_post(data) = error("needs the solver's fields")
+
+# Three components (for comparisons of components)
+function vector_solver_1d(params::ParamDict)
+    x = collect(range(0.0, 1.0, length = params[:N]))
+    t = [0.0, 0.5]
+    u = [SVector{3, Float64}(1.0 + xi, 2.0 + ti, 3.0) for xi in x, ti in t]
+    return create_sim_data(x, u, t, params; time_dim = :t)
+end
+
 function dummy_tuple_solver(params::ParamDict)
     Nx, Ny = params[:Ns]
     x = collect(range(0.0, 1.0, length=Nx))
@@ -998,6 +1010,22 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_snapshot(; area = :nope)
     @test_throws ArgumentError studio_snapshot(; area = :window, plot = 1)
 
+    # --- exports: the Export button's files, returned (headless: nothing opens a viewer, see studio_headless!) ---
+    set_figure_path!(figdir)
+    files = studio_export("adv")
+    @test files == joinpath.(figdir, "figures", ["adv.png", "adv.csv"]) && all(isfile, files)
+    @test basename.(studio_export("adv2"; formats = [:svg, "pdf"])) == ["adv2.svg", "adv2.pdf", "adv2.csv"]
+    @test basename.(studio_export("sub/adv3.pdf")) == ["adv3.pdf", "adv3.csv"] && isdir(joinpath(figdir, "figures", "sub"))
+    @test_throws ArgumentError studio_export("adv.png"; formats = :pdf)   # (extension or formats)
+    @test_throws ArgumentError studio_export("adv"; formats = [:mp4])     # (animations by the name)
+    @test_throws ArgumentError studio_export("adv"; formats = String[])
+    studio_set!(:anim_target => :cfl)
+    @test basename.(studio_export("anim.gif"; fps = 2, duration = 1)) == ["anim.gif", "anim.csv"]
+    @test_throws ErrorException studio_export("anim2.gif"; fps = 0)       # (the status line says why)
+    @test manager.ui[:export][:animation_FPS] == 30 && manager.ui[:export][:dpi] == 300   # (for that export only)
+    @test studio_state().plots == before && isnothing(manager.export_request)
+    studio_set!(:anim_target => :none); set_figure_path!()
+
     # --- layout: comparison, styles (2D, 3D), the camera of 3D plots ---
     studio_set!(:compare_target => :methods, :compare_columns => 2)
     s = studio_state()
@@ -1203,19 +1231,31 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     # (log axes: decades with 2, 3, 5 between them, written as numbers or powers of ten; a custom format is kept)
     studio_option!(:x_axis_1d, :log_scale, true)
     ax = only(b for b in manager.master_fig.content if b isa Axis)
-    @test ax.xticks[] === PDEStudio._log10_ticks && ax.xtickformat[] === PDEStudio._log10_labels
+    @test ax.xticks[] isa PDEStudio._Log10Ticks && ax.xtickformat[] === PDEStudio._log10_labels
+    @test ax.xticks[].count == 0 && ax.xticks[].horizontal && !isempty(ax.xaxis.tickvalues[])
+    studio_option!(:x_axis_1d, :tick_count, 3)   # (at most that many on a log axis)
+    @test ax.xticks[].count == 3 && length(ax.xaxis.tickvalues[]) <= 3
+    studio_option!(:x_axis_1d, :tick_count, 0)
     studio_option!(:x_axis_1d, :tick_format, "{:.2f}")
-    @test ax.xtickformat[] == "{:.2f}" && ax.xticks[] === PDEStudio._log10_ticks
+    @test ax.xtickformat[] == "{:.2f}" && ax.xticks[] isa PDEStudio._Log10Ticks
     studio_option!(:x_axis_1d, :tick_format, "default")
     @test ax.xtickformat[] === PDEStudio._log10_labels
     studio_option!(:x_axis_1d, :log_scale, false)
-    @test ax.xticks[] !== PDEStudio._log10_ticks && ax.xtickformat[] === Makie.automatic
+    @test !(ax.xticks[] isa PDEStudio._Log10Ticks) && ax.xtickformat[] === Makie.automatic
     @test PDEStudio._log10_labels([0.002, 0.005, 0.01, 20.0, 50000.0]) == ["0.002", "0.005", "0.01", "20", "50000"]
     @test all(l -> l isa Makie.RichText, PDEStudio._log10_labels([1e-6, 2e-6, 1e-3]))
     @test PDEStudio._power_parts.((1e-6, 2e-6, 2.5e7, 9.999e-3, 1.0)) == (("1", -6), ("2", -6), ("2.5", 7), ("1", -2), ("1", 0))
     @test PDEStudio._log10_ticks(100.0, 1000.0) == [100.0, 200.0, 300.0, 500.0, 1000.0]
     @test PDEStudio._log10_ticks(0.25, 1.0) == [0.3, 0.5, 1.0] && length(PDEStudio._log10_ticks(1e-6, 1.0)) == 7
     @test PDEStudio._log10_ticks(150.0, 180.0) == [150.0, 160.0, 180.0] && isempty(PDEStudio._log10_ticks(-1.0, 1.0))
+    # (as many as fit: on a narrow axis decades, or every k-th decade, instead of 1-2-5 labels that overlap)
+    fits(px) = ts -> PDEStudio._log_labels_fit(ts, 1e-6, 1e-3, px, true, 14.0)
+    @test length(PDEStudio._log10_ticks(1e-6, 1e-3; fits = fits(2000.0))) == 10   # (1-2-5)
+    @test PDEStudio._log10_ticks(1e-6, 1e-3; fits = fits(200.0)) == [1e-6, 1e-5, 1e-4, 1e-3]
+    @test PDEStudio._log10_ticks(1e-6, 1e-3; fits = fits(60.0)) == [1e-6, 1e-3]   # (multiples of 3)
+    @test PDEStudio._log10_ticks(1e-6, 1e-3; max_ticks = 4) == [1e-6, 1e-5, 1e-4, 1e-3]
+    @test PDEStudio._log_labels_fit([1e-6, 2e-6], 1e-6, 1e-3, 0.0, true, 14.0)   # (no size yet)
+    @test !PDEStudio._log_labels_fit([1e-6, 2e-6, 5e-6], 1e-6, 1e-3, 30.0, false, 14.0)
     @test studio_state().axes.x === :cfl && length(first(values(studio_data(1).methods)).x) == 4
     studio_set!(:x_axis => :x, :u_axis => :Solution)
     # (2D styles: the hint switches to a 1D style, and following it works)
@@ -1230,6 +1270,61 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     launch_plotter(test_particles_2d())
     @test occursin("in a 1D grid style", only(c for c in studio_controls() if c.name === :u_axis).label)
 
+    # --- a comparison of some components; reference slopes next to the curve they match ---
+    vec_config = SimulationConfig(create_param_dict(:N => 16, :sim_func_name => :vector_solver_1d), create_method_dict(), Symbol[];
+                                  varied = create_varied_dict(:N => [16, 32, 64]))
+    reset_plotter!()
+    launch_plotter(vec_config)
+    studio_set!(:compare_target => :component, :compare_values => [3, 1])
+    @test [p.title for p in studio_state().plots] == ["Component 3", "Component 1"]
+    @test manager.compare_state[4] == [3, 1]
+    studio_set!(:compare_target => :none)
+    ax = Axis(Figure()[1, 1]; xscale = log10, yscale = log10)
+    curves = [[(x, 2.0 * x^-1.0) for x in (10.0, 100.0, 1000.0)], [(x, 0.5 * x^-2.0) for x in (10.0, 100.0, 1000.0)]]
+    limits!(ax, 5.0, 2000.0, 1e-8, 10.0)
+    drawn = PDEStudio.plot_reference_lines!(ax, [-2, -1]; label = "Test Slopes", curves = curves)
+    @test length(drawn) == 4 && [only(d.text[]) for d in drawn[2:2:end]] == ["slope −2", "slope −1"]
+    pts2, pts1 = drawn[1][1][], drawn[3][1][]
+    @test pts2[1][2] ≈ 0.25 * 10.0^-2 rtol = 1e-4   # (half of the curve it matches)
+    @test pts1[1][2] ≈ 1.0 * 10.0^-1 rtol = 1e-4
+    @test PDEStudio._loglog_slope(curves[2]) ≈ -2 && PDEStudio._fmt_exponent(1.5) == "1.5"
+    @test PDEStudio.delete_plots_by_label!(ax, "Test Slopes") && length(PDEStudio.plot_reference_lines!(ax, [1])) == 1   # (no data: from a corner)
+    # (references of 1-D data: 1000 points in space unless a resolution is set)
+    @test PDEStudio.build_res_tuple([:x, :t]; is_ref = true) == (1000, 100)
+    @test PDEStudio.build_res_tuple([:x, :y, :t]; is_ref = true) == (200, 200, 100)
+    set_resolution!(:x, 300; is_ref = true)
+    @test PDEStudio.build_res_tuple([:x, :t]; is_ref = true) == (300, 100)
+    delete!(manager.resolution_ref, :x)
+    # (a joint sweep of several parameters, `joint_sweep`, is shown over its first parameter)
+    @test PDEStudio._shown_sweep_values(Symbol("N&cfl"), Any[(32, 0.8), (64, 0.4)]) == [32, 64]
+    @test PDEStudio._shown_sweep_values(Symbol("N&cfl"), Any[(32, 0.8), (32, 0.4)]) == Any[(32, 0.8), (32, 0.4)]   # (not distinct)
+    @test PDEStudio._shown_sweep_values(:N, Any[(32, 0.8)]) == Any[(32, 0.8)]
+    @test PDEStudio.frontend_key(Symbol("Grid_Ns__1&IC_cell")) == "Grid Ns[1]"
+    if isdefined(PDEStudioCore, :joint_sweep)   # (from the next PDEStudioCore release on)
+        jbase = test_advection_1d()
+        joint_config = SimulationConfig(jbase.shared, jbase.methods, [:upwind, :lax_wendroff];
+                                        varied = create_varied_dict(PDEStudioCore.joint_sweep(:N => [32, 64, 128], :cfl => [0.8, 0.6, 0.4])),
+                                        reference = jbase.reference)
+        reset_plotter!()
+        launch_plotter(joint_config)
+        studio_set!(:N => 64)   # (by its first parameter)
+        @test occursin("N = 64", studio_state().plots[1].title)
+        studio_set!(:x_axis => Symbol("N&cfl"), :u_axis => :l1error, :t => 1.0)
+        @test studio_data(1).methods[:upwind].x == [32, 64, 128] && studio_state().plots[1].xlabel == "N"
+    end
+    # (statistics of references: the post-processor's fields and registered fields; errors need a reference)
+    base = test_advection_1d()
+    post_config = SimulationConfig(base.shared, base.methods, [:upwind, :exact]; varied = base.varied,
+                                   reference = base.reference, postprocess = :double_post)
+    reset_plotter!()
+    launch_plotter(post_config)
+    studio_set!(:u_axis => :double)
+    @test sort!(collect(keys(studio_data(1).methods))) == [:exact, :upwind]
+    ref = PDEStudio._get_first_valid(manager.plot_data[][:exact])
+    @test haskey(ref.stats, :double) && !haskey(ref.stats, :pointwise_diff)
+    @test PDEStudio._reference_stats!(ref, failing_post, :failing_post) === ref   # (a failure is reported, once)
+    @test_logs PDEStudio._reference_stats!(ref, failing_post, :failing_post)
+
     # --- a slider the comparison held can be set in the same call that ends the comparison ---
     reset_plotter!()
     launch_plotter(config)
@@ -1243,6 +1338,27 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     r = studio_set!(:t => 1.0, :plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
     @test studio_state().axes.y === :t && occursin("not set: :t", r.status)
     studio_set!(:plot_style => :lines, :x_axis => :x)
+    # --- the values a comparison shows (Compare Values), the axis labels of a grid once per row and column ---
+    r = studio_set!(:compare_target => :cfl, :compare_values => [1.0, 0.25])
+    @test [p.title for p in studio_state().plots] == ["Cfl = 1.0", "Cfl = 0.25"] && r.values[:compare_values] == "1.0, 0.25"
+    @test manager.layout_cache[:compare_values] == "1.0, 0.25"   # (a layout option: presets and CSV files keep it)
+    r = studio_set!(:compare_values => "0.7, nope")               # (the nearest value; unknown entries are reported)
+    @test [p.title for p in studio_state().plots] == ["Cfl = 0.75"] && occursin("no match for \"nope\"", r.status)
+    studio_set!(:compare_target => :methods, :compare_values => [:lax_friedrichs])
+    @test [p.title for p in studio_state().plots] == ["lax_friedrichs"]
+    @test only(PDEStudio._subplot_methods(true, 1)) === :lax_friedrichs
+    studio_set!(:compare_values => :all, :compare_columns => 1)
+    axs = PDEStudio._plot_axes()
+    @test length(axs) == 2 && [(a.xlabelvisible[], a.ylabelvisible[]) for a in axs] == [(false, true), (true, true)]
+    studio_set!(:compare_columns => 2)
+    @test [(a.xlabelvisible[], a.ylabelvisible[]) for a in PDEStudio._plot_axes()] == [(true, true), (true, false)]
+    @test all(p -> p.ylabel == "Solution", studio_state().plots)   # (hidden, not removed)
+    @test_throws ArgumentError studio_set!(:compare_values => Int[])
+    @test PDEStudio._values_text(" 1e-5 ;0.001,, ") == "1e-5, 0.001" && PDEStudio._values_text(" ALL ") == "all"
+    @test PDEStudio._compare_selection("3, 1, 3", collect(1:4), :components) == [3, 1]
+    @test PDEStudio._compare_selection("5", collect(1:4), :components) == 1:4   # (nothing matches: all)
+    @test PDEStudio._compare_selection("b, 1", ["a", "b"], :names) == [2, 1]
+    studio_set!(:compare_target => :none)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)
@@ -1258,7 +1374,13 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test PDEStudio._fmt_value.((1e-5, 0.0015, 0.002, 0.0125, 0.013, 0.25, 0.0, 2.5e6, 3, 1.5e-12, 3e100)) ==
           ("1e-5", "0.0015", "0.002", "0.0125", "0.013", "0.250", "0.000", "2.5e6", "3", "1.5e-12", "3e100")
     @test PDEStudio._fmt_compare.((1e-5, 1.5e-7, 2.5e6, 0.0001, 0.001, 1.0, 0.123456, -2e-5, 0.0, 4)) ==
-          ("1e-5", "1.5e-7", "2.5e6", "0.0001", "0.001", "1.0", "0.1235", "-2e-5", "0.0", "4")
+          ("1e-5", "1.5e-7", "2.5e6", "1e-4", "0.001", "1.0", "0.1235", "-2e-5", "0.0", "4")
+    # (tuples by their elements; one notation for the values of a set)
+    @test PDEStudio._fmt_value.(((0.2,), (0.1, 2.0), [1, 2])) == ("0.200", "(0.100, 2.000)", "(1, 2)")
+    @test PDEStudio._fmt_compare((0.2,)) == "0.2" && PDEStudio._fmt_value(0.5; sci = true) == "5e-1"
+    vals = [1e-2, 1e-3, 1e-4, 1e-5]
+    @test PDEStudio._fmt_compare.(vals; sci = PDEStudio._sci_set(vals)) == ["1e-2", "1e-3", "1e-4", "1e-5"]
+    @test !PDEStudio._sci_set([0.25, 0.5, (0.2,)]) && PDEStudio._sci_set([(0.1, 1e-6)])
 
     # --- long method names in the titles of compared methods are broken into lines to fit the plot ---
     long = SimulationConfig(create_param_dict(:N => 32, :cfl => 0.5, :sim_func_name => :advection_solver_1d),
@@ -3331,7 +3453,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
             yield()
         end
         @test length(ax.finallimits.listeners) - n0 < 3
-        @test count(p -> haskey(p, :label) && p.label[] == "Reference Lines", ax.scene.plots) == 1
+        @test count(p -> haskey(p, :label) && p.label[] == "Reference Lines", ax.scene.plots) == 2   # (the line and its label)
         manager.ui[:plot_style][:reference] = Any[]
 
         # 3. Style values the renderer can't draw are refused by the editor; filled contours draw with levels = 1

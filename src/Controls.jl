@@ -286,6 +286,43 @@ function _set_number!(nb::NumberBox, val)
     return nothing
 end
 
+"""
+    ValuesBox
+
+The values a comparison shows (Plot tab, *Compare Values*): a text box with `all` (up to `MAX_COMPARE_PLOTS` of them,
+evenly spread) or a list separated by commas, e.g. `1e-5, 1e-3` (swept values or times: the nearest one each), `1, 4`
+(components) or names (methods, non-numeric swept values). `selection` holds the text, normalised (`"all"`,
+`"1e-5, 1e-3"`), so the layout watcher, presets and CSV files treat it like the other layout options; it is resolved
+against the data when the layout is applied (`_compare_selection`).
+"""
+struct ValuesBox
+    box::Textbox
+    selection::Observable{String}
+end
+
+function ValuesBox(pos)
+    tb = Textbox(pos, placeholder = "all", stored_string = "all", displayed_string = "all", width = nothing)
+    vb = ValuesBox(tb, Observable("all"))
+    manager.listeners[:ValuesBox_compare] = on(tb.stored_string) do s
+        s isa AbstractString || return
+        _set_values_text!(vb, s)
+    end
+    return vb
+end
+
+# "all" for an empty text, otherwise the entries separated by ", "
+function _values_text(s)
+    items = filter(!isempty, strip.(split(String(s), r"[,;]")))
+    return isempty(items) || (length(items) == 1 && lowercase(only(items)) == "all") ? "all" : join(items, ", ")
+end
+
+function _set_values_text!(vb::ValuesBox, s)
+    t = _values_text(s isa Union{AbstractVector, Tuple} ? join(string.(s), ", ") : string(s))
+    t == vb.selection[] || (vb.selection[] = t)
+    _show_editor_text!(vb.box, t)
+    return nothing
+end
+
 # A row of a single-column options panel: the name on the left; returns the position of the widget on the right.
 function _option_row!(gl::GridLayout, row::Int, name::AbstractString)
     Label(gl[row, 1], name, halign = :left, fontsize = 13)
@@ -305,7 +342,7 @@ end
 
 Builds the upper half of the `Plot` tab, one option per row: the structural layout features applied with *Apply
 Layout*: the plot style (chosen on a page of all styles, `StyleChoice`), plot width and height (`NumberBox`),
-legend placement and the multi-plot comparison (target, grid columns, coupling).
+legend placement and the multi-plot comparison (target, grid columns, the values compared (`ValuesBox`), coupling).
 """
 function build_layout_options!(menu_layout::GridLayout)
     w = manager.widgets
@@ -321,7 +358,8 @@ function build_layout_options!(menu_layout::GridLayout)
     w[:compare_target]  = Menu(_option_row!(menu_layout, 7, "Compare"),
                                options = Any[menu_opt(:none), menu_opt(:methods), menu_opt(:component)])
     w[:compare_columns] = NumberBox(_option_row!(menu_layout, 8, "Grid Columns"), 2; lo = 1, hi = MAX_COMPARE_PLOTS, name = "Grid Columns")
-    w[:compare_link]    = Menu(_option_row!(menu_layout, 9, "Compare Link"),
+    w[:compare_values]  = ValuesBox(_option_row!(menu_layout, 9, "Compare Values"))
+    w[:compare_link]    = Menu(_option_row!(menu_layout, 10, "Compare Link"),
                                options = Any[menu_opt(:fully_coupled), menu_opt(:colorbar_only), menu_opt(:axes_only), menu_opt(:decoupled)])
     _finish_option_panel!(menu_layout)
 end

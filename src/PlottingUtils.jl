@@ -19,14 +19,37 @@ end
 const MAX_COMPARE_PLOTS = 12
 
 # Numbers in titles, slider labels and descriptions: 3 decimals, small and large values with 3 significant digits
-# (τ = 1e-5, not 0.000; 0.0015, not 0.002; 0.0125, not 0.013)
-_fmt_value(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 0.1 <= abs(v) < 1e5 ? @sprintf("%.3f", v) :
-                                       _clean_exponent(@sprintf("%.3g", v))) : string(v)
+# (τ = 1e-5, not 0.000; 0.0015, not 0.002; 0.0125, not 0.013). `sci = true` writes every value of a set
+# scientifically (see `_sci_set`); a one-element tuple is its element, other tuples and vectors are written elementwise.
+function _fmt_value(v; sci::Bool = false)
+    v isa Union{Tuple, AbstractVector} && return _fmt_elements(x -> _fmt_value(x; sci), v)
+    v isa AbstractFloat || return string(v)
+    (iszero(v) || !isfinite(v)) && return @sprintf("%.3f", v)
+    (sci || !(1e-3 <= abs(v) < 1e5)) && return _fmt_sci(v, 3)
+    return abs(v) >= 0.1 ? @sprintf("%.3f", v) : @sprintf("%.3g", v)
+end
 # Values in compare titles: 4 significant digits, scientific outside [1e-3, 1e5) (τ = 1e-5, not 1.0e-5)
-_fmt_compare(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 1e-3 <= abs(v) < 1e5 ? string(round(v, sigdigits = 4)) :
-                                         _clean_exponent(@sprintf("%.4g", v))) : string(v)
+function _fmt_compare(v; sci::Bool = false)
+    v isa Union{Tuple, AbstractVector} && return _fmt_elements(x -> _fmt_compare(x; sci), v)
+    v isa AbstractFloat || return string(v)
+    (iszero(v) || !isfinite(v)) && return string(v)
+    (sci || !(1e-3 <= abs(v) < 1e5)) && return _fmt_sci(v, 4)
+    return string(round(v, sigdigits = 4))
+end
+
+_fmt_elements(f, v) = length(v) == 1 ? f(only(v)) : "(" * join((f(x) for x in v), ", ") * ")"
+
+# Scientific notation with up to `digits` significant digits and no padding: 1e-5, 2.5e6, -1.234e-7
+_fmt_sci(v, digits) = _clean_exponent(replace(@sprintf("%.*e", digits - 1, v), r"\.?0+e" => "e"))
+
 # "1e-05" -> "1e-5", "2.5e+06" -> "2.5e6"
 _clean_exponent(s::AbstractString) = replace(s, r"e\+?(-?)0*(\d)" => s"e\1\2")
+
+# Whether the values of a set (a parameter's sweep, the values of a comparison) are all written scientifically: if one
+# of them needs it (1e-5, 1e-4, 1e-3 instead of 1e-5, 0.0001, 0.001)
+_sci_set(vals) = any(_needs_sci, vals)
+_needs_sci(v) = v isa Union{Tuple, AbstractVector} ? any(_needs_sci, v) :
+                v isa AbstractFloat && isfinite(v) && !iszero(v) && !(1e-3 <= abs(v) < 1e5)
 
 # Evenly spread indices into 1:n, at most MAX_COMPARE_PLOTS of them.
 function _compare_picks(n::Int)
@@ -35,11 +58,52 @@ function _compare_picks(n::Int)
     return unique(round.(Int, range(1, n, length = MAX_COMPARE_PLOTS)))
 end
 
+"""
+    _compare_selection(text, vals, kind) -> Vector{Int}
+
+The indices into `vals` a comparison shows for the text of *Compare Values* (`ValuesBox`): all of them for `"all"`
+(evenly spread, see `_compare_picks`), otherwise the entries in the order given, each matched by `kind`: `:numbers`
+the nearest value (swept values, times), `:components` a component number, `:names` a value, label or name
+written as in the titles (methods, non-numeric sweeps) or its position (`2`). Entries that match nothing are reported in
+the status line and left out; if none matches, all values are shown.
+"""
+function _compare_selection(text::AbstractString, vals::AbstractVector, kind::Symbol)
+    (text == "all" || isempty(vals)) && return _compare_picks(length(vals))
+    picks, unknown = Int[], String[]
+    for item in split(text, ", ")
+        i = _compare_match(String(item), vals, kind)
+        isnothing(i) ? push!(unknown, String(item)) : (i in picks || push!(picks, i))
+    end
+    if !isempty(unknown)
+        shown = kind === :names ? join((_fmt_compare(v) for v in vals), ", ") :
+                kind === :components ? "1 … $(length(vals))" : "numbers"
+        _report(:warn, "Compare Values: no match for $(join(repr.(unknown), ", ")) (values: $(_short(shown, 80)))" *
+                       (isempty(picks) ? "; showing all." : "."))
+    end
+    isempty(picks) && return _compare_picks(length(vals))
+    length(picks) > MAX_COMPARE_PLOTS && @info "Comparing the first $MAX_COMPARE_PLOTS of $(length(picks)) values."
+    return picks[1:min(end, MAX_COMPARE_PLOTS)]
+end
+
+function _compare_match(item::String, vals, kind::Symbol)
+    if kind === :numbers
+        x = tryparse(Float64, item)
+        return isnothing(x) || !isfinite(x) ? nothing : argmin(abs.(Float64.(vals) .- x))
+    elseif kind === :components
+        k = tryparse(Int, item)
+        return !isnothing(k) && 1 <= k <= length(vals) ? k : nothing
+    end
+    i = findfirst(v -> item in (string(v), _fmt_compare(v), frontend_key(v)), vals)
+    isnothing(i) || return i
+    k = tryparse(Int, item)
+    return !isnothing(k) && 1 <= k <= length(vals) ? k : nothing
+end
+
 # Value of a selector that has no slider widget: the first swept value (or its index for non-numeric sweeps).
 function _fallback_selector_value(name::Symbol)
     config = manager.active_config
     if !isnothing(config) && haskey(config.varied, name) && !isempty(config.varied[name])
-        vals = config.varied[name]
+        vals = _shown_sweep_values(name, config.varied[name])
         return _is_numeric_sweep(vals) ? first(vals) : 1
     end
     return 0.0
@@ -71,12 +135,20 @@ function _export_formats(setting)
     return unique!(filter(in(STATIC_EXPORT_FORMATS), fmts))
 end
 
+# Whether the values of the `i`-th parameter are written scientifically (all of them, see `_sci_set`)
+function _param_sci(i::Int)
+    data = manager.plot_data[]
+    isempty(data) && return false
+    pd = _primary_sweep(data)
+    return i <= length(pd.active_param_values) && _sci_set(pd.active_param_values[i])
+end
+
 # Text next to a slider: the swept value for non-numeric parameters, the formatted number otherwise.
 function _slider_value_text(widget_key::Symbol, v)
     param = get(manager.param_map, widget_key, nothing)
     if !isnothing(param)
         i = findfirst(isequal(param), manager.plot_vars)
-        isnothing(i) || return _fmt_value(_param_display_value(i, v))
+        isnothing(i) || return _fmt_value(_param_display_value(i, v); sci = _param_sci(i))
     end
     return _fmt_value(v)
 end
@@ -121,7 +193,7 @@ function _title_parts(plot_dims::Tuple, dim_names::Vector{Symbol}, sel_vals, sim
         elseif i <= length(sel_vals)
             val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
             others = ["$name = $v" for v in _title_values(i, i <= n_params, name_sym, sim_data)]
-            push!(parts, ("$name = $(_fmt_value(val))", others))
+            push!(parts, ("$name = $(_fmt_value(val; sci = i <= n_params && _param_sci(i)))", others))
         end
     end
     return parts
@@ -143,7 +215,8 @@ function _title_values(i::Int, is_param::Bool, dim::Symbol, sim_data)
             isempty(data) && return String[]
             pd = _primary_sweep(data)
             i <= length(pd.active_param_values) || return String[]
-            return unique!([_fmt_value(v) for v in pd.active_param_values[i]])
+            sci = _sci_set(pd.active_param_values[i])
+            return unique!([_fmt_value(v; sci) for v in pd.active_param_values[i]])
         end
         # (the range of the dimension's slider spans every dataset: the texts don't change with the parameter sliders)
         slider = get(manager.widgets, dim, nothing)
@@ -293,10 +366,12 @@ function _drawn_value(sim_data, dim::Symbol, v)
 end
 
 """
-    plot_reference_lines!(ax::Axis, exponents::Vector; label, color, line_style, kwargs...)
+    plot_reference_lines!(ax::Axis, exponents::Vector; label, color, line_style, curves, kwargs...)
 
-Draws analytical reference slopes dynamically anchored to the current axis limits. 
-Crucial for verifying numerical convergence rates visually. Automatically spans the exact bounding box of the active viewport, respecting logarithmic scaling.
+Draws reference slopes `C xᵖ` (convergence rates on a log-log plot), labelled `slope −2` at their middle. With the
+drawn data `curves` (one vector of `(x, y)` points per method, see `_drawn_curves`) a slope runs just below the curve
+whose slope (fitted on the log-log points) is closest to it, over that curve's x range, and stays inside the visible y
+range; without data it spans the axis from a corner.
 """
 function plot_reference_lines!(
     ax::Axis,
@@ -304,8 +379,71 @@ function plot_reference_lines!(
     label::String = "Reference Lines",
     color = :black,
     line_style = :dash,
+    curves = Vector{Tuple{Float64, Float64}}[],
     kwargs...
 )
+    if isnothing(exponents) || isempty(exponents); return []; end
+    curves = [c for c in ([(x, y) for (x, y) in c if isfinite(x) && isfinite(y) && x > 0 && y > 0] for c in curves)
+              if length(unique(first.(c))) >= 2]
+    isempty(curves) && return _corner_reference_lines!(ax, exponents; label, color, line_style, kwargs...)
+
+    plotted_lines = []
+    slopes = [_loglog_slope(c) for c in curves]
+    used = zeros(Int, length(curves))
+    log_x = ax.xscale[] === log10
+    lims = ax.finallimits[]
+    ylo, yhi = lims.origin[2], lims.origin[2] + lims.widths[2]
+    for p in exponents
+        (p isa Real && p != 0) || continue
+        j = argmin(abs.(slopes .- p))
+        used[j] += 1
+        c = curves[j]
+        x0, x1 = extrema(first.(c))
+        xs = log_x ? 10 .^ range(log10(x0), log10(x1), length = 50) : collect(range(x0, x1, length = 50))
+        C = 0.5^used[j] * minimum(y / x^p for (x, y) in c)   # (below the curve, a further slope lower still)
+        ys = C .* xs .^ p
+        lo, hi = extrema(ys)
+        # (inside the visible y range, as long as it fits in it)
+        lo < ylo && ylo > 0 && hi * ylo / lo <= yhi && (ys .*= 1.02 * ylo / lo)
+        l = lines!(ax, Point2f.(xs, ys); color = color, linestyle = line_style, label = label, kwargs...)
+        m = cld(length(xs), 2)
+        t = text!(ax, xs[m], ys[m]; text = "slope " * _fmt_exponent(p), color = color, label = label,
+                  fontsize = ax.xticklabelsize[], align = (p < 0 ? :right : :left, :top), offset = (p < 0 ? -4 : 4, -4))   # (beside, not on the line)
+        push!(plotted_lines, l, t)
+    end
+    return plotted_lines
+end
+
+# The slope of a curve on a log-log plot (least squares)
+function _loglog_slope(c)
+    lx, ly = log10.(first.(c)), log10.(last.(c))
+    mx = sum(lx) / length(lx)
+    den = sum((lx .- mx) .^ 2)
+    return den > 0 ? sum((lx .- mx) .* (ly .- sum(ly) / length(ly))) / den : 0.0
+end
+
+# An exponent as in a slope label: −2, 1.5
+_fmt_exponent(p) = replace(isinteger(p) ? string(Int(p)) : _fmt_compare(Float64(p)), "-" => "−")
+
+# The curves drawn in subplot `i` by a 1D style, as `(x, y)` points (one vector per method), for anchoring reference
+# slopes to the data
+function _drawn_curves(i::Int)
+    out = Vector{Tuple{Float64, Float64}}[]
+    haskey(manager.caches, i) || return out
+    for cache in values(manager.caches[i])
+        try
+            u = cache.obs_u[]
+            x = cache isa EulerianPlotCache ? cache.obs_x[] : [first(p) for p in cache.obs_pts[]]
+            (x isa AbstractVector && u isa AbstractVector && length(x) == length(u)) || continue
+            push!(out, [(Float64(a), Float64(b)) for (a, b) in zip(x, u) if a isa Real && b isa Real])
+        catch
+        end
+    end
+    return out
+end
+
+# Reference slopes over the whole axis, from its lower (positive exponents) or upper left corner
+function _corner_reference_lines!(ax::Axis, exponents::Vector; label, color, line_style, kwargs...)
     if isnothing(exponents) || isempty(exponents); return []; end
 
     plotted_lines = []
@@ -488,37 +626,86 @@ function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFl
     return
 end
 
-# The ticks of an axis: on a log10 axis decades with 2, 3 or 5 between them as the range allows, labelled as plain
-# numbers or powers of ten (Makie's defaults give ticks like 10^2.5 and labels like 0.000001); otherwise the UI's tick
-# count, or Makie's default. A custom tick format or scale offset (set_axis_styles!) is kept.
+# The ticks of an axis: on a log10 axis decades with 2, 3 or 5 between them as the range and the size of the axis allow
+# (`_Log10Ticks`), labelled as plain numbers or powers of ten (Makie's defaults give ticks like 10^2.5 and labels like
+# 0.000001); otherwise the UI's tick count, or Makie's default. A custom tick format or scale offset
+# (set_axis_styles!) is kept.
 function _set_ticks!(ax::Axis, ui_x, ui_y)
-    for (ui, format, ticks, scale) in ((ui_x, ax.xtickformat, ax.xticks, ax.xscale[]), (ui_y, ax.ytickformat, ax.yticks, ax.yscale[]))
+    for (ui, format, ticks, scale, horizontal) in ((ui_x, ax.xtickformat, ax.xticks, ax.xscale[], true),
+                                                   (ui_y, ax.ytickformat, ax.yticks, ax.yscale[], false))
         # (formatter first, and both only on a change: every assignment redraws the ticks)
         if get(ui, :scale_offset, 0.0) == 0.0 && get(ui, :tick_format, "default") == "default"
             f = scale === log10 ? _log10_labels : Makie.automatic
             format[] === f || (format[] = f)
         end
-        t = _axis_ticks(ui, scale)
+        t = _axis_ticks(ax, ui, scale, horizontal)
         ticks[] === t || (ticks[] = t)
     end
     return nothing
 end
 
-_axis_ticks(ui, scale) = scale === log10 ? _log10_ticks : get(ui, :tick_count, 0) > 0 ? LinearTicks(ui[:tick_count]) : Makie.automatic
+function _axis_ticks(ax, ui, scale, horizontal)
+    count = get(ui, :tick_count, 0)
+    scale === log10 && return _Log10Ticks(ax.layoutobservables.computedbbox, horizontal, max(count, 0),
+                                         Float64((horizontal ? ax.xticklabelsize : ax.yticklabelsize)[]))
+    return count > 0 ? LinearTicks(count) : Makie.automatic
+end
 
-function _log10_ticks(vmin, vmax)
+"""
+    _Log10Ticks(box, horizontal, count, labelsize)
+
+The ticks of a log10 axis: 1, 2, 3, 5 × 10ᵏ, 1, 2, 5 × 10ᵏ, the decades or every k-th decade, the densest of them
+whose labels don't overlap on the axis (`box`: the observable box of the axis area, which Makie updates before it
+recomputes the ticks of a resized axis) and that has at most `count` ticks (`0`: up to 10).
+"""
+struct _Log10Ticks
+    box::Any
+    horizontal::Bool
+    count::Int
+    labelsize::Float64
+end
+
+function Makie.get_tickvalues(t::_Log10Ticks, vmin, vmax)
+    length_px = Float64(Makie.widths(t.box[])[t.horizontal ? 1 : 2])
+    return _log10_ticks(vmin, vmax; max_ticks = t.count > 0 ? t.count : 10,
+                        fits = ticks -> _log_labels_fit(ticks, vmin, vmax, length_px, t.horizontal, t.labelsize))
+end
+
+function _log10_ticks(vmin, vmax; max_ticks::Int = 10, fits = Returns(true))
     (isfinite(vmin) && isfinite(vmax) && 0 < vmin < vmax) || return Float64[]
     lo, hi = floor(Int, log10(vmin)), ceil(Int, log10(vmax))
     decades = hi - lo
     tick(m, e) = e >= 0 ? m * 10.0^e : m / 10.0^(-e)   # (0.3, not 0.30000000000000004)
-    ticks = decades <= 1 ? [tick(m, e) for e in lo:hi for m in (1, 2, 3, 5)] :
-            decades <= 3 ? [tick(m, e) for e in lo:hi for m in (1, 2, 5)] :
-            [tick(1, e) for e in lo:cld(decades, 6):hi]   # (many decades: every k-th one)
-    ticks = filter(t -> vmin <= t <= vmax, ticks)
-    length(ticks) >= 2 && return ticks
+    in_range(ticks) = filter(t -> vmin <= t <= vmax, ticks)
+    # (densest first; every k-th decade: the multiples of k, so 10⁻⁶, 10⁻⁴, 10⁻²)
+    candidates = Vector{Float64}[]
+    decades <= 1 && push!(candidates, in_range([tick(m, e) for e in lo:hi for m in (1, 2, 3, 5)]))
+    decades <= 3 && push!(candidates, in_range([tick(m, e) for e in lo:hi for m in (1, 2, 5)]))
+    for k in 1:max(decades, 1)
+        push!(candidates, in_range([tick(1, e) for e in lo:hi if mod(e, k) == 0]))
+    end
+    filter!(c -> length(c) >= 2, candidates)
     # (less than one step of that grid in range: three round values)
-    return unique(filter(t -> vmin <= t <= vmax, round.([vmin, sqrt(vmin * vmax), vmax]; sigdigits = 2)))
+    isempty(candidates) && return unique(in_range(round.([vmin, sqrt(vmin * vmax), vmax]; sigdigits = 2)))
+    i = findfirst(c -> length(c) <= max_ticks && fits(c), candidates)
+    return isnothing(i) ? candidates[argmin(length.(candidates))] : candidates[i]
 end
+
+# Whether the labels of log10 ticks keep apart on an axis of `length_px` pixels (estimated sizes: digits are about
+# 0.55 em wide, superscripts 0.66 times that); `true` while the axis has no size yet.
+function _log_labels_fit(ticks, vmin, vmax, length_px, horizontal, labelsize)
+    length_px > 0 || return true
+    pos = (log10.(ticks) .- log10(vmin)) ./ (log10(vmax) - log10(vmin)) .* length_px
+    labels = _log10_labels(ticks)
+    sizes = horizontal ? [_label_width(l, labelsize) for l in labels] :
+                         [(l isa Makie.RichText ? 1.3 : 1.0) * labelsize for l in labels]
+    gap = (horizontal ? 1.2 : 0.3) * labelsize
+    return all(pos[i + 1] - pos[i] >= (sizes[i] + sizes[i + 1]) / 2 + gap for i in 1:length(ticks) - 1)
+end
+
+_label_width(l::AbstractString, size) = 0.55 * size * length(l)
+_label_width(l::Makie.RichText, size) =
+    sum(c -> _label_width(c, l.type === :sup ? 0.66 * size : size), l.children; init = 0.0)
 
 # Labels of log10 ticks: plain numbers if all of them are in [1e-3, 1e5) (0.002, 50, 1000), powers of ten otherwise
 # (10⁻⁶, 2×10⁻⁶), as rich text like Makie's own log labels
@@ -956,6 +1143,17 @@ end
 
 Maps the deep hierarchical UI dictionary (fonts, label padding, grid visibility, axis ticks, scale offsets) directly onto a native Makie `Axis` or `Axis3` object.
 """
+# Whether a subplot shows its x and y label: the lowest subplot of its column and the leftmost of its row (`true, true`
+# for a single plot, or an axis outside the subplot grid of the layout)
+function _outer_labels(ax::Axis)
+    plots = get(manager.layout_dict[], :Plots, nothing)
+    gc = ax.layoutobservables.gridcontent[]
+    (isnothing(plots) || length(plots) < 2 || isnothing(gc)) && return true, true
+    r, c = first(gc.span.rows), first(gc.span.cols)
+    (r, c) in plots || return true, true
+    return !any(p -> p[2] == c && p[1] > r, plots), !any(p -> p[1] == r && p[2] < c, plots)
+end
+
 function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::String)
     
     gen = manager.ui[:axis_general]
@@ -965,6 +1163,10 @@ function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::Str
     ax.xlabel = lbl[:x_label] == "default" ? def_x : lbl[:x_label] 
     ax.ylabel = lbl[:y_label] == "default" ? def_y : lbl[:y_label] 
     ax.title  = lbl[:title]   == "default" ? def_title : lbl[:title] 
+    # (a grid of subplots shows the axis labels once per row and column: they are the same in every subplot)
+    show_x, show_y = _outer_labels(ax)
+    ax.xlabelvisible[] == show_x || (ax.xlabelvisible = show_x)
+    ax.ylabelvisible[] == show_y || (ax.ylabelvisible = show_y)
 
     ax.titlesize = gen[:title_size] 
     ax.xlabelsize = ax.ylabelsize = gen[:label_size] 

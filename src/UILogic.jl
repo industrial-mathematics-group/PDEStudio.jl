@@ -120,6 +120,9 @@ function apply_options!(cache::AbstractDict, option_keys::Tuple, new_options::Di
             if widget isa NumberBox
                 _set_number!(widget, val)
                 continue
+            elseif widget isa ValuesBox
+                _set_values_text!(widget, val)
+                continue
             elseif widget isa StyleChoice
                 _set_public_style!(widget, val)   # a particle style switches to the Lagrangian data
                 continue
@@ -1718,6 +1721,13 @@ end
 
 # --- Files tab: the resolution of the data and the references -----------------------------------------------------
 
+# The space dimensions of the data shown (0 without data)
+function _data_space_dims()
+    isempty(manager.plot_data[]) && return 0
+    sd = _get_first_valid(_primary_sweep(manager.plot_data[]))
+    return isnothing(sd) ? 0 : count(!=(:t), sd.domain.dim_keys)
+end
+
 # The rows of the resolution page: every dimension for the data, then for the references.
 # Particle data is shown as it is: in the Lagrangian mode only the references (evaluated on a grid) have a resolution.
 _resolution_items() = manager.mode[] === :lagrangian ? Any[(d, true) for d in manager.allowed_dims] :
@@ -1727,7 +1737,7 @@ function _bind_resolution_row!(i::Int, item)
     dim, is_ref = item
     w = manager.widgets
     w[Symbol("editor_row_", i, "_label")][] = "$(frontend_key(dim))  ·  $(is_ref ? "reference" : "data")"
-    _show_editor_text!(w[Symbol("editor_row_", i, "_text")], string(get_resolution(dim; is_ref = is_ref)))
+    _show_editor_text!(w[Symbol("editor_row_", i, "_text")], string(_resolution(dim, is_ref, _data_space_dims())))
     btn = w[Symbol("editor_row_", i, "_button")]
     btn.label[] = "↺"
     btn.buttoncolor[] = _ROW_NEUTRAL
@@ -1744,6 +1754,13 @@ the data at the new resolution (resampled representations are cached).
 function _set_resolution_from_ui!(item, s::AbstractString)
     dim, is_ref = item
     txt = strip(s)
+    if txt == "default" && is_ref   # (the default of the data drawn: see `_default_resolution`)
+        delete!(manager.resolution_ref, dim)
+        manager.flags[:Simulation][] = true
+        _status!("Resolution of $(frontend_key(dim)) (references): the default. Run Simulation to reload.", :ok)
+        _render_editor!()
+        return nothing
+    end
     n = txt == "default" ? _default_resolution(dim, is_ref) : tryparse(Int, txt)
     if isnothing(n) || !_valid_resolution(n)
         _report(:warn, "The resolution is a whole number of points (1 to $(MAX_RESOLUTION)), not '$(_short(String(txt), 20))'.")
@@ -2367,7 +2384,10 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         return export_fig, export_obs
     end
     manager.listeners[:Export_Click] = on(btn_export.clicks) do _
-        raw_filename = _box_text(saveBox)
+        # (`studio_export` passes its name and formats instead of the name box and the export settings)
+        request, manager.export_request = manager.export_request, nothing
+        empty!(manager.last_export)
+        raw_filename = isnothing(request) ? _box_text(saveBox) : request.name
         isempty(raw_filename) && (raw_filename = "plot_export")
         
         name_part, ext = splitext(raw_filename)
@@ -2384,7 +2404,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         else
             # no (or an unknown) extension, e.g. "run_dt0.5": the whole text is the name
             base_name = raw_filename
-            formats = _export_formats(get(manager.ui[:export], :save_formats, String[]))
+            formats = _export_formats(isnothing(request) || isnothing(request.formats) ?
+                                      get(manager.ui[:export], :save_formats, String[]) : request.formats)
         end
 
         target_name = anim_target_obs[] 
@@ -2414,6 +2435,7 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         extract_and_store_camera_state!(plot_layout)
         
         target_widget = is_anim ? get_target_widget(target_name) : nothing
+        target_value = isnothing(target_widget) ? nothing : target_widget.value[]   # (put back after recording)
         export_obs = nothing
 
         try
@@ -2448,7 +2470,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 end
                 
                 metadata = Dict("Save Type" => "Animation", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
-                save_params_to_csv(base_name, save_path, metadata) 
+                push!(manager.last_export, fname)
+                save_params_to_csv(base_name, save_path, metadata) && push!(manager.last_export, joinpath(save_path, base_name * ".csv"))
                 @info "Animation saved: $fname"
                 note = _export_code_note()
                 _status!("Animation saved: $fname" * (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
@@ -2468,11 +2491,12 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                     else
                         save(full_path, export_fig; backend=CairoMakie)
                     end
+                    push!(manager.last_export, full_path)
                     @info "Pristine Image ($fmt) saved to $full_path"
                 end
                 
                 metadata = Dict("Save Type" => "Static Frame", "Timestamp" => string(Dates.now()), "Project Root" => pwd())
-                save_params_to_csv(base_name, save_dir, metadata)
+                save_params_to_csv(base_name, save_dir, metadata) && push!(manager.last_export, joinpath(save_dir, base_name * ".csv"))
                 # an absolute path in the name box replaces the save folder (joinpath)
                 note = _export_code_note()
                 _status!("Exported $(basename(base_name)) ($(join(formats, ", "))) to $(dirname(joinpath(save_dir, base_name)))" *
@@ -2496,11 +2520,14 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
             end
             
             @info "Restoring main UI..."
-            manager.skip_next_camera_extract = true 
+            # (the recording leaves the animated slider at its end; the window shows what it showed before)
+            isnothing(target_widget) || target_widget.value[] == target_value || set_close_to!(target_widget, target_value)
+            manager.skip_next_camera_extract = was_locked   # (consumed by the rebuild of a locked camera only)
             manager.triggers[:Layout][] += 1
             
-            # Force the OpenGL context to bring the main window back to life
-            display(master_fig)
+            # Force the OpenGL context to bring the main window back to life (not without a window: CairoMakie
+            # would open the image in a viewer, which never returns in a headless session)
+            _backend_name() in (:CairoMakie, :none) || display(master_fig)
         end
     end
 
