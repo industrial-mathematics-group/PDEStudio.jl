@@ -18,6 +18,9 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- **Log-axis ticks fit the panel:** narrow panels get decades or every k-th decade instead of overlapping 1-2-5
+  labels such as `2×10⁻⁵` (the label sizes are estimated from the axis size and the tick label size), and the
+  axis option `tick_count` limits the number of log ticks (it was ignored on log axes).
 - **Exports in a headless studio no longer hang:** the export ended with `display` of the window, which with
   CairoMakie opened the image in a viewer (`xdg-open`) that never returned. `studio_headless!` also turns that
   viewer off (`CairoMakie.activate!(visible = false)`).

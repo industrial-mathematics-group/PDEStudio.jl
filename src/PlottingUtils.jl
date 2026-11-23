@@ -488,37 +488,86 @@ function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFl
     return
 end
 
-# The ticks of an axis: on a log10 axis decades with 2, 3 or 5 between them as the range allows, labelled as plain
-# numbers or powers of ten (Makie's defaults give ticks like 10^2.5 and labels like 0.000001); otherwise the UI's tick
-# count, or Makie's default. A custom tick format or scale offset (set_axis_styles!) is kept.
+# The ticks of an axis: on a log10 axis decades with 2, 3 or 5 between them as the range and the size of the axis allow
+# (`_Log10Ticks`), labelled as plain numbers or powers of ten (Makie's defaults give ticks like 10^2.5 and labels like
+# 0.000001); otherwise the UI's tick count, or Makie's default. A custom tick format or scale offset
+# (set_axis_styles!) is kept.
 function _set_ticks!(ax::Axis, ui_x, ui_y)
-    for (ui, format, ticks, scale) in ((ui_x, ax.xtickformat, ax.xticks, ax.xscale[]), (ui_y, ax.ytickformat, ax.yticks, ax.yscale[]))
+    for (ui, format, ticks, scale, horizontal) in ((ui_x, ax.xtickformat, ax.xticks, ax.xscale[], true),
+                                                   (ui_y, ax.ytickformat, ax.yticks, ax.yscale[], false))
         # (formatter first, and both only on a change: every assignment redraws the ticks)
         if get(ui, :scale_offset, 0.0) == 0.0 && get(ui, :tick_format, "default") == "default"
             f = scale === log10 ? _log10_labels : Makie.automatic
             format[] === f || (format[] = f)
         end
-        t = _axis_ticks(ui, scale)
+        t = _axis_ticks(ax, ui, scale, horizontal)
         ticks[] === t || (ticks[] = t)
     end
     return nothing
 end
 
-_axis_ticks(ui, scale) = scale === log10 ? _log10_ticks : get(ui, :tick_count, 0) > 0 ? LinearTicks(ui[:tick_count]) : Makie.automatic
+function _axis_ticks(ax, ui, scale, horizontal)
+    count = get(ui, :tick_count, 0)
+    scale === log10 && return _Log10Ticks(ax.layoutobservables.computedbbox, horizontal, max(count, 0),
+                                         Float64((horizontal ? ax.xticklabelsize : ax.yticklabelsize)[]))
+    return count > 0 ? LinearTicks(count) : Makie.automatic
+end
 
-function _log10_ticks(vmin, vmax)
+"""
+    _Log10Ticks(box, horizontal, count, labelsize)
+
+The ticks of a log10 axis: 1, 2, 3, 5 × 10ᵏ, 1, 2, 5 × 10ᵏ, the decades or every k-th decade, the densest of them
+whose labels don't overlap on the axis (`box`: the observable box of the axis area, which Makie updates before it
+recomputes the ticks of a resized axis) and that has at most `count` ticks (`0`: up to 10).
+"""
+struct _Log10Ticks
+    box::Any
+    horizontal::Bool
+    count::Int
+    labelsize::Float64
+end
+
+function Makie.get_tickvalues(t::_Log10Ticks, vmin, vmax)
+    length_px = Float64(Makie.widths(t.box[])[t.horizontal ? 1 : 2])
+    return _log10_ticks(vmin, vmax; max_ticks = t.count > 0 ? t.count : 10,
+                        fits = ticks -> _log_labels_fit(ticks, vmin, vmax, length_px, t.horizontal, t.labelsize))
+end
+
+function _log10_ticks(vmin, vmax; max_ticks::Int = 10, fits = Returns(true))
     (isfinite(vmin) && isfinite(vmax) && 0 < vmin < vmax) || return Float64[]
     lo, hi = floor(Int, log10(vmin)), ceil(Int, log10(vmax))
     decades = hi - lo
     tick(m, e) = e >= 0 ? m * 10.0^e : m / 10.0^(-e)   # (0.3, not 0.30000000000000004)
-    ticks = decades <= 1 ? [tick(m, e) for e in lo:hi for m in (1, 2, 3, 5)] :
-            decades <= 3 ? [tick(m, e) for e in lo:hi for m in (1, 2, 5)] :
-            [tick(1, e) for e in lo:cld(decades, 6):hi]   # (many decades: every k-th one)
-    ticks = filter(t -> vmin <= t <= vmax, ticks)
-    length(ticks) >= 2 && return ticks
+    in_range(ticks) = filter(t -> vmin <= t <= vmax, ticks)
+    # (densest first; every k-th decade: the multiples of k, so 10⁻⁶, 10⁻⁴, 10⁻²)
+    candidates = Vector{Float64}[]
+    decades <= 1 && push!(candidates, in_range([tick(m, e) for e in lo:hi for m in (1, 2, 3, 5)]))
+    decades <= 3 && push!(candidates, in_range([tick(m, e) for e in lo:hi for m in (1, 2, 5)]))
+    for k in 1:max(decades, 1)
+        push!(candidates, in_range([tick(1, e) for e in lo:hi if mod(e, k) == 0]))
+    end
+    filter!(c -> length(c) >= 2, candidates)
     # (less than one step of that grid in range: three round values)
-    return unique(filter(t -> vmin <= t <= vmax, round.([vmin, sqrt(vmin * vmax), vmax]; sigdigits = 2)))
+    isempty(candidates) && return unique(in_range(round.([vmin, sqrt(vmin * vmax), vmax]; sigdigits = 2)))
+    i = findfirst(c -> length(c) <= max_ticks && fits(c), candidates)
+    return isnothing(i) ? candidates[argmin(length.(candidates))] : candidates[i]
 end
+
+# Whether the labels of log10 ticks keep apart on an axis of `length_px` pixels (estimated sizes: digits are about
+# 0.55 em wide, superscripts 0.66 times that); `true` while the axis has no size yet.
+function _log_labels_fit(ticks, vmin, vmax, length_px, horizontal, labelsize)
+    length_px > 0 || return true
+    pos = (log10.(ticks) .- log10(vmin)) ./ (log10(vmax) - log10(vmin)) .* length_px
+    labels = _log10_labels(ticks)
+    sizes = horizontal ? [_label_width(l, labelsize) for l in labels] :
+                         [(l isa Makie.RichText ? 1.3 : 1.0) * labelsize for l in labels]
+    gap = (horizontal ? 1.2 : 0.3) * labelsize
+    return all(pos[i + 1] - pos[i] >= (sizes[i] + sizes[i + 1]) / 2 + gap for i in 1:length(ticks) - 1)
+end
+
+_label_width(l::AbstractString, size) = 0.55 * size * length(l)
+_label_width(l::Makie.RichText, size) =
+    sum(c -> _label_width(c, l.type === :sup ? 0.66 * size : size), l.children; init = 0.0)
 
 # Labels of log10 ticks: plain numbers if all of them are in [1e-3, 1e5) (0.002, 50, 1000), powers of ten otherwise
 # (10⁻⁶, 2×10⁻⁶), as rich text like Makie's own log labels

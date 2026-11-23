@@ -1219,19 +1219,31 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     # (log axes: decades with 2, 3, 5 between them, written as numbers or powers of ten; a custom format is kept)
     studio_option!(:x_axis_1d, :log_scale, true)
     ax = only(b for b in manager.master_fig.content if b isa Axis)
-    @test ax.xticks[] === PDEStudio._log10_ticks && ax.xtickformat[] === PDEStudio._log10_labels
+    @test ax.xticks[] isa PDEStudio._Log10Ticks && ax.xtickformat[] === PDEStudio._log10_labels
+    @test ax.xticks[].count == 0 && ax.xticks[].horizontal && !isempty(ax.xaxis.tickvalues[])
+    studio_option!(:x_axis_1d, :tick_count, 3)   # (at most that many on a log axis)
+    @test ax.xticks[].count == 3 && length(ax.xaxis.tickvalues[]) <= 3
+    studio_option!(:x_axis_1d, :tick_count, 0)
     studio_option!(:x_axis_1d, :tick_format, "{:.2f}")
-    @test ax.xtickformat[] == "{:.2f}" && ax.xticks[] === PDEStudio._log10_ticks
+    @test ax.xtickformat[] == "{:.2f}" && ax.xticks[] isa PDEStudio._Log10Ticks
     studio_option!(:x_axis_1d, :tick_format, "default")
     @test ax.xtickformat[] === PDEStudio._log10_labels
     studio_option!(:x_axis_1d, :log_scale, false)
-    @test ax.xticks[] !== PDEStudio._log10_ticks && ax.xtickformat[] === Makie.automatic
+    @test !(ax.xticks[] isa PDEStudio._Log10Ticks) && ax.xtickformat[] === Makie.automatic
     @test PDEStudio._log10_labels([0.002, 0.005, 0.01, 20.0, 50000.0]) == ["0.002", "0.005", "0.01", "20", "50000"]
     @test all(l -> l isa Makie.RichText, PDEStudio._log10_labels([1e-6, 2e-6, 1e-3]))
     @test PDEStudio._power_parts.((1e-6, 2e-6, 2.5e7, 9.999e-3, 1.0)) == (("1", -6), ("2", -6), ("2.5", 7), ("1", -2), ("1", 0))
     @test PDEStudio._log10_ticks(100.0, 1000.0) == [100.0, 200.0, 300.0, 500.0, 1000.0]
     @test PDEStudio._log10_ticks(0.25, 1.0) == [0.3, 0.5, 1.0] && length(PDEStudio._log10_ticks(1e-6, 1.0)) == 7
     @test PDEStudio._log10_ticks(150.0, 180.0) == [150.0, 160.0, 180.0] && isempty(PDEStudio._log10_ticks(-1.0, 1.0))
+    # (as many as fit: on a narrow axis decades, or every k-th decade, instead of 1-2-5 labels that overlap)
+    fits(px) = ts -> PDEStudio._log_labels_fit(ts, 1e-6, 1e-3, px, true, 14.0)
+    @test length(PDEStudio._log10_ticks(1e-6, 1e-3; fits = fits(2000.0))) == 10   # (1-2-5)
+    @test PDEStudio._log10_ticks(1e-6, 1e-3; fits = fits(200.0)) == [1e-6, 1e-5, 1e-4, 1e-3]
+    @test PDEStudio._log10_ticks(1e-6, 1e-3; fits = fits(60.0)) == [1e-6, 1e-3]   # (multiples of 3)
+    @test PDEStudio._log10_ticks(1e-6, 1e-3; max_ticks = 4) == [1e-6, 1e-5, 1e-4, 1e-3]
+    @test PDEStudio._log_labels_fit([1e-6, 2e-6], 1e-6, 1e-3, 0.0, true, 14.0)   # (no size yet)
+    @test !PDEStudio._log_labels_fit([1e-6, 2e-6, 5e-6], 1e-6, 1e-3, 30.0, false, 14.0)
     @test studio_state().axes.x === :cfl && length(first(values(studio_data(1).methods)).x) == 4
     studio_set!(:x_axis => :x, :u_axis => :Solution)
     # (2D styles: the hint switches to a 1D style, and following it works)
