@@ -300,10 +300,10 @@ struct ValuesBox
     selection::Observable{String}
 end
 
-function ValuesBox(pos)
+function ValuesBox(pos, name::Symbol = :compare)
     tb = Textbox(pos, placeholder = "all", stored_string = "all", displayed_string = "all", width = nothing)
     vb = ValuesBox(tb, Observable("all"))
-    manager.listeners[:ValuesBox_compare] = on(tb.stored_string) do s
+    manager.listeners[Symbol("ValuesBox_", name)] = on(tb.stored_string) do s
         s isa AbstractString || return
         _set_values_text!(vb, s)
     end
@@ -342,7 +342,8 @@ end
 
 Builds the upper half of the `Plot` tab, one option per row: the structural layout features applied with *Apply
 Layout*: the plot style (chosen on a page of all styles, `StyleChoice`), plot width and height (`NumberBox`),
-legend placement and the multi-plot comparison (target, grid columns, the values compared (`ValuesBox`), coupling).
+legend placement, the multi-plot comparison (target, grid columns, the values compared (`ValuesBox`), coupling) and
+the lines of 1D plots (one per method, or per method and value of a swept parameter or time, *Lines* / *Line Values*).
 """
 function build_layout_options!(menu_layout::GridLayout)
     w = manager.widgets
@@ -361,6 +362,8 @@ function build_layout_options!(menu_layout::GridLayout)
     w[:compare_values]  = ValuesBox(_option_row!(menu_layout, 9, "Compare Values"))
     w[:compare_link]    = Menu(_option_row!(menu_layout, 10, "Compare Link"),
                                options = Any[menu_opt(:fully_coupled), menu_opt(:colorbar_only), menu_opt(:axes_only), menu_opt(:decoupled)])
+    w[:line_target]     = Menu(_option_row!(menu_layout, 11, "Lines"), options = Any[menu_opt(:methods)])
+    w[:line_values]     = ValuesBox(_option_row!(menu_layout, 12, "Line Values"), :lines)
     _finish_option_panel!(menu_layout)
 end
 

@@ -2669,6 +2669,9 @@ function _setup_chain_A!(::Val{:eulerian})
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
             update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
+            # (lines of 1D plots: per method, or per method and value of time or a swept parameter)
+            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component)), compare_opts)];
+                                                      fallbacks=[:methods], force_notify=false, sort=false)
 
             ptype = manager.widgets[:plot_style].selection[]
             p_dim = get(PLOT_DIM_MAP, ptype, 1)
@@ -2786,6 +2789,9 @@ function _setup_chain_A!(::Val{:lagrangian})
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
             update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
+            # (lines of 1D plots: per method, or per method and value of time or a swept parameter)
+            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component)), compare_opts)];
+                                                      fallbacks=[:methods], force_notify=false, sort=false)
         end
     end
 end

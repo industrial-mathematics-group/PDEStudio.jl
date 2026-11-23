@@ -1383,6 +1383,22 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test PDEStudio._compare_selection("5", collect(1:4), :components) == 1:4   # (nothing matches: all)
     @test PDEStudio._compare_selection("b, 1", ["a", "b"], :names) == [2, 1]
     studio_set!(:compare_target => :none)
+    # --- lines over a swept parameter or time (Lines, Line Values): one per method and value, labelled ---
+    studio_set!(:x_axis => :x, :u_axis => :Solution, :line_target => :cfl)
+    @test manager.line_state[1] === :cfl && length(manager.series) == 8   # (2 methods × 4 values)
+    @test sort!(collect(keys(studio_data(1).methods))) == sort(manager.series)
+    @test PDEStudio.frontend_key(manager.series[1]) == "upwind, Cfl = 0.25"
+    @test !occursin("Cfl", studio_state().plots[1].title)                 # (the lines name it)
+    @test !(:cfl in [c.name for c in studio_controls() if c.kind === :slider])   # (its slider is off)
+    labels = PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2]
+    @test labels == [PDEStudio.frontend_key(k) for k in manager.series]
+    studio_set!(:line_values => [1.0, 0.25], :methods => [:upwind])
+    @test [PDEStudio.frontend_key(k) for k in manager.series] == ["Cfl = 1.0", "Cfl = 0.25"]
+    studio_set!(:line_target => :time, :line_values => [0.0, 2.0])
+    @test length(manager.series) == 2 && startswith(PDEStudio.frontend_key(manager.series[1]), "Time (T) = 0")
+    studio_set!(:line_target => :methods, :methods => [:upwind, :lax_friedrichs])
+    @test isempty(manager.series) && isnothing(manager.line_state[2])
+    @test sort!(collect(keys(studio_data(1).methods))) == [:lax_friedrichs, :upwind]
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)

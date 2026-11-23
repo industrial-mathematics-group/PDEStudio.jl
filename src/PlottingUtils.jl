@@ -930,7 +930,13 @@ function create_or_update_legend!(plot_layout::GridLayout, plotted_objects::Vect
     if !haskey(layout_dict, :Legend) || isnothing(layout_dict[:Legend]); return; end
     
     ui_style = manager.ui[:axis_general]
-    title_str = manager.ui[:labels][:legend_label] 
+    title_str = manager.ui[:labels][:legend_label]
+    # (lines over a parameter or time: the default title names it, after the methods if there are several)
+    line_target = manager.line_state[1]
+    if title_str == "Methods" && !isnothing(manager.line_state[2])
+        name = frontend_key(line_target === :time ? :t : line_target)
+        title_str = length(manager.methods[]) > 1 ? "Methods, $name" : name
+    end
     final_title = isempty(strip(title_str)) ? nothing : title_str
     font_size = ui_style[:font_size] 
     
@@ -1433,7 +1439,7 @@ function _collect_legend_elements(ui_app::Dict)
     
     get_color(idx) = get(ui_app, :colors, nothing) !== nothing ? ui_app[:colors][mod1(idx, end)] : :black 
 
-    for (m_idx, method_name) in enumerate(manager.methods[])
+    for (m_idx, method_name) in enumerate(isempty(manager.series) ? manager.methods[] : manager.series)
         if haskey(manager.caches[1], method_name)
             prims = manager.caches[1][method_name].primitives
             color = get_color(m_idx)

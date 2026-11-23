@@ -6,6 +6,9 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Lines over a swept parameter or time** (Plot tab, *Lines* and *Line Values*; `studio_set!(:line_target => …,
+  :line_values => …)`): 1D plots draw one line per method and value, labelled in the legend, e.g. the initial
+  conditions of a study in one panel or profiles at several times.
 - **Joint sweeps** (`joint_sweep` of PDEStudioCore 0.6.2: several parameters changing together, e.g. `N` and a cell
   width `6/N`) are shown over their first parameter: one numeric slider named by it, usable as a plot axis. Scripts
   name it by its first parameter (sliders, axis and compare menus); titles name all of its parameters

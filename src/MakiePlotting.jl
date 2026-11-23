@@ -466,8 +466,10 @@ _sweep_changed(config::SimulationConfig) = isnothing(manager.active_config) || m
 
 # Back to comparing all values (Compare Values; `all` is the default of a new window)
 function _reset_compare_values!()
-    manager.layout_cache[:compare_values] = "all"
-    haskey(manager.widgets, :compare_values) && _set_values_text!(manager.widgets[:compare_values], "all")
+    for key in (:compare_values, :line_values)
+        manager.layout_cache[key] = "all"
+        haskey(manager.widgets, key) && _set_values_text!(manager.widgets[key], "all")
+    end
     return nothing
 end
 
@@ -480,6 +482,10 @@ function _reset_config_view!()
     manager.exploration_cache = Dict{Symbol, Any}(:anim_target => :none, :component => 1)
     manager.layout_cache[:compare_target] = :none
     manager.compare_state = (:none, nothing, String[], Any[])
+    manager.layout_cache[:line_target] = :methods
+    manager.line_state = (:methods, nothing, String[], Any[])
+    empty!(manager.series)
+    empty!(manager.series_labels)
     manager.camera_cache = Dict{Symbol, Any}()
     manager.view_context = nothing
     manager.methods.val = Symbol[]   # (the first layout of the window would look for data of the old methods)
@@ -498,6 +504,10 @@ function _reset_open_view!()
     if haskey(w, :compare_target)
         i = findfirst(o -> o[2] === :none, w[:compare_target].options[])
         isnothing(i) || w[:compare_target].i_selected[] == i || (w[:compare_target].i_selected[] = i)
+    end
+    if haskey(w, :line_target)
+        i = findfirst(o -> o[2] === :methods, w[:line_target].options[])
+        isnothing(i) || w[:line_target].i_selected[] == i || (w[:line_target].i_selected[] = i)
     end
     for k in [[Symbol("param_", i) for i in 1:manager.max_params]; get_base_variables()]
         haskey(w, k) && w[k].range[] != [0.0] && (w[k].range[] = [0.0])

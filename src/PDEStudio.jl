@@ -168,6 +168,11 @@ Base.@kwdef mutable struct PlotManager
     plot_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     exploration_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     compare_state::Tuple{Symbol, Union{Nothing, Int}, Vector{String}, Vector} = (:none, nothing, String[], Any[])
+    # Lines over a swept parameter or time (Plot tab, *Lines*): (target, index into plot_vars, labels, slider values);
+    # `:methods` draws one line per method only. The lines are series (one per method and value), see `_fetch_series`.
+    line_state::Tuple{Symbol, Union{Nothing, Int}, Vector{String}, Vector} = (:methods, nothing, String[], Any[])
+    series::Vector{Symbol} = Symbol[]                                  # the series keys in drawing order (colours, legend)
+    series_labels::Dict{Symbol, String} = Dict{Symbol, String}()       # series key => legend label
     plot_titles::Vector{String} = String[]
     launch_run::Any = nothing                                          # (RunSummary, seconds) of the run before a launch
     bound_setup::Any = nothing                                         # `_view_setup` of the bound configuration

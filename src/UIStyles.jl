@@ -5,7 +5,7 @@
 const LEGEND_SUPPORTED_PLOTS = (:lines_1d, :scatter_colors, :scatter_lines, :contour_colors, :contour_surface)
 const COLORBAR_SUPPORTED_PLOTS = (:heatmap_flat, :scatter_1d, :scatter_2d, :scatter_surface, :contour_f, :contour_3d, :scatter_3d, :heatmap_surface, :volume_3d, :contour_cmap, :lines_2d, :lines_3d)
 const REPLOT_OPTIONS = (:use_color_map, :line_direction, :method_index, :padding, :log_scale, :dashed_lines, :levels, :rasterization_enabled, :rasterization_quality, :legend_label)
-const LAYOUT_OPTIONS = (:plot_style, :compare_target, :compare_columns, :compare_values, :compare_link, :legend_base, :legend_add, :plot_width, :plot_height)
+const LAYOUT_OPTIONS = (:plot_style, :compare_target, :compare_columns, :compare_values, :compare_link, :line_target, :line_values, :legend_base, :legend_add, :plot_width, :plot_height)
 const PLOT_AXIS_OPTIONS = (:x_axis, :y_axis, :z_axis, :u_axis, :component)
 const EXPLORATION_OPTIONS = (:anim_target, :component)
 
@@ -76,6 +76,7 @@ function frontend_key(s::Symbol)
     if haskey(manager.labels, s)
         return manager.labels[s]
     end
+    haskey(manager.series_labels, s) && return manager.series_labels[s]   # (a line of *Lines*: method and value)
     # 2. Default Mappings
     if haskey(SYMBOL_TO_LABEL_MAP, s)
         return SYMBOL_TO_LABEL_MAP[s]
