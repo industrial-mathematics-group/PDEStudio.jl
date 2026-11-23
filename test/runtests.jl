@@ -1461,6 +1461,18 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     PDEStudio.load_and_apply_csv!(vpath)
     @test manager.value_labels[:cfl] == Dict{Any, String}(0.25 => "small", 1.0 => "unit")
     set_value_label!(:cfl)
+    # the same from the window: UI → Labels → Swept Values lists every swept value, `parameter = value`
+    value_keys = PDEStudio._editor_keys(:labels, :values)
+    @test Pair{Symbol, Any}(:cfl, 0.25) in value_keys && Pair{Symbol, Any}(:tag, "a") in value_keys && all(k -> k isa Pair, value_keys)
+    @test PDEStudio._key_label(:labels, :values, :cfl => 0.25) == "Cfl = 0.250"
+    tb = manager.widgets[:editor_row_1_text]
+    studio_set!(:cfl => 0.25)
+    PDEStudio._apply_editor_input!(:labels, :values, Pair{Symbol, Any}(:cfl, 0.25), PDEStudio._editor_target(:labels, :values), "small", tb)
+    @test manager.value_labels[:cfl] == Dict{Any, String}(0.25 => "small")
+    @test occursin("small", studio_state().plots[1].title) && only(s for s in studio_state().sliders if s.name === :cfl).shown == "small"
+    @test PDEStudio._editor_target(:labels, :values)[:cfl => 0.25] == "small"
+    PDEStudio._apply_editor_input!(:labels, :values, Pair{Symbol, Any}(:cfl, 0.25), PDEStudio._editor_target(:labels, :values), "default", tb)
+    @test isempty(manager.value_labels) && occursin("Cfl = 0.25", studio_state().plots[1].title)
     # --- a reversed axis; a method without markers (:none) ---
     studio_set!(:plot_style => :scatter_lines, :x_axis => :x, :u_axis => :Solution)
     studio_option!(:x_axis_1d, :reversed, true)
@@ -1536,7 +1548,7 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_inset!((0.1, 0.3), (2.0, 3.0); position = :middle)
     @test isfile(first(studio_export(joinpath(mktempdir(), "inset"); formats = [:png])))
     studio_clear_insets!()
-    @test !haskey(manager.inset_axes, objectid(PDEStudio._plot_layout())) && isempty(manager.insets)
+    @test !haskey(manager.inset_axes, objectid(PDEStudio._plot_layout())) && isempty(manager.ui[:inset][:more_insets])
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)
@@ -1750,8 +1762,19 @@ ingroup("agent") && @testset "Studio features: window access, lines with compare
     @test any(!isempty, values(manager.inset_axes))
     @test_throws ArgumentError studio_option!(:inset, :x_lims, [0.3, 0.1])
     @test_throws ArgumentError studio_option!(:inset, :position, :middle)
+    # several insets: `more_insets` (corner, size and subplot optional), also fed by studio_inset!
+    studio_option!(:inset, :more_insets, [(0.5, 0.7, 1.0, 2.0, :lt, 0.3), (0.6, 0.8, 1.0, 2.0)])
+    @test length(manager.inset_axes[objectid(PDEStudio._plot_layout())]) == 3
+    @test count(p -> haskey(p, :label) && p.label[] == "Inset Box", first(PDEStudio._plot_axes()).scene.plots) == 3   # (a box per inset)
+    @test manager.ui[:inset][:more_insets] isa Vector{Any}
+    @test_throws ArgumentError studio_option!(:inset, :more_insets, [(0.7, 0.5, 1.0, 2.0)])
+    @test_throws ArgumentError studio_option!(:inset, :more_insets, [(0.5, 0.7, 1.0, 2.0, :middle)])
+    @test studio_inset!((0.2, 0.4), (1.0, 2.0); position = :rb) == 4 && length(manager.ui[:inset][:more_insets]) == 3
+    @test manager.ui[:inset][:more_insets][end] == (0.2, 0.4, 1.0, 2.0, :rb, 0.4, 1)
     studio_option!(:inset, :visible, false)
     @test all(isempty, values(manager.inset_axes))
+    studio_clear_insets!()
+    @test isempty(manager.ui[:inset][:more_insets]) && isempty(manager.ui[:inset][:x_lims])
 
     # 6. External Series from a two-column CSV, for the plotted axes; exports keep them (UI scope `series`)
     studio_set!(:x_axis => :cfl, :u_axis => :l1error, :t => 1.0)
@@ -2893,12 +2916,13 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # 4d. The UI overview is static: general scopes, every axis variant and every plot type
         show_editor_page!(:ui)
         @test [w[Symbol("editor_section_", k)].text[] for k in 1:4] == ["General", "Labels", "Axes", "Plot styles"]
-        @test manager.editor_page_scopes[1:14] == [:axis_general, :hud, :series, :outliers_extrema, :inset,
-                                                   :labels, :components, :variables, :methods,
+        @test manager.editor_page_scopes[1:15] == [:axis_general, :hud, :series, :outliers_extrema, :inset,
+                                                   :labels, :components, :variables, :methods, :values,
                                                    :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d]
         @test w[:editor_page_6].label[] == "Plot"               # the titles and axis labels of the plot
         @test w[:editor_page_3].label[] == "External Series" && w[:editor_page_5].label[] == "Zoom Inset"
-        @test Set(manager.editor_page_scopes[15:end]) == union(euler_styles, Set([:scatter_surface]))   # (particles: their scatter pages)
+        @test w[:editor_page_10].label[] == "Swept Values"
+        @test Set(manager.editor_page_scopes[16:end]) == union(euler_styles, Set([:scatter_surface]))   # (particles: their scatter pages)
         @test !(:export in manager.editor_page_scopes)        # the export settings are in the Files tab
         open_scope!(:heatmap_flat)                             # a plot type lists the options it uses
         @test Set(manager.editor_row_keys) == Set(PDEStudio.STYLE_DEPENDENCIES[:heatmap_flat])

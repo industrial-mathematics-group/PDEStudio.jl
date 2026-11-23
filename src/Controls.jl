@@ -45,7 +45,7 @@ const METHOD_FILTERS = (:active, :disabled, :all)
 # The editor shows an overview of the pages (scopes) of its category, or one page with a row per key. Both are
 # fixed sets of widgets, bound to the selected category / scope on the fly (see `_render_editor!`).
 const EDITOR_ROWS = 16        # key rows of a page (the height of the Plot tab); longer scopes get ◀ ▶ pages
-const OVERVIEW_BUTTONS = 32   # page buttons of an overview (UI: 7 general + 5 axes + up to 17 plot styles)
+const OVERVIEW_BUTTONS = 33   # page buttons of an overview (UI: 5 general + 5 labels + 5 axes + up to 17 plot styles)
 const OVERVIEW_COLS = 3
 const OVERVIEW_SECTIONS = 6   # titled groups of an overview (UI: General, Labels, Axes, Plot styles; plot styles: one per base plot and Particles)
 const EDITOR_ROWGAP = 4
