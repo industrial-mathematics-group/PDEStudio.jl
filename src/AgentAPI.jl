@@ -973,6 +973,9 @@ function _set_menu_control!(name, menu, value)
     i = findfirst(o -> isequal(o[2], value) || string(o[2]) == string(value), opts)
     isnothing(i) && value isa AbstractString &&
         (i = findfirst(o -> lowercase(string(o[1])) == lowercase(strip(value)), opts))
+    # (a joint sweep also by its first parameter, as its slider: `:Grid_Ns__1` for `Symbol("Grid_Ns__1&IC_cell")`)
+    isnothing(i) && value isa Union{Symbol, AbstractString} &&
+        (i = findfirst(o -> o[2] isa Symbol && startswith(String(o[2]), string(value) * "&"), opts))
     if isnothing(i)
         hint = name === :u_axis ? _statistics_hint(Symbol(value)) : ""
         throw(ArgumentError("$name has no option $(repr(value)); options: " *

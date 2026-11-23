@@ -135,6 +135,21 @@ function _export_formats(setting)
     return unique!(filter(in(STATIC_EXPORT_FORMATS), fmts))
 end
 
+# A joint sweep of several parameters (`joint_sweep`: their names joined by `&`)
+_is_joint_key(k) = k isa Symbol && length(split(String(k), '&')) > 1
+
+# The value of a joint sweep with every parameter (`N = 40, IC Cell = 0.15`), for the shown value `shown` (its first
+# entry, or the whole tuple, see `_shown_sweep_values`); `fmt` is `_fmt_value` or `_fmt_compare`, one notation per
+# parameter over the sweep
+function _joint_text(key::Symbol, shown, fmt)
+    config = manager.active_config
+    raw = isnothing(config) ? Any[] : collect(get(config.varied, key, Any[]))
+    parts = Symbol.(split(String(key), '&'))
+    i = findfirst(r -> r isa Tuple && length(r) == length(parts) && (isequal(r, shown) || isequal(first(r), shown)), raw)
+    isnothing(i) && return "$(frontend_key(key)) = $(fmt(shown))"
+    return join(("$(frontend_key(p)) = $(fmt(raw[i][j]; sci = _sci_set([r[j] for r in raw])))" for (j, p) in enumerate(parts)), ", ")
+end
+
 # Whether the values of the `i`-th parameter are written scientifically (all of them, see `_sci_set`)
 function _param_sci(i::Int)
     data = manager.plot_data[]
@@ -192,6 +207,12 @@ function _title_parts(plot_dims::Tuple, dim_names::Vector{Symbol}, sel_vals, sim
             continue
         elseif i <= length(sel_vals)
             val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
+            if i <= n_params && _is_joint_key(name_sym)   # (every parameter of a joint sweep: N = 40, IC Cell = 0.15)
+                data = manager.plot_data[]
+                shown = isempty(data) ? Any[] : get(_primary_sweep(data).active_param_values, i, Any[])
+                push!(parts, (_joint_text(name_sym, val, _fmt_value), [_joint_text(name_sym, v, _fmt_value) for v in shown]))
+                continue
+            end
             others = ["$name = $v" for v in _title_values(i, i <= n_params, name_sym, sim_data)]
             push!(parts, ("$name = $(_fmt_value(val; sci = i <= n_params && _param_sci(i)))", others))
         end
@@ -393,6 +414,7 @@ function plot_reference_lines!(
     log_x = ax.xscale[] === log10
     lims = ax.finallimits[]
     ylo, yhi = lims.origin[2], lims.origin[2] + lims.widths[2]
+    lines_drawn = Tuple{Real, Vector{Float64}, Vector{Float64}}[]
     for p in exponents
         (p isa Real && p != 0) || continue
         j = argmin(abs.(slopes .- p))
@@ -405,13 +427,74 @@ function plot_reference_lines!(
         lo, hi = extrema(ys)
         # (inside the visible y range, as long as it fits in it)
         lo < ylo && ylo > 0 && hi * ylo / lo <= yhi && (ys .*= 1.02 * ylo / lo)
-        l = lines!(ax, Point2f.(xs, ys); color = color, linestyle = line_style, label = label, kwargs...)
-        m = cld(length(xs), 2)
-        t = text!(ax, xs[m], ys[m]; text = "slope " * _fmt_exponent(p), color = color, label = label,
-                  fontsize = ax.xticklabelsize[], align = (p < 0 ? :right : :left, :top), offset = (p < 0 ? -4 : 4, -4))   # (beside, not on the line)
-        push!(plotted_lines, l, t)
+        push!(lines_drawn, (p, xs, ys))
+        push!(plotted_lines, lines!(ax, Point2f.(xs, ys); color = color, linestyle = line_style, label = label, kwargs...))
+    end
+    # (the labels once all lines are known: clear of each other, of the other slopes and of the data, as far as possible)
+    placed = NTuple{4, Float64}[]
+    data_pts = reduce(vcat, (_densify(c, log_x, ax.yscale[] === log10) for c in curves); init = Tuple{Float64, Float64}[])
+    for (k, (p, xs, ys)) in enumerate(lines_drawn)
+        others = [data_pts; [(x, y) for (q, (_, xq, yq)) in enumerate(lines_drawn) if q != k for (x, y) in zip(xq, yq)]]
+        text = "slope " * _fmt_exponent(p)
+        m, below = _slope_label_place(ax, xs, ys, p < 0, length(text), placed, others)
+        left = (p < 0) == below   # (beside the line, not on it)
+        t = text!(ax, xs[m], ys[m]; text = text, color = color, label = label, fontsize = ax.xticklabelsize[],
+                  align = (left ? :right : :left, below ? :top : :bottom), offset = (left ? -4 : 4, below ? -4 : 4))
+        push!(plotted_lines, t)
     end
     return plotted_lines
+end
+
+# Where the label of a slope (`xs`, `ys`) goes: `(i, below)`, beside point `i` of the line, below it (left of a falling,
+# right of a rising slope) or above it on the other side. The middle of the line first, then other points along it
+# and the other side, the first whose label box (estimated from the text length) stays inside the axis and clear of the
+# boxes in `placed` and of the points `others` (the other lines, the data), else the one with the least overlap. Its
+# box is added to `placed`.
+function _slope_label_place(ax, xs, ys, falling::Bool, nchars::Int, placed, others = Tuple{Float64, Float64}[])
+    lims = ax.finallimits[]
+    lo, hi = lims.origin, lims.origin .+ lims.widths
+    W, H = Makie.widths(ax.layoutobservables.computedbbox[])
+    W, H = W > 0 && H > 0 ? (W, H) : (500.0, 400.0)   # (before the first layout)
+    frac(v, a, b, scale) = scale === log10 ? (v > 0 && a > 0 ? (log10(v) - log10(a)) / (log10(b) - log10(a)) : 0.5) :
+                                             (v - a) / (b - a)
+    fs = Float64(ax.xticklabelsize[])
+    w, h = 0.55 * fs * nchars, 1.2 * fs
+    px(x, y) = (frac(x, lo[1], hi[1], ax.xscale[]) * W, frac(y, lo[2], hi[2], ax.yscale[]) * H)
+    obstacles = [px(x, y) for (x, y) in others]
+    function box(i, below)
+        X, Y = px(xs[i], ys[i])
+        left = falling == below   # (the side away from the line)
+        x0 = left ? X - 4 - w : X + 4
+        return below ? (x0, x0 + w, Y - 4 - h, Y - 4) : (x0, x0 + w, Y + 4, Y + 4 + h)
+    end
+    overlap(a, b) = max(0, min(a[2], b[2]) - max(a[1], b[1]) + 2) * max(0, min(a[4], b[4]) - max(a[3], b[3]) + 2)
+    n = length(xs)
+    best, best_cost = (cld(n, 2), true), Inf
+    for f in (0.5, 0.3, 0.7, 0.15, 0.85, 0.05, 0.95), below in (true, false)
+        i = clamp(round(Int, f * (n - 1)) + 1, 1, n)
+        b = box(i, below)
+        outside = (b[1] < 0) + (b[2] > W) + (b[3] < 0) + (b[4] > H)
+        crossed = count(o -> b[1] <= o[1] <= b[2] && b[3] <= o[2] <= b[4], obstacles)
+        cost = 50 * sum((overlap(b, q) for q in placed); init = 0.0) + 100 * crossed + 1e6 * outside   # (labels apart first)
+        cost == 0 && (best = (i, below); break)
+        cost < best_cost && ((best, best_cost) = ((i, below), cost))
+    end
+    push!(placed, box(best...))
+    return best
+end
+
+# Points along a curve, a few per segment (evenly on the axis scales), so a label box can't sit on it unnoticed
+function _densify(c, log_x::Bool, log_y::Bool)
+    fwd(v, lg) = lg ? log10(v) : v
+    bwd(v, lg) = lg ? 10^v : v
+    out = Tuple{Float64, Float64}[]
+    for i in 1:length(c) - 1, s in range(0, 1, length = 9)[1:end-1]
+        (a, b), (d, e) = c[i], c[i + 1]
+        push!(out, (bwd(fwd(a, log_x) + s * (fwd(d, log_x) - fwd(a, log_x)), log_x),
+                    bwd(fwd(b, log_y) + s * (fwd(e, log_y) - fwd(b, log_y)), log_y)))
+    end
+    isempty(c) || push!(out, last(c))
+    return out
 end
 
 # The slope of a curve on a log-log plot (least squares)

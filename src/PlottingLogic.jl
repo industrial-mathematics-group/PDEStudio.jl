@@ -604,7 +604,8 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
                     vals = pd_first.active_param_values[idx]
                     picks = _compare_selection(chosen, vals, _is_numeric_sweep(vals) ? :numbers : :names)
                     sci = _sci_set(vals[picks])   # (one notation for all: 1e-5, 1e-4, not 1e-5, 0.0001)
-                    compare_labels = ["$(frontend_key(target)) = $(_fmt_compare(v; sci))" for v in vals[picks]]
+                    compare_labels = _is_joint_key(target) ? [_joint_text(target, v, _fmt_compare) for v in vals[picks]] :
+                                     ["$(frontend_key(target)) = $(_fmt_compare(v; sci))" for v in vals[picks]]
                     # Non-numeric sweeps are addressed by index (like their sliders).
                     compare_vals = _is_numeric_sweep(vals) ? collect(vals[picks]) : collect(picks)
                     num_plots = length(compare_vals)

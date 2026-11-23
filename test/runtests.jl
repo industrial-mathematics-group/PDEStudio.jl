@@ -1283,12 +1283,22 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     curves = [[(x, 2.0 * x^-1.0) for x in (10.0, 100.0, 1000.0)], [(x, 0.5 * x^-2.0) for x in (10.0, 100.0, 1000.0)]]
     limits!(ax, 5.0, 2000.0, 1e-8, 10.0)
     drawn = PDEStudio.plot_reference_lines!(ax, [-2, -1]; label = "Test Slopes", curves = curves)
-    @test length(drawn) == 4 && [only(d.text[]) for d in drawn[2:2:end]] == ["slope −2", "slope −1"]
-    pts2, pts1 = drawn[1][1][], drawn[3][1][]
+    texts = filter(d -> d isa Makie.Text, drawn)
+    @test length(drawn) == 4 && [only(t.text[]) for t in texts] == ["slope −2", "slope −1"]
+    pts2, pts1 = drawn[1][1][], drawn[2][1][]
     @test pts2[1][2] ≈ 0.25 * 10.0^-2 rtol = 1e-4   # (half of the curve it matches)
     @test pts1[1][2] ≈ 1.0 * 10.0^-1 rtol = 1e-4
     @test PDEStudio._loglog_slope(curves[2]) ≈ -2 && PDEStudio._fmt_exponent(1.5) == "1.5"
     @test PDEStudio.delete_plots_by_label!(ax, "Test Slopes") && length(PDEStudio.plot_reference_lines!(ax, [1])) == 1   # (no data: from a corner)
+    # (slopes on one curve: the labels keep apart)
+    placed = NTuple{4, Float64}[]
+    xs = 10 .^ range(1, 3, length = 50)
+    for (k, p) in enumerate((-1, -2, -3))
+        PDEStudio._slope_label_place(ax, xs, 1e-3 .* 0.5^k .* (xs ./ 10) .^ p, true, 8, placed)
+    end
+    apart(a, b) = a[2] <= b[1] || b[2] <= a[1] || a[4] <= b[3] || b[4] <= a[3]
+    @test length(placed) == 3 && all(apart(placed[i], placed[j]) for i in 1:3 for j in i + 1:3)
+    @test PDEStudio._slope_label_place(ax, xs, 1e-3 .* (xs ./ 10) .^ -1, true, 8, NTuple{4, Float64}[]) == (25, true)   # (alone: the middle, below)
     # (references of 1-D data: 1000 points in space unless a resolution is set)
     @test PDEStudio.build_res_tuple([:x, :t]; is_ref = true) == (1000, 100)
     @test PDEStudio.build_res_tuple([:x, :y, :t]; is_ref = true) == (200, 200, 100)
@@ -1300,7 +1310,7 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test PDEStudio._shown_sweep_values(Symbol("N&cfl"), Any[(32, 0.8), (32, 0.4)]) == Any[(32, 0.8), (32, 0.4)]   # (not distinct)
     @test PDEStudio._shown_sweep_values(:N, Any[(32, 0.8)]) == Any[(32, 0.8)]
     @test PDEStudio.frontend_key(Symbol("Grid_Ns__1&IC_cell")) == "Grid Ns[1]"
-    if isdefined(PDEStudioCore, :joint_sweep)   # (from the next PDEStudioCore release on)
+    if isdefined(PDEStudioCore, :joint_sweep)   # (PDEStudioCore 0.6.2)
         jbase = test_advection_1d()
         joint_config = SimulationConfig(jbase.shared, jbase.methods, [:upwind, :lax_wendroff];
                                         varied = create_varied_dict(PDEStudioCore.joint_sweep(:N => [32, 64, 128], :cfl => [0.8, 0.6, 0.4])),
@@ -1311,6 +1321,20 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
         @test occursin("N = 64", studio_state().plots[1].title)
         studio_set!(:x_axis => Symbol("N&cfl"), :u_axis => :l1error, :t => 1.0)
         @test studio_data(1).methods[:upwind].x == [32, 64, 128] && studio_state().plots[1].xlabel == "N"
+        studio_set!(:x_axis => :N)   # (menus also take the first parameter)
+        @test studio_state().axes.x === Symbol("N&cfl")
+        studio_set!(:x_axis => :x, :u_axis => :Solution, :N => 64)
+        @test occursin("N = 64, Cfl = 0.600", studio_state().plots[1].title)   # (every parameter of the joint sweep)
+        studio_set!(:compare_target => :N, :compare_values => [32, 128])
+        @test [p.title for p in studio_state().plots] == ["N = 32, Cfl = 0.8", "N = 128, Cfl = 0.4"]
+        launch_plotter(joint_config)   # (the same sweep: the values compared stay)
+        @test manager.widgets[:compare_values].selection[] == "32, 128"
+        other = deepcopy(joint_config)
+        other.varied = create_varied_dict(PDEStudioCore.joint_sweep(:N => [40, 80], :cfl => [0.5, 0.25]))
+        launch_plotter(other)          # (other values: all of them, the old ones may not exist)
+        @test manager.widgets[:compare_values].selection[] == "all" && manager.layout_cache[:compare_values] == "all"
+        @test [p.title for p in studio_state().plots] == ["N = 40, Cfl = 0.5", "N = 80, Cfl = 0.25"]
+        studio_set!(:compare_target => :none)
     end
     # (statistics of references: the post-processor's fields and registered fields; errors need a reference)
     base = test_advection_1d()
