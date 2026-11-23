@@ -650,6 +650,12 @@ function describe_studio(io::IO = stdout)
         for (m, r) in sort!(collect(p.value_ranges), by = first)
             println(io, "    $m: values ", isnothing(r) ? "none" : _fmt_lims(r))
         end
+        # (over a swept parameter, e.g. errors over N: the local log-log slopes, i.e. the observed orders)
+        if !isnothing(s.config) && (haskey(s.config.swept, a.x) || _is_joint_key(a.x))
+            for (m, sl) in sort!(collect(studio_rates(p.plot)), by = first)
+                isempty(sl) || println(io, "    $m: log-log slopes ", join(_md_num.(sl), ", "))
+            end
+        end
         if length(p.value_ranges) == 1 && length(s.drawn_methods) > 1 && :method_index in get(STYLE_DEPENDENCIES, _base_style(s.style), Symbol[])
             order = [filter(m -> !is_reference_method(m), s.drawn_methods); filter(is_reference_method, s.drawn_methods)]
             println(io, "    (this style shows one method: $(only(keys(p.value_ranges))); " *
@@ -1187,3 +1193,93 @@ function studio_data(plot::Integer = 1)
     a = studio_state().axes
     return (plot = plot, variables = a, methods = data)
 end
+
+"""
+    studio_rates(plot = 1) -> Dict{Symbol, Vector{Float64}}
+
+The local slopes of the curves of 1D subplot `plot` on log-log axes, per method (or line, see *Lines*): entry `k` is
+`Δlog u / Δlog x` between the `k`-th and the `k+1`-th point in the order of `x`. For an error over a swept grid size
+`N` the observed order of convergence is `-slope`; over a step size `h` it is the slope. Pairs with a value or
+coordinate that isn't positive and finite give `NaN`. [`describe_studio`](@ref) lists them when the x axis is a swept
+parameter; [`studio_export_data`](@ref) writes them with the plotted numbers.
+"""
+function studio_rates(plot::Integer = 1)
+    out = Dict{Symbol, Vector{Float64}}()
+    for (m, c) in studio_data(plot).methods
+        xu = _curve_points(c)
+        isnothing(xu) && continue
+        out[m] = _loglog_slopes(xu...)
+    end
+    return out
+end
+
+# The points of a 1D curve `(x, u)` sorted by x, or `nothing` for other data
+function _curve_points(c)
+    hasproperty(c, :x) || return nothing
+    x, u = c.x, c.u
+    (x isa AbstractVector && u isa AbstractVector && length(x) == length(u) && all(v -> v isa Real, x) &&
+     all(v -> v isa Real, u)) || return nothing
+    p = sortperm(x)
+    return Float64.(x[p]), Float64.(u[p])
+end
+
+_loglog_slopes(x, u) = [x[k] > 0 && x[k + 1] > 0 && u[k] > 0 && u[k + 1] > 0 && isfinite(u[k]) && isfinite(u[k + 1]) &&
+                        x[k + 1] != x[k] ? log(u[k + 1] / u[k]) / log(x[k + 1] / x[k]) : NaN for k in 1:length(x) - 1]
+
+"""
+    studio_export_data(path; plot = :all) -> String
+
+Writes the numbers the 1D subplots draw: per subplot and method (or line) the points `x`, `u` and the local log-log
+slope from the previous point ([`studio_rates`](@ref); none at the first point, as in a convergence table). `path` ending in `.md` gives Markdown tables, one per subplot under
+its title, with a column of values and of slopes per method when they share the x values; any other path a CSV file
+with the columns `plot, title, series, x, u, slope`. Returns the path.
+
+```julia
+studio_set!(:x_axis => :N, :u_axis => :l1error, :t => 1.0)
+studio_export_data("convergence.md")   # | N | upwind | slope | lax_wendroff | slope |
+```
+"""
+function studio_export_data(path::AbstractString; plot = :all)
+    n = length(_plot_axes())
+    plots = plot === :all ? collect(1:n) : [plot]
+    all(p -> p isa Integer && 1 <= p <= n, plots) || throw(ArgumentError("plot = $(repr(plot)): there are $n plot(s); use 1…$n or :all"))
+    states = studio_state().plots
+    xname, uname = frontend_key(something(_menu_value(:x_axis), :x)), frontend_key(something(_menu_value(:u_axis), :u))
+    md = endswith(lowercase(path), ".md")
+    io = IOBuffer()
+    md || println(io, "plot,title,series,x,u,slope")
+    for p in plots
+        curves = [(m, _curve_points(c)) for (m, c) in studio_data(p).methods]
+        curves = sort!([(m, xu) for (m, xu) in curves if !isnothing(xu)], by = c -> something(_style_index(c[1]), typemax(Int)))
+        title = states[p].title
+        if !md
+            for (m, (x, u)) in curves, (k, s) in enumerate([NaN; _loglog_slopes(x, u)])
+                println(io, p, ",", _csv_field(title), ",", _csv_field(frontend_key(m)), ",", x[k], ",", u[k], ",", s)
+            end
+            continue
+        end
+        println(io, "### ", isempty(title) ? "Plot $p" : title, "\n")
+        if !isempty(curves) && all(c -> c[2][1] == curves[1][2][1], curves)   # (shared x: one row per x)
+            x = curves[1][2][1]
+            println(io, "| $xname | ", join(("$(frontend_key(m)) | slope" for (m, _) in curves), " | "), " |")
+            println(io, "|", repeat("---|", 1 + 2 * length(curves)))
+            slopes = [[NaN; _loglog_slopes(xu...)] for (_, xu) in curves]
+            for k in eachindex(x)
+                cells = [string(_md_num(xu[2][k]), " | ", k == 1 ? "" : _md_num(slopes[j][k])) for (j, (_, xu)) in enumerate(curves)]
+                println(io, "| ", _md_num(x[k]), " | ", join(cells, " | "), " |")
+            end
+        else
+            println(io, "| series | $xname | $uname | slope |\n|---|---|---|---|")
+            for (m, (x, u)) in curves, (k, s) in enumerate([NaN; _loglog_slopes(x, u)])
+                println(io, "| ", frontend_key(m), " | ", _md_num(x[k]), " | ", _md_num(u[k]), " | ", k == 1 ? "" : _md_num(s), " |")
+            end
+        end
+        println(io)
+    end
+    isempty(dirname(path)) || mkpath(dirname(path))
+    write(path, take!(io))
+    return String(path)
+end
+
+_md_num(v::Real) = isnan(v) ? "–" : isinteger(v) && abs(v) < 1e15 ? string(Int(v)) : _fmt_compare(Float64(v))
+_csv_field(s) = (s = string(s); occursin(r"[,\"\n]", s) ? "\"" * replace(s, "\"" => "\"\"") * "\"" : s)

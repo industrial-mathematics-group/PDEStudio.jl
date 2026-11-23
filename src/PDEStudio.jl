@@ -19,7 +19,7 @@ export set_figure_path!, get_figure_path, set_label!
 export set_sim_preset!, save_sim_preset, save_plot_preset, reset_sim_config!
 # scripting and agents: the studio as functions (src/AgentAPI.jl)
 export set_compute!
-export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_export, studio_data, studio_controls, studio_set!,
+export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_export, studio_rates, studio_export_data, studio_data, studio_controls, studio_set!,
        studio_press!, studio_options, studio_option!, studio_view!, studio_zoom!, studio_pan!, studio_rotate!,
        studio_reset_view!
 

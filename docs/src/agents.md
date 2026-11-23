@@ -79,6 +79,11 @@ studio_set!(:anim_target => :t); studio_export("evolution.mp4"; fps = 24, durati
 
 In a headless studio (`studio_headless!()`) nothing is opened in an image viewer.
 
+**Convergence rates and tables:** [`studio_rates`](@ref) gives the local log-log slopes of the 1D curves of a
+subplot (for an error over `N` the observed order is the negative slope), `describe_studio` lists them when the x
+axis is a swept parameter, and [`studio_export_data`](@ref) writes the plotted numbers with them, as Markdown
+(`"convergence.md"`: a table per subplot) or CSV.
+
 **Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`) the studio computes
 nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs
 stay gaps in the plots and are listed in the status line, in `studio_state().missing_runs` and by

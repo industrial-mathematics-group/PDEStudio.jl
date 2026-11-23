@@ -6,6 +6,9 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Convergence rates and number tables:** `studio_rates(plot)` (local log-log slopes per method or line, also in
+  `describe_studio` over a swept parameter) and `studio_export_data(path)` (the plotted numbers with the slopes, as
+  Markdown or CSV).
 - **No-compute mode:** `set_compute!(false)` or `launch_plotter(config; compute = false)`: nothing is computed or
   written (a dry run); missing runs stay gaps and are listed (status line, `studio_state().missing_runs`,
   `describe_studio`). Exports record the save path and the run files (`save_path`, `run_files`); loading one where

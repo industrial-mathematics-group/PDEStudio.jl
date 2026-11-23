@@ -1257,6 +1257,19 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test PDEStudio._log_labels_fit([1e-6, 2e-6], 1e-6, 1e-3, 0.0, true, 14.0)   # (no size yet)
     @test !PDEStudio._log_labels_fit([1e-6, 2e-6, 5e-6], 1e-6, 1e-3, 30.0, false, 14.0)
     @test studio_state().axes.x === :cfl && length(first(values(studio_data(1).methods)).x) == 4
+    # (local log-log slopes over the swept parameter, and the plotted numbers as a table)
+    rates = studio_rates()
+    @test sort!(collect(keys(rates))) == sort!(collect(keys(studio_data(1).methods))) && all(r -> length(r) == 3, values(rates))
+    @test PDEStudio._loglog_slopes([1.0, 2.0, 4.0], [1.0, 0.25, 0.0625]) ≈ [-2.0, -2.0]
+    @test isnan(only(PDEStudio._loglog_slopes([1.0, 2.0], [1.0, 0.0])))
+    tdir = mktempdir()
+    md = read(studio_export_data(joinpath(tdir, "t.md")), String)
+    @test occursin("| Cfl | ", md) && occursin("| slope", md) && count("\n| 0.", md) + count("\n| 1 ", md) == 4
+    csv = readlines(studio_export_data(joinpath(tdir, "t.csv")))
+    @test csv[1] == "plot,title,series,x,u,slope" && length(csv) == 1 + 4 * length(rates)
+    sio = IOBuffer(); describe_studio(sio)
+    @test occursin("log-log slopes", String(take!(sio)))
+    @test_throws ArgumentError studio_export_data(joinpath(tdir, "x.csv"); plot = 9)
     studio_set!(:x_axis => :x, :u_axis => :Solution)
     # (2D styles: the hint switches to a 1D style, and following it works)
     studio_set!(:plot_style => :heatmap)
