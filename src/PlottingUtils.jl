@@ -1262,7 +1262,8 @@ function _outer_labels(ax::Axis)
     (isnothing(plots) || length(plots) < 2 || isnothing(gc)) && return true, true
     r, c = first(gc.span.rows), first(gc.span.cols)
     (r, c) in plots || return true, true
-    return !any(p -> p[2] == c && p[1] > r, plots), !any(p -> p[1] == r && p[2] < c, plots)
+    # (Compare: fields: every subplot plots another field, so each keeps its y label)
+    return !any(p -> p[2] == c && p[1] > r, plots), manager.compare_state[1] === :fields || !any(p -> p[1] == r && p[2] < c, plots)
 end
 
 function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::String)
@@ -1421,11 +1422,11 @@ end
 plot_HUD!(ax::Axis3) = nothing
 
 
-function _apply_axis_styles!(ax, T::Symbol)
+function _apply_axis_styles!(ax, T::Symbol; u = nothing)
     x = frontend_key(manager.widgets[:x_axis].selection[])
     y = frontend_key(manager.widgets[:y_axis].selection[])
     z = frontend_key(manager.widgets[:z_axis].selection[])
-    u = frontend_key(manager.widgets[:u_axis].selection[])
+    u = frontend_key(something(u, manager.widgets[:u_axis].selection[]))   # (Compare: fields: the subplot's own)
     
     dim = PLOT_DIM_MAP[T] 
     def_title = ax.title[]

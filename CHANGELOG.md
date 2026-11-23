@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Compare: fields:** one subplot per dependent field (`studio_set!(:compare_target => :fields, :compare_values =>
+  [:l1error, :l2error])`), each with its own y label and range.
 - **Error view:** `set_error_field!(true)` adds the field *u − u_ref* (`:reference_error`), the pointwise difference
   of the data to the reference at the drawn points, selectable like a statistic.
 - **No marker for a method or line:** `:none` in the markers list (also `nothing` or a blank character).

@@ -2686,9 +2686,11 @@ function _setup_chain_A!(::Val{:eulerian})
                 # Use menu_opt instead of string()
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
+            # (fields: one subplot per dependent field, see `_compare_selection`)
+            any(k -> k !== :Solution, keys(sim_data.stats)) && push!(compare_opts, menu_opt(:fields))
             update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
             # (lines of 1D plots: per method, or per method and value of time or a swept parameter)
-            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component)), compare_opts)];
+            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component, :fields)), compare_opts)];
                                                       fallbacks=[:methods], force_notify=false, sort=false)
 
             ptype = manager.widgets[:plot_style].selection[]
@@ -2806,9 +2808,11 @@ function _setup_chain_A!(::Val{:lagrangian})
             for p_key in pd_first.active_param_keys
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
+            # (fields: one subplot per dependent field, see `_compare_selection`)
+            any(k -> k !== :Solution, keys(l_data.stats)) && push!(compare_opts, menu_opt(:fields))
             update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
             # (lines of 1D plots: per method, or per method and value of time or a swept parameter)
-            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component)), compare_opts)];
+            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component, :fields)), compare_opts)];
                                                       fallbacks=[:methods], force_notify=false, sort=false)
         end
     end

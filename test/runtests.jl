@@ -1487,6 +1487,15 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     end
     reset_plotter!()
     launch_plotter(config)
+    # --- Compare: fields (one subplot per dependent field, each with its own y label and range) ---
+    studio_set!(:u_axis => :l1error, :x_axis => :cfl)
+    studio_set!(:compare_target => :fields, :compare_values => [:l1error, "L2Error"], :compare_columns => 2)
+    ps = studio_state().plots
+    @test [(p.title, p.ylabel) for p in ps] == [("L1Error", "L1Error"), ("L2Error", "L2Error")]
+    @test all(a -> a.ylabelvisible[], PDEStudio._plot_axes())   # (another field per subplot: every y label)
+    @test manager.compare_state[4] == [:l1error, :l2error] && studio_data(2).variables.u === :l1error   # (the menu keeps its field)
+    studio_set!(:compare_target => :none, :compare_values => :all)
+    studio_set!(:x_axis => :x, :u_axis => :Solution)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)
