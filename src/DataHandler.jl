@@ -372,7 +372,15 @@ for the error at the grid points). Takes effect when data is loaded next (*Run S
 session; returns the setting.
 """
 function set_error_field!(on::Bool = true)
+    changed = _ERROR_FIELD[] != on
     _ERROR_FIELD[] = on
+    _sync_data_buttons!()
+    if changed && haskey(manager.flags, :Simulation)   # (the field is added when data is loaded)
+        manager.flags[:Simulation][] = true
+        haskey(manager.widgets, :status_label) &&
+            _status!(on ? "The field u − u_ref is added when the data is loaded: Run Simulation." :
+                          "The field u − u_ref is dropped when the data is loaded: Run Simulation.", :ok)
+    end
     return on
 end
 const _ERROR_FIELD = Ref(false)

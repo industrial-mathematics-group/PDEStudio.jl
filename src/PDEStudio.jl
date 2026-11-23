@@ -175,6 +175,7 @@ Base.@kwdef mutable struct PlotManager
     line_state::Tuple{Symbol, Union{Nothing, Int}, Vector{String}, Vector} = (:methods, nothing, String[], Any[])
     series::Vector{Symbol} = Symbol[]                                  # the series keys in drawing order (colours, legend)
     series_labels::Dict{Symbol, String} = Dict{Symbol, String}()       # series key => legend label
+    series_style::Dict{Symbol, Int} = Dict{Symbol, Int}()              # series key => colour / marker index (`_style_index`)
     extra_series::Vector{NamedTuple} = NamedTuple[]                    # data from outside (`studio_add_series!`)
     insets::Vector{NamedTuple} = NamedTuple[]                          # zoom insets of 1D subplots (`studio_inset!`)
     inset_axes::Dict{UInt, Vector{Any}} = Dict{UInt, Vector{Any}}()    # the inset axes drawn, per plot layout

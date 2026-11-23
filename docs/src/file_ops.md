@@ -121,3 +121,17 @@ By default, **Export** saves the figure in every format listed in the export set
 | **Simulation → Save** | The physics only: shared and method parameters, active methods, sweep, reference/post-processing functions. | Switching between setups (coarse/fine grid, test cases) without touching the look. |
 
 Presets are listed under **Presets ›** in the Files tab, with **Apply** and **Edit ›** (the rows of the preset file). **Look → Reset** restores the default look, **Simulation → Reset** the configuration you bound with `set_sim_config!` (or loaded from a CSV). See [Presets](presets.md) for the file format and the API.
+
+## Data buttons, number tables and data from outside
+
+*   **Data row of the Files tab:** *Resolution ›* (the display resolutions), *Compute: on/off* (the session setting
+    `set_compute!`: off, *Run Simulation* and loaded files only show what is stored and list the missing runs) and
+    *u − u_ref: on/off* (`set_error_field!`: the pointwise difference to the reference as a field, added when data is
+    loaded, so *Run Simulation* after switching).
+*   **Number tables:** a name ending in `.md` or `.txt` makes **Export** write the plotted numbers of the 1D subplots
+    (`studio_export_data`: the points with the local log-log slopes, a Markdown table per subplot or CSV text) instead
+    of a figure; `md` or `txt` among the export formats (*Settings ›*) writes them next to the figure.
+*   **Data from outside:** **Load** (or a drop) of a plain CSV file with two numeric columns (`x, y`; a header line is
+    skipped) draws it as a series in the 1D plots, named after the file (`studio_add_series!`); loading the same file
+    again replaces the series. Exports write the series (`Scene, Series`) and draw them again when loaded;
+    `studio_clear_series!()` removes them.

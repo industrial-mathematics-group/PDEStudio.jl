@@ -86,14 +86,16 @@ axis is a swept parameter, and [`studio_export_data`](@ref) writes the plotted n
 
 **Data from outside:** [`studio_add_series!`](@ref) draws a small table in the 1D plots, e.g. a paper's errors next
 to the study's: `studio_add_series!("SL7 (paper)", Ns, errors; color = :green, marker = :diamond)`. It appears in the
-legend, counts for the limits and is exported; `studio_clear_series!()` removes the series.
+legend, counts for the limits and is exported (written to the export's CSV and drawn again when it is loaded);
+`studio_clear_series!()` removes the series. In the window the same comes from loading a plain two-column CSV.
 
 **Zoom insets:** [`studio_inset!`](@ref) adds a small axis in a corner of a 1D subplot that shows its curves in a
 region (e.g. a contact discontinuity), with a box marking the region; exports draw it, `studio_clear_insets!()` removes
-them.
+them. One inset is also a UI option page, *UI → Zoom Inset* (`studio_option!(:inset, :x_lims, (0.45, 0.6))`, `:y_lims`,
+`:visible`), saved with the look.
 
-**Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`) the studio computes
-nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs
+**Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`, or the Files tab's
+*Compute: on/off* button) the studio computes nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs
 stay gaps in the plots and are listed in the status line, in `studio_state().missing_runs` and by
 `describe_studio()`. An export records its save path and the data files of its runs (`Metadata, General, save_path`
 / `run_files`); loading it with another save path names the files that are missing there, so you know what to copy.

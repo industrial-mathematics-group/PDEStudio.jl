@@ -64,6 +64,11 @@ function _add_scene_rows!(rows::_CSVRows)
     for (k, names) in _sorted_pairs(manager.value_labels)   # (names of swept values: value => name)
         isempty(names) || add_row!(rows, "Scene", "Value_Labels", k, Dict{Any, String}(names))
     end
+    for s in manager.extra_series   # (data from outside, `studio_add_series!`; `nothing` can't be written: :solid)
+        add_row!(rows, "Scene", "Series", s.label,
+                 Dict{Symbol, Any}(:x => s.x, :y => s.y, :color => s.color, :marker => s.marker,
+                                   :linestyle => something(s.linestyle, :solid), :plot => s.plot))
+    end
     return rows
 end
 
@@ -394,7 +399,12 @@ are not computed either: the plots show what the data files hold. Stays set for 
 `launch_plotter(config; compute = false)` sets it, too.
 """
 function set_compute!(on::Bool = true)
+    changed = _COMPUTE[] != on
     _COMPUTE[] = on
+    _sync_data_buttons!()
+    changed && haskey(manager.widgets, :status_label) &&
+        _status!(on ? "Computing is on: Run Simulation computes missing runs." :
+                      "Computing is off: Run Simulation only shows stored runs (missing ones are listed).", :ok)
     return on
 end
 const _COMPUTE = Ref(true)
@@ -672,7 +682,7 @@ the plot style, UI overrides, layout, axes and slider positions, camera, labels 
 """
 # Categories and scopes of the studio CSV format (other categories, e.g. of a newer version, are ignored).
 const _CSV_SCOPES = Dict("Metadata" => ("General", "Preset"), "Git" => nothing, "Julia" => nothing,
-                         "Scene" => ("Plot", "Layout", "Camera", "Labels", "Exploration", "Value_Labels"), "UI" => nothing,
+                         "Scene" => ("Plot", "Layout", "Camera", "Labels", "Exploration", "Value_Labels", "Series"), "UI" => nothing,
                          "Simulation" => nothing, "Config" => ("Dimensions", "Resolution_Base", "Resolution_Ref"))
 
 # Warns about categories and scopes the studio doesn't read (typos in hand-written files, e.g. `Scene, plot`).
@@ -786,6 +796,26 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
         for (k, v) in vl_source
             v isa AbstractDict ? set_value_label!(Symbol(k), (key => string(name) for (key, name) in v)...) :
                 @warn "Ignoring the Value_Labels row $k = $(repr(v)): a Dict of value => name."
+        end
+    end
+
+    # --- 7c. DATA FROM OUTSIDE (studio_add_series!) ---
+    series_source = get(get(parsed, "Scene", Dict()), "Series", nothing)
+    if !isnothing(series_source)
+        empty!(manager.extra_series)   # (the file's series replace the session's)
+        for (label, d) in series_source
+            if !(d isa AbstractDict && haskey(d, :x) && haskey(d, :y))
+                @warn "Ignoring the Series row $label = $(repr(d)): a Dict with x and y."
+                continue
+            end
+            ls = get(d, :linestyle, :dash)
+            try
+                studio_add_series!(string(label), d[:x], d[:y]; color = get(d, :color, :gray), marker = get(d, :marker, :circle),
+                                   linestyle = ls === :solid ? nothing : ls, plot = get(d, :plot, :all))
+            catch e
+                e isa InterruptException && rethrow()
+                @warn "Ignoring the Series row $label: $(sprint(showerror, e))"
+            end
         end
     end
 

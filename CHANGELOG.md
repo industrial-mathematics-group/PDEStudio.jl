@@ -7,27 +7,34 @@ What has changed since the last release. Released versions are described in the
 
 ### New
 - **Zoom insets:** `studio_inset!(xlims, ylims; plot, position, size)` shows a region of a 1D subplot in a corner
-  axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them.
+  axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them. In the window one inset is
+  set under *UI → Zoom Inset* (`x_lims`, `y_lims`, `visible`, `position`, `size`, `plot`; saved with the look).
 - **External data as a series:** `studio_add_series!(label, x, y; color, marker, linestyle, plot)` draws data from
   outside (a paper's table) in the 1D plots, in the legend and in exports; `studio_clear_series!()` removes them.
+  In the window, *Load* (or a drop) of a plain CSV file with two numeric columns adds it as a series named after the
+  file; exports write the series (`Scene, Series`) and draw them again when loaded.
 - **Compare: fields:** one subplot per dependent field (`studio_set!(:compare_target => :fields, :compare_values =>
   [:l1error, :l2error])`), each with its own y label and range.
-- **Error view:** `set_error_field!(true)` adds the field *u − u_ref* (`:reference_error`), the pointwise difference
-  of the data to the reference at the drawn points, selectable like a statistic.
+- **Error view:** `set_error_field!(true)` (Files tab, Data: *u − u_ref: on/off*) adds the field *u − u_ref*
+  (`:reference_error`), the pointwise difference of the data to the reference at the drawn points, selectable like a
+  statistic.
 - **No marker for a method or line:** `:none` in the markers list (also `nothing` or a blank character).
 - **Reversed axes:** the axis option `reversed` (`studio_option!(:x_axis_1d, :reversed, true)`, e.g. ε → 0 to the right).
 - **Names for swept values:** `set_value_label!(param, value => "name", …)` (also the tuples of a joint sweep);
   titles, compared subplots, lines and the slider label show the name. Exports keep them (`Scene, Value_Labels`).
 - **Convergence rates and number tables:** `studio_rates(plot)` (local log-log slopes per method or line, also in
   `describe_studio` over a swept parameter) and `studio_export_data(path)` (the plotted numbers with the slopes, as
-  Markdown or CSV).
-- **No-compute mode:** `set_compute!(false)` or `launch_plotter(config; compute = false)`: nothing is computed or
-  written (a dry run); missing runs stay gaps and are listed (status line, `studio_state().missing_runs`,
+  Markdown or CSV). The Export button writes them for a name ending in `.md` (Markdown) or `.txt` (CSV text), or
+  with `md` / `txt` among the export formats next to the figure.
+- **No-compute mode:** `set_compute!(false)`, `launch_plotter(config; compute = false)` or the Files tab's *Compute:
+  on/off* button: nothing is computed or written (a dry run); missing runs stay gaps and are listed (status line, `studio_state().missing_runs`,
   `describe_studio`). Exports record the save path and the run files (`save_path`, `run_files`); loading one where
   files are missing names them.
 - **Lines over a swept parameter or time** (Plot tab, *Lines* and *Line Values*; `studio_set!(:line_target => …,
   :line_values => …)`): 1D plots draw one line per method and value, labelled in the legend, e.g. the initial
-  conditions of a study in one panel or profiles at several times.
+  conditions of a study in one panel or profiles at several times. With the methods compared (one subplot each) the
+  lines are named and coloured by their value, the same in every subplot, and the legend lists the values. The Plot
+  tab shows its legend and lines rows for the 1D line and scatter styles only.
 - **Joint sweeps** (`joint_sweep` of PDEStudioCore 0.6.2: several parameters changing together, e.g. `N` and a cell
   width `6/N`) are shown over their first parameter: one numeric slider named by it, usable as a plot axis. Scripts
   name it by its first parameter (sliders, axis and compare menus); titles name all of its parameters

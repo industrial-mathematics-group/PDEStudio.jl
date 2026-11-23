@@ -407,9 +407,10 @@ function studio_export(name::AbstractString = "plot_export"; formats = nothing, 
         items = formats isa Union{AbstractString, Symbol} ? [formats] : collect(formats)
         fmts = String[lowercase(lstrip(string(f), '.')) for f in items]
         isempty(fmts) && throw(ArgumentError("studio_export: no formats given"))
-        bad = filter(!in(STATIC_EXPORT_FORMATS), fmts)
+        bad = filter(f -> !(f in STATIC_EXPORT_FORMATS) && !(f in DATA_EXPORT_FORMATS), fmts)
         isempty(bad) || throw(ArgumentError("studio_export: formats $(repr(bad)) can't be exported; formats: " *
-                                            join(STATIC_EXPORT_FORMATS, ", ") * " (animations: name ending in " *
+                                            join(STATIC_EXPORT_FORMATS, ", ") * ", and " * join(DATA_EXPORT_FORMATS, ", ") *
+                                            " for the plotted numbers (animations: name ending in " *
                                             join("." .* ANIMATION_EXPORT_FORMATS, ", ") * ")"))
     end
     settings = manager.ui[:export]
@@ -1288,9 +1289,10 @@ end
 Draws data from outside the studio in the 1D plots, e.g. the errors of a paper's method from a small table:
 `studio_add_series!("ALE2 (paper)", [40, 80, 160], [2.1e-3, 5.4e-4, 1.4e-4])`. It has its own colour, marker
 (`:none`: a line only) and line style (`nothing`: solid), appears in the legend after the methods, counts for the
-axis limits and is drawn by exports; `plot` restricts it to one subplot. The series stay until
-`studio_clear_series!()` (they belong to the session, not to the configuration, and aren't written to exports'
-CSV files). Returns the number of series.
+axis limits and is drawn by exports; `plot` restricts it to one subplot. A series with the same label replaces the
+earlier one. The series stay until `studio_clear_series!()`; exports write them (`Scene, Series`), so a loaded
+export draws them again. In the window, a plain CSV file with two numeric columns (`x, y`, a header line is skipped)
+loads as a series named after the file (*Load*, or drop it). Returns the number of series.
 """
 function studio_add_series!(label::AbstractString, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
                             color = :gray, marker = :circle, linestyle = :dash, plot = :all)
@@ -1298,6 +1300,7 @@ function studio_add_series!(label::AbstractString, x::AbstractVector{<:Real}, y:
     isempty(x) && throw(ArgumentError("studio_add_series!: no points"))
     plot === :all || (plot isa Integer && plot >= 1) || throw(ArgumentError("plot = $(repr(plot)): a subplot number or :all"))
     _valid_color(color) || throw(ArgumentError("color = $(repr(color)): a colour (e.g. :gray, \"#1f77b4\")"))
+    filter!(s -> s.label != label, manager.extra_series)   # (the same label again replaces the series)
     push!(manager.extra_series, (label = String(label), x = Float64.(x), y = Float64.(y), color = color,
                                  marker = marker, linestyle = linestyle, plot = plot))
     _redraw_series!()
@@ -1317,7 +1320,9 @@ end
 A zoom inset in 1D subplot `plot`: a small axis in a corner (`position`: `:rt`, `:lt`, `:rb`, `:lb`) of `size` times
 the subplot's width and height, which shows the subplot's curves in `xlims` × `ylims` (e.g. a contact
 discontinuity), and a box marking that region in the subplot. The inset follows the sliders and is drawn by exports.
-The insets stay until `studio_clear_insets!()`. Returns the number of insets.
+The insets stay until `studio_clear_insets!()`. Returns the number of insets. In the window, one inset is set under
+*UI → Zoom Inset* (`studio_option!(:inset, :x_lims, …)`, `:y_lims`, `:visible`, `:position`, `:size`, `:plot`); that
+one is saved with the look (presets, exports). `studio_inset!` adds more for the session.
 
 ```julia
 studio_inset!((0.45, 0.6), (0.9, 1.6); position = :lt)
@@ -1350,11 +1355,12 @@ function _draw_insets!(plot_layout, axes)
         try delete!(ia) catch end   # (a rebuilt layout has removed them already)
     end
     delete!(manager.inset_axes, objectid(plot_layout))
-    isempty(manager.insets) && return nothing   # (no entry kept for layouts without insets, e.g. exports)
+    insets = [manager.insets; _ui_insets()]
+    isempty(insets) && return nothing   # (no entry kept for layouts without insets, e.g. exports)
     drawn = Any[]
     manager.inset_axes[objectid(plot_layout)] = drawn
     plots = get(manager.layout_dict[], :Plots, nothing)
-    for s in manager.insets
+    for s in insets
         (s.plot <= length(axes) && axes[s.plot] isa Axis && !isnothing(plots) && s.plot <= length(plots)) || continue
         ax = axes[s.plot]
         delete_plots_by_label!(ax, "Inset Box")
@@ -1386,6 +1392,16 @@ function _draw_insets!(plot_layout, axes)
 end
 
 _redraw_series!() = (manager.is_open && haskey(manager.triggers, :Plot) && (manager.triggers[:Plot][] += 1); nothing)
+
+# The inset of the UI options (*UI → Zoom Inset*, `studio_option!(:inset, …)`), as `studio_inset!` stores one, or none
+function _ui_insets()
+    ui = get(manager.ui, :inset, nothing)
+    (isnothing(ui) && return NamedTuple[])
+    ok(l) = l isa Union{AbstractVector, Tuple} && length(l) == 2 && all(v -> v isa Real && isfinite(v), l) && l[1] < l[2]
+    (get(ui, :visible, false) === true && ok(ui[:x_lims]) && ok(ui[:y_lims])) || return NamedTuple[]
+    return NamedTuple[(plot = Int(get(ui, :plot, 1)), xlims = Float64.(Tuple(ui[:x_lims])), ylims = Float64.(Tuple(ui[:y_lims])),
+                       position = Symbol(get(ui, :position, :rt)), size = Float64(get(ui, :size, 0.4)))]
+end
 
 # The external series drawn in subplot `i`
 _series_for(i::Int) = [s for s in manager.extra_series if s.plot === :all || s.plot == i]

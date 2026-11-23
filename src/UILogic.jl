@@ -368,6 +368,39 @@ function _request_load(path::AbstractString)
     _handle_load(path)
 end
 
+# The numeric columns `x, y` of a plain CSV file (no studio header; a header line and other text are skipped), or
+# `nothing` if it is not one: a studio CSV, fewer than two points, or a Julia file
+function _series_csv_points(path::AbstractString)
+    (isfile(path) && endswith(lowercase(path), ".csv")) || return nothing
+    first_line = try
+        first(eachline(path))
+    catch
+        return nothing
+    end
+    occursin("Category", first_line) && occursin("Parameter", first_line) && return nothing
+    x, y = Float64[], Float64[]
+    for line in eachline(path)
+        cells = split(line, r"[,;\t]")
+        length(cells) >= 2 || continue
+        a, b = tryparse(Float64, strip(cells[1])), tryparse(Float64, strip(cells[2]))
+        (isnothing(a) || isnothing(b)) && continue
+        push!(x, a); push!(y, b)
+    end
+    return length(x) >= 2 ? (x, y) : nothing
+end
+
+# Loads a plain two-column CSV as a series named after the file (`studio_add_series!`); `true` if `path` was one
+function _load_series_csv!(path::AbstractString)
+    pts = _series_csv_points(path)
+    isnothing(pts) && return false
+    label = first(splitext(basename(path)))
+    studio_add_series!(label, pts[1], pts[2])
+    _status!("Added the series '$label' ($(length(pts[1])) points) from $(basename(path)) to the 1D plots; loading it " *
+             "again replaces it, studio_clear_series!() removes all.", :ok)
+    haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightgreen)
+    return true
+end
+
 # What a confirmation (the second Load) is for: the path and the content of the file and of the source files a CSV
 # bundles, so another file under the same name (a new upload, a file changed on disk) needs its own confirmation.
 function _load_key(path::AbstractString)
@@ -397,6 +430,7 @@ end
 function _handle_load(path::AbstractString)
     w = manager.widgets
     load_btn, run_btn = w[:load_config_button], w[:run_button]
+    _load_series_csv!(path) && return nothing   # (a plain two-column CSV: data from outside)
     local structural
     try
         structural = endswith(lowercase(path), ".jl") ? load_config_file!(path) : load_and_apply_csv!(path)
@@ -747,6 +781,17 @@ end
 # Shortens a value for a status message.
 _short(s::AbstractString, n::Int = 40) = length(s) > n ? first(s, n - 1) * "…" : s
 
+# The Data buttons of the Files tab show the session settings (`set_compute!`, `set_error_field!`)
+function _sync_data_buttons!()
+    w = manager.widgets
+    if haskey(w, :compute_button)
+        w[:compute_button].label[] = "Compute: " * (_COMPUTE[] ? "on" : "off")
+        w[:compute_button].buttoncolor[] = _COMPUTE[] ? RGBf(0.94, 0.94, 0.94) : :lightyellow
+    end
+    haskey(w, :error_field_button) && (w[:error_field_button].label[] = "u − u_ref: " * (_ERROR_FIELD[] ? "on" : "off"))
+    return nothing
+end
+
 # The status line after a run, `(message, level)`: what ran, was cached or failed, from the `RunSummary` of PDEStudioCore
 # (older versions return nothing: then only the time)
 # A run by its swept values (and method): `N = 640, ε = 1e-3`
@@ -994,6 +1039,12 @@ function _invalid_ui_reason(key::Symbol, val)
                                all(v -> v isa Real && isfinite(v), val) && val[1] < val[2]))) &&
         return "colour range: [] (automatic) or [lo, hi] with lo < hi"
     key === :levels && !(val isa Integer && val >= 2) && return "number of contour levels (an integer ≥ 2)"
+    key in (:x_lims, :y_lims) && !(val isa Union{AbstractVector, Tuple} && (isempty(val) || (length(val) == 2 &&
+                                   all(v -> v isa Real && isfinite(v), val) && val[1] < val[2]))) &&
+        return "range of the inset: [] (none) or [lo, hi] with lo < hi"
+    key === :position && !(val in keys(_INSET_ALIGN)) && return "corner of the inset: :rt, :lt, :rb or :lb"
+    key === :size && !(val isa Real && 0.1 <= val <= 0.9) && return "size of the inset: a fraction of the subplot from 0.1 to 0.9"
+    key === :plot && !(val isa Integer && val >= 1) && return "subplot number (1, 2, …)"
     key in (:animation_FPS, :animation_time, :dpi) && !(val isa Real && isfinite(val) && val > 0) &&
         return "$(key === :animation_FPS ? "frame rate" : key === :dpi ? "resolution" : "duration") (a positive number)"
     return nothing
@@ -2410,6 +2461,19 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         
         name_part, ext = splitext(raw_filename)
         ext = lowercase(lstrip(ext, '.'))
+
+        if ext in DATA_EXPORT_FORMATS   # the plotted numbers (`studio_export_data`), no figure: the window stays as it is
+            path = isabspath(raw_filename) ? raw_filename : joinpath(get_figure_path(), "figures", raw_filename)
+            try
+                studio_export_data(path)
+                push!(manager.last_export, path)
+                _status!("Exported the plotted numbers to $path", :ok)
+            catch e
+                @error "Export Failed" exception = (e, catch_backtrace())
+                _status!("Export failed: $(_short(sprint(showerror, e), 90))", :error)
+            end
+            return
+        end
         
         is_anim = ext in ANIMATION_EXPORT_FORMATS
         if is_anim
@@ -2504,6 +2568,12 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 for fmt in formats
                     full_path = joinpath(save_dir, base_name * ".$fmt")
                     mkpath(dirname(full_path))
+                    if fmt in DATA_EXPORT_FORMATS   # (the plotted numbers next to the figure)
+                        studio_export_data(full_path)
+                        push!(manager.last_export, full_path)
+                        @info "Plotted numbers ($fmt) saved to $full_path"
+                        continue
+                    end
                     if fmt in ("png", "jpg", "jpeg")
                         save(full_path, export_fig; backend=CairoMakie, px_per_unit=dpi_val/96.0)
                     else
@@ -2521,7 +2591,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                          (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
                 
             else
-                _report(:warn, "No valid static formats selected and no animation extension provided. Export bypassed.")
+                _report(:warn, "No valid export formats selected (Files → Settings ›: $(join(STATIC_EXPORT_FORMATS, ", ")), " *
+                               "$(join(DATA_EXPORT_FORMATS, ", ")) for the plotted numbers) and no animation extension given. Export bypassed.")
             end
             
         catch e

@@ -1655,6 +1655,92 @@ ingroup("agent") && @testset "Review fixes 2026-11-12 (headless)" begin
     @test PDEStudio._load_key(csv) != key2
 end
 
+ingroup("agent") && @testset "Studio features: window access, lines with compared methods" begin
+    studio_headless!()
+    set_save_path!(mktempdir())
+    set_figure_path!(mktempdir())
+    reset_plotter!()
+    set_stat_preset!("hyperbolic")
+    config = SimulationConfig(create_param_dict(:N => 48, :cfl => 0.5, :sim_func_name => :advection_solver_1d),
+                              create_method_dict(:upwind => create_param_dict(:scheme => "upwind"),
+                                                 :lax_friedrichs => create_param_dict(:scheme => "lax_friedrichs")),
+                              [:upwind, :lax_friedrichs]; varied = create_varied_dict(:cfl => [0.25, 0.5, 1.0]),
+                              reference = :exact_advection_factory)
+    launch_plotter(config)
+    w = manager.widgets
+    panel = manager.panels[:layout_options]
+    parent_of(key) = Makie.GridLayoutBase.gridcontent(manager.panels[Symbol("layout_row_", key)]).parent
+
+    # 1. The legend and lines rows of the Plot tab exist for the 1D line / scatter styles only
+    @test parent_of(:line_target) === panel && parent_of(:legend_base) === panel
+    studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
+    @test parent_of(:line_target) === manager.panel_park && parent_of(:line_values) === manager.panel_park
+    @test parent_of(:legend_add) === manager.panel_park && parent_of(:compare_target) === panel
+    studio_set!(:plot_style => :lines, :x_axis => :x, :y_axis => :none)
+    @test parent_of(:line_target) === panel && parent_of(:legend_base) === panel
+
+    # 2. Lines over a parameter with the methods compared: a legend naming the values, the same colours in every subplot
+    studio_set!(:u_axis => :Solution, :compare_target => :methods, :line_target => :cfl, :line_values => [0.25, 1.0])
+    @test !isnothing(manager.layout_dict[][:Legend])
+    @test manager.compare_state[1] === :methods && manager.line_state[1] === :cfl
+    k(m, j) = Symbol(m, "##", j)
+    @test PDEStudio._style_index(k(:upwind, 1)) == PDEStudio._style_index(k(:lax_friedrichs, 1)) == 1
+    @test PDEStudio._style_index(k(:upwind, 2)) == 2
+    @test manager.series_labels[k(:upwind, 2)] == manager.series_labels[k(:lax_friedrichs, 2)]
+    @test !occursin("upwind", manager.series_labels[k(:upwind, 2)])
+    _, labels = PDEStudio._collect_legend_elements(manager.ui[:plot_style])
+    @test length(labels) == 2 && all(l -> occursin("cfl", lowercase(l)), labels)
+    # without the comparison the lines are named by method and value, and the legend lists all four
+    studio_set!(:compare_target => :none)
+    _, labels = PDEStudio._collect_legend_elements(manager.ui[:plot_style])
+    @test length(labels) == 4 && any(l -> occursin("upwind", l) && occursin("cfl", lowercase(l)), labels)
+    # lines over the compared variable are off, with a note
+    studio_set!(:compare_target => :cfl, :compare_values => [0.25, 1.0])
+    @test isnothing(manager.line_state[2]) && occursin("compared variable", studio_state().status.text)
+    studio_set!(:compare_target => :none, :compare_values => :all, :line_target => :methods)
+
+    # 3. The Data buttons of the Files tab: computing and the error field
+    w[:compute_button].clicks[] += 1
+    @test PDEStudio._COMPUTE[] == false && w[:compute_button].label[] == "Compute: off"
+    set_compute!(true)
+    @test w[:compute_button].label[] == "Compute: on"
+    w[:error_field_button].clicks[] += 1
+    @test PDEStudio._ERROR_FIELD[] && w[:error_field_button].label[] == "u − u_ref: on" && manager.flags[:Simulation][]
+    set_error_field!(false)
+    @test w[:error_field_button].label[] == "u − u_ref: off"
+
+    # 4. The Export button writes the plotted numbers for a .md / .txt name or format
+    studio_export("numbers.md")
+    f = only(filter(p -> endswith(p, ".md"), manager.last_export))
+    @test isfile(f) && occursin("| ", read(f, String))
+    studio_export("with_table"; formats = ["png", "txt"])
+    @test any(endswith(".png"), manager.last_export) && any(endswith(".txt"), manager.last_export)
+    @test occursin("plot,title,series,x,u,slope", read(only(filter(endswith(".txt"), manager.last_export)), String))
+
+    # 5. A zoom inset from the UI options (UI → Zoom Inset)
+    studio_option!(:inset, :x_lims, [0.1, 0.3]); studio_option!(:inset, :y_lims, [1.5, 3.0]); studio_option!(:inset, :visible, true)
+    @test any(!isempty, values(manager.inset_axes))
+    @test_throws ArgumentError studio_option!(:inset, :x_lims, [0.3, 0.1])
+    @test_throws ArgumentError studio_option!(:inset, :position, :middle)
+    studio_option!(:inset, :visible, false)
+    @test all(isempty, values(manager.inset_axes))
+
+    # 6. External series: a two-column CSV loads as a series, exports keep the series
+    dir = mktempdir()
+    csv = joinpath(dir, "paper.csv"); write(csv, "N,error\n40,2e-3\n80,5e-4\n160,1.2e-4\n")
+    PDEStudio._handle_load(csv)
+    @test length(manager.extra_series) == 1 && manager.extra_series[1].label == "paper" && manager.extra_series[1].x == [40, 80, 160]
+    PDEStudio._handle_load(csv)                      # the same file again replaces it
+    @test length(manager.extra_series) == 1
+    @test isnothing(PDEStudio._series_csv_points(joinpath(dir, "none.csv")))
+    @test PDEStudio.save_params_to_csv("series_export", dir, Dict("Save Type" => "Test"))
+    studio_clear_series!()
+    @test isempty(manager.extra_series)
+    PDEStudio.load_and_apply_csv!(joinpath(dir, "series_export.csv"))
+    @test length(manager.extra_series) == 1 && manager.extra_series[1].label == "paper"
+    studio_clear_series!()
+end
+
 any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" begin
     # 0. Setup Temporary Environment & 3D Simulation Sweep
     set_stat_preset!("hyperbolic")
@@ -2763,11 +2849,12 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # 4d. The UI overview is static: general scopes, every axis variant and every plot type
         show_editor_page!(:ui)
         @test [w[Symbol("editor_section_", k)].text[] for k in 1:4] == ["General", "Labels", "Axes", "Plot styles"]
-        @test manager.editor_page_scopes[1:12] == [:axis_general, :hud, :outliers_extrema,
+        @test manager.editor_page_scopes[1:13] == [:axis_general, :hud, :outliers_extrema, :inset,
                                                    :labels, :components, :variables, :methods,
                                                    :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d]
-        @test w[:editor_page_4].label[] == "Plot"               # the titles and axis labels of the plot
-        @test Set(manager.editor_page_scopes[13:end]) == union(euler_styles, Set([:scatter_surface]))   # (particles: their scatter pages)
+        @test w[:editor_page_5].label[] == "Plot"               # the titles and axis labels of the plot
+        @test w[:editor_page_4].label[] == "Zoom Inset"
+        @test Set(manager.editor_page_scopes[14:end]) == union(euler_styles, Set([:scatter_surface]))   # (particles: their scatter pages)
         @test !(:export in manager.editor_page_scopes)        # the export settings are in the Files tab
         open_scope!(:heatmap_flat)                             # a plot type lists the options it uses
         @test Set(manager.editor_row_keys) == Set(PDEStudio.STYLE_DEPENDENCIES[:heatmap_flat])

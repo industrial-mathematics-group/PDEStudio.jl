@@ -12,6 +12,7 @@ const EXPLORATION_OPTIONS = (:anim_target, :component)
 # --- SYMBOL / LABEL ROUTING ---
 const SYMBOL_TO_LABEL_MAP = Dict{Symbol, String}(
     :reference_error => "u − u_ref",
+    :inset => "Zoom Inset",
     :hud => "HUD",
     :fps => "FPS",
     :x_axis => "X-Axis",
@@ -279,6 +280,16 @@ function create_master_ui_dict()
         :dpi                  => 300,
         :mp4_compression      => 15,
     )
+    # A zoom inset of a 1D subplot (the same as `studio_inset!`, which adds more of them): a corner axis showing the
+    # curves in x_lims × y_lims, with a box marking the region
+    master[:inset] = Dict{Symbol, Any}(
+        :visible  => false,
+        :plot     => 1,        # the subplot
+        :x_lims   => Any[],    # [lo, hi]
+        :y_lims   => Any[],
+        :position => :rt,      # the corner: :rt, :lt, :rb, :lb
+        :size     => 0.4,      # of the subplot's width and height
+    )
     master[:outliers_extrema] = Dict{Symbol, Any}(
         :remove_outliers      => false, 
         :mark_outliers        => false, 
@@ -334,7 +345,7 @@ const MASTER_UI_DICT = create_master_ui_dict()
 
 # The UI scopes kept in `manager.ui`: the general scopes, one scope per axis variant (the renderer uses the variant of
 # the active plot type, see `_ui_template_scope`) and the plot style options shared by all plot types.
-const UI_GENERAL_SCOPES = (:axis_general, :labels, :hud, :outliers_extrema)
+const UI_GENERAL_SCOPES = (:axis_general, :labels, :hud, :outliers_extrema, :inset)
 const UI_AXIS_SCOPES = (:x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d)
 const UI_SCOPES = (UI_GENERAL_SCOPES..., :export, UI_AXIS_SCOPES..., :plot_style)
 

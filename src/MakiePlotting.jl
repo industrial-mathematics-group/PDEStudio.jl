@@ -490,6 +490,7 @@ function _reset_config_view!()
     manager.line_state = (:methods, nothing, String[], Any[])
     empty!(manager.series)
     empty!(manager.series_labels)
+    empty!(manager.series_style)
     manager.camera_cache = Dict{Symbol, Any}()
     manager.view_context = nothing
     manager.methods.val = Symbol[]   # (the first layout of the window would look for data of the old methods)

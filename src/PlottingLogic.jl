@@ -573,7 +573,7 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
     
     num_plots, compare_labels, compare_vals = 1, String[], Any[]
 
-    sim_data = nothing
+    sim_data, pd_first = nothing, nothing
     if !isempty(manager.plot_data[])
         pd_first = _primary_sweep(manager.plot_data[])
         sim_data = _get_first_valid(pd_first)
@@ -628,8 +628,11 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
         num_plots = 1; target = :none; compare_labels = String[]; compare_vals = Any[]
     end
     is_det, halign, valign = _parse_legend_position(target)  # the new target (Compare_State is stored below)
+    _resolve_line_state!(T, target, pd_first, sim_data)
     
-    has_legend = T in LEGEND_SUPPORTED_PLOTS && target != :methods
+    # (compared methods need no legend: the titles name them; unless lines run over a parameter or time, which the
+    # legend names, the same in every subplot)
+    has_legend = T in LEGEND_SUPPORTED_PLOTS && (target != :methods || !isnothing(manager.line_state[2]))
     has_colorbar = T in COLORBAR_SUPPORTED_PLOTS
 
     layout_dict = calculate_layout_dictionary(num_plots, cols, link_mode, has_legend, is_det, halign, valign, has_colorbar)
@@ -667,20 +670,27 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
     end
 
     manager.compare_state = (target, target_idx, compare_labels, compare_vals)
-    _resolve_line_state!(T, target, isempty(manager.plot_data[]) ? nothing : _primary_sweep(manager.plot_data[]), sim_data)
 
     return axes, num_plots, compare_labels, x_sel, y_sel, z_sel, u_sel, c_sel, selector_obs, has_colorbar
 end
 
 # The lines of 1D plots (*Lines*, *Line Values*): one per method, or one per method and chosen value of time or a swept
-# parameter (not the compared one); `manager.line_state`, and the series keys in drawing order (`manager.series`)
+# parameter (not the compared one); `manager.line_state`, and the series keys in drawing order (`manager.series`).
+# With the methods compared (one per subplot) the lines are named and coloured by their value alone, the same in
+# every subplot, and the legend lists each value once.
 function _resolve_line_state!(T::Symbol, compare_target, pd, sim_data)
     w = manager.widgets
     manager.line_state = (:methods, nothing, String[], Any[])
     empty!(manager.series)
     empty!(manager.series_labels)
+    empty!(manager.series_style)
     target = haskey(w, :line_target) ? w[:line_target].selection[] : :methods
-    (target in (:methods, :none) || target === compare_target || !(T in LEGEND_SUPPORTED_PLOTS) || isnothing(sim_data)) && return
+    if target === compare_target && !(target in (:methods, :none))
+        _status!("Lines over $(frontend_key(target === :time ? :t : target)) are off: it is the compared variable " *
+                 "(Compare); choose another one for the lines or the comparison.", :warn)
+    end
+    (target in (:methods, :none) || target === compare_target || !(T in LEGEND_SUPPORTED_PLOTS) || isnothing(sim_data) ||
+     isnothing(pd)) && return
     chosen = haskey(w, :line_values) ? w[:line_values].selection[] : "all"
     if target === :time
         t_dim = sim_data.domain.time_dim
@@ -703,10 +713,12 @@ function _resolve_line_state!(T::Symbol, compare_target, pd, sim_data)
     (isnothing(idx) || isempty(vals)) && return
     manager.line_state = (target, idx, labels, vals)
     methods = manager.methods[]
+    by_value = compare_target === :methods   # (the methods are the subplots' titles)
     for (j, label) in enumerate(labels), m in methods
         key = _series_key(m, j)
         push!(manager.series, key)
-        manager.series_labels[key] = length(methods) > 1 ? "$(frontend_key(m)), $label" : label
+        manager.series_labels[key] = by_value || length(methods) == 1 ? label : "$(frontend_key(m)), $label"
+        manager.series_style[key] = by_value ? j : length(manager.series)
     end
     return
 end
@@ -735,8 +747,9 @@ function _fetch_series(mode, data, local_methods, build_idx, sel_vals, x_sel, y_
     return (isnothing(cols) ? () : Tuple(cols)), keys
 end
 
-# The position of a method or series in the drawing order (its colour, marker and line style)
-_style_index(key::Symbol) = something(findfirst(==(key), manager.series), findfirst(==(key), manager.methods[]), Some(nothing))
+# The colour, marker and line style index of a method or series: its position in the drawing order, or, with the
+# methods compared, the index of the line's value (see `_resolve_line_state!`)
+_style_index(key::Symbol) = haskey(manager.series_style, key) ? manager.series_style[key] : findfirst(==(key), manager.methods[])
 
 # The plot_vars a title leaves out: the plotted axes and the parameter the lines run over
 _title_skips(active) = Tuple(isnothing(manager.line_state[2]) ? active : [collect(active); manager.line_state[2]])

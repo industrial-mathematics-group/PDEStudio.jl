@@ -117,6 +117,8 @@ end
 # that format, anything else is part of the name.
 const ANIMATION_EXPORT_FORMATS = ("mp4", "gif", "webm", "mkv")
 const STATIC_EXPORT_FORMATS = ("png", "pdf", "svg", "eps", "jpg", "jpeg")
+# The plotted numbers instead of a figure (`studio_export_data`): a Markdown table, or CSV text in a .txt file
+const DATA_EXPORT_FORMATS = ("md", "txt")
 
 """
     _export_formats(setting)
@@ -130,9 +132,10 @@ function _export_formats(setting)
     fmts = String[lowercase(lstrip(strip(string(f)), '.')) for f in items if !isnothing(f)]
     anim = filter(in(ANIMATION_EXPORT_FORMATS), fmts)
     isempty(anim) || @warn "Animation formats $anim in the export settings are ignored. To export an animation, add the extension (e.g. '.mp4') to the filename instead."
-    unknown = filter(f -> !(f in STATIC_EXPORT_FORMATS) && !(f in ANIMATION_EXPORT_FORMATS) && !isempty(f), fmts)
-    isempty(unknown) || @warn "Unknown export formats $unknown are ignored. Supported: $(join(STATIC_EXPORT_FORMATS, ", "))."
-    return unique!(filter(in(STATIC_EXPORT_FORMATS), fmts))
+    unknown = filter(f -> !(f in STATIC_EXPORT_FORMATS) && !(f in ANIMATION_EXPORT_FORMATS) && !(f in DATA_EXPORT_FORMATS) && !isempty(f), fmts)
+    isempty(unknown) || @warn "Unknown export formats $unknown are ignored. Supported: $(join(STATIC_EXPORT_FORMATS, ", ")) " *
+                              "and $(join(DATA_EXPORT_FORMATS, ", ")) (the plotted numbers)."
+    return unique!(filter(f -> f in STATIC_EXPORT_FORMATS || f in DATA_EXPORT_FORMATS, fmts))
 end
 
 # A joint sweep of several parameters (`joint_sweep`: their names joined by `&`)
@@ -957,7 +960,8 @@ function create_or_update_legend!(plot_layout::GridLayout, plotted_objects::Vect
     line_target = manager.line_state[1]
     if title_str == "Methods" && !isnothing(manager.line_state[2])
         name = frontend_key(line_target === :time ? :t : line_target)
-        title_str = length(manager.methods[]) > 1 ? "Methods, $name" : name
+        # (compared methods are the subplots' titles: the legend names the values only)
+        title_str = length(manager.methods[]) > 1 && manager.compare_state[1] !== :methods ? "Methods, $name" : name
     end
     final_title = isempty(strip(title_str)) ? nothing : title_str
     font_size = ui_style[:font_size] 
@@ -1458,26 +1462,38 @@ end
 
 Scans the active `PlotCache` and constructs the precise array of `Makie.LineElement`, `Makie.MarkerElement`, and `Makie.PolyElement` prototypes needed to render a visually accurate legend block.
 """
+# The plot cache of a method or series in the first subplot that draws it, or `nothing`
+function _legend_cache(key::Symbol)
+    for i in sort!(collect(keys(manager.caches)))
+        haskey(manager.caches[i], key) && return manager.caches[i][key]
+    end
+    return nothing
+end
+
 function _collect_legend_elements(ui_app::Dict)
     
     plotted_objects = []
     labels_for_legend = String[]
     
-    if !haskey(manager.caches, 1)
-        return [], []
-    end
+    isempty(manager.caches) && return [], []
     
     get_color(idx) = get(ui_app, :colors, nothing) !== nothing ? ui_app[:colors][mod1(idx, end)] : :black 
 
-    for (m_idx, method_name) in enumerate(isempty(manager.series) ? manager.methods[] : manager.series)
-        if haskey(manager.caches[1], method_name)
-            prims = manager.caches[1][method_name].primitives
+    seen = Set{String}()
+    for method_name in (isempty(manager.series) ? manager.methods[] : manager.series)
+        cache = _legend_cache(method_name)   # (any subplot: compared methods draw their lines in their own)
+        if !isnothing(cache)
+            m_idx = something(_style_index(method_name), 1)
+            prims = cache.primitives
             color = get_color(m_idx)
             
             group = []
             is_base = false
             
             method_label_str = frontend_key(method_name)
+            # (compared methods with lines over a parameter: the lines of a value share the label and colour)
+            method_label_str in seen && continue
+            push!(seen, method_label_str)
             
             for (pkey, prim) in prims
                 deps = get(STYLE_DEPENDENCIES, pkey, Symbol[])
