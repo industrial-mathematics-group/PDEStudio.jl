@@ -88,6 +88,10 @@ axis is a swept parameter, and [`studio_export_data`](@ref) writes the plotted n
 to the study's: `studio_add_series!("SL7 (paper)", Ns, errors; color = :green, marker = :diamond)`. It appears in the
 legend, counts for the limits and is exported; `studio_clear_series!()` removes the series.
 
+**Zoom insets:** [`studio_inset!`](@ref) adds a small axis in a corner of a 1D subplot that shows its curves in a
+region (e.g. a contact discontinuity), with a box marking the region; exports draw it, `studio_clear_insets!()` removes
+them.
+
 **Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`) the studio computes
 nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs
 stay gaps in the plots and are listed in the status line, in `studio_state().missing_runs` and by

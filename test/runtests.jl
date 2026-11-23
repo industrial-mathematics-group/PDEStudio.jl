@@ -1504,6 +1504,16 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_add_series!("bad", [1.0], [1.0, 2.0])
     studio_clear_series!()
     @test count(p -> haskey(p, :label) && p.label[] == "External Series", first(PDEStudio._plot_axes()).scene.plots) == 0
+    # --- a zoom inset (studio_inset!), drawn again with every update and by exports ---
+    @test studio_inset!((0.1, 0.3), (2.0, 3.0); position = :lt, size = 0.3) == 1
+    insets = manager.inset_axes[objectid(PDEStudio._plot_layout())]   # (the window's; exports have their own)
+    @test length(insets) == 1 && only(insets).finallimits[].origin[1] ≈ 0.1
+    @test count(p -> haskey(p, :label) && p.label[] == "Inset Box", first(PDEStudio._plot_axes()).scene.plots) == 1
+    @test_throws ArgumentError studio_inset!((0.3, 0.1), (2.0, 3.0))
+    @test_throws ArgumentError studio_inset!((0.1, 0.3), (2.0, 3.0); position = :middle)
+    @test isfile(first(studio_export(joinpath(mktempdir(), "inset"); formats = [:png])))
+    studio_clear_insets!()
+    @test !haskey(manager.inset_axes, objectid(PDEStudio._plot_layout())) && isempty(manager.insets)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)

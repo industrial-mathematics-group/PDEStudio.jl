@@ -491,6 +491,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
         end
     end
     
+    PLOT_DIM_MAP[T] == 1 && !is_3d_axis && _draw_insets!(plot_layout, axes)   # (studio_inset!)
     if !is_3d_axis && T in LEGEND_SUPPORTED_PLOTS
         create_or_update_legend!(plot_layout, _collect_legend_elements(ui_app)...)
     end

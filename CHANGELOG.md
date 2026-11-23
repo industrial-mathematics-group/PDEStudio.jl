@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Zoom insets:** `studio_inset!(xlims, ylims; plot, position, size)` shows a region of a 1D subplot in a corner
+  axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them.
 - **External data as a series:** `studio_add_series!(label, x, y; color, marker, linestyle, plot)` draws data from
   outside (a paper's table) in the 1D plots, in the legend and in exports; `studio_clear_series!()` removes them.
 - **Compare: fields:** one subplot per dependent field (`studio_set!(:compare_target => :fields, :compare_values =>

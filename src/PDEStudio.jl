@@ -19,7 +19,7 @@ export set_figure_path!, get_figure_path, set_label!, set_value_label!
 export set_sim_preset!, save_sim_preset, save_plot_preset, reset_sim_config!
 # scripting and agents: the studio as functions (src/AgentAPI.jl)
 export set_compute!, set_error_field!
-export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_export, studio_rates, studio_export_data, studio_add_series!, studio_clear_series!, studio_data, studio_controls, studio_set!,
+export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_export, studio_rates, studio_export_data, studio_add_series!, studio_clear_series!, studio_inset!, studio_clear_insets!, studio_data, studio_controls, studio_set!,
        studio_press!, studio_options, studio_option!, studio_view!, studio_zoom!, studio_pan!, studio_rotate!,
        studio_reset_view!
 
@@ -176,6 +176,8 @@ Base.@kwdef mutable struct PlotManager
     series::Vector{Symbol} = Symbol[]                                  # the series keys in drawing order (colours, legend)
     series_labels::Dict{Symbol, String} = Dict{Symbol, String}()       # series key => legend label
     extra_series::Vector{NamedTuple} = NamedTuple[]                    # data from outside (`studio_add_series!`)
+    insets::Vector{NamedTuple} = NamedTuple[]                          # zoom insets of 1D subplots (`studio_inset!`)
+    inset_axes::Dict{UInt, Vector{Any}} = Dict{UInt, Vector{Any}}()    # the inset axes drawn, per plot layout
     plot_titles::Vector{String} = String[]
     launch_run::Any = nothing                                          # (RunSummary, seconds) of the run before a launch
     bound_setup::Any = nothing                                         # `_view_setup` of the bound configuration

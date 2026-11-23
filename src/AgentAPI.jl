@@ -1310,6 +1310,81 @@ function studio_clear_series!()
     return nothing
 end
 
+"""
+    studio_inset!(xlims, ylims; plot = 1, position = :rt, size = 0.4) -> Int
+    studio_clear_insets!()
+
+A zoom inset in 1D subplot `plot`: a small axis in a corner (`position`: `:rt`, `:lt`, `:rb`, `:lb`) of `size` times
+the subplot's width and height, which shows the subplot's curves in `xlims` × `ylims` (e.g. a contact
+discontinuity), and a box marking that region in the subplot. The inset follows the sliders and is drawn by exports.
+The insets stay until `studio_clear_insets!()`. Returns the number of insets.
+
+```julia
+studio_inset!((0.45, 0.6), (0.9, 1.6); position = :lt)
+studio_export("riemann_with_contact")
+```
+"""
+function studio_inset!(xlims, ylims; plot::Integer = 1, position::Symbol = :rt, size::Real = 0.4)
+    ok(l) = length(l) == 2 && all(v -> v isa Real && isfinite(v), l) && l[1] < l[2]
+    ok(xlims) && ok(ylims) || throw(ArgumentError("studio_inset!: xlims and ylims are (lo, hi) with lo < hi"))
+    position in keys(_INSET_ALIGN) || throw(ArgumentError("position = $(repr(position)): one of :rt, :lt, :rb, :lb"))
+    0.1 <= size <= 0.9 || throw(ArgumentError("size = $size: a fraction of the subplot from 0.1 to 0.9"))
+    plot >= 1 || throw(ArgumentError("plot = $plot: a subplot number"))
+    push!(manager.insets, (plot = Int(plot), xlims = Float64.(Tuple(xlims)), ylims = Float64.(Tuple(ylims)),
+                           position = position, size = Float64(size)))
+    _redraw_series!()
+    return length(manager.insets)
+end
+
+function studio_clear_insets!()
+    empty!(manager.insets)
+    _redraw_series!()
+    return nothing
+end
+
+const _INSET_ALIGN = Dict(:rt => (:right, :top), :lt => (:left, :top), :rb => (:right, :bottom), :lb => (:left, :bottom))
+
+# Draws the insets (`studio_inset!`) of the 1D subplots `axes` in `plot_layout`, replacing those drawn before
+function _draw_insets!(plot_layout, axes)
+    for ia in get(manager.inset_axes, objectid(plot_layout), Any[])
+        try delete!(ia) catch end   # (a rebuilt layout has removed them already)
+    end
+    delete!(manager.inset_axes, objectid(plot_layout))
+    isempty(manager.insets) && return nothing   # (no entry kept for layouts without insets, e.g. exports)
+    drawn = Any[]
+    manager.inset_axes[objectid(plot_layout)] = drawn
+    plots = get(manager.layout_dict[], :Plots, nothing)
+    for s in manager.insets
+        (s.plot <= length(axes) && axes[s.plot] isa Axis && !isnothing(plots) && s.plot <= length(plots)) || continue
+        ax = axes[s.plot]
+        delete_plots_by_label!(ax, "Inset Box")
+        (x0, x1), (y0, y1) = s.xlims, s.ylims
+        lines!(ax, [x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0]; color = :gray40, linewidth = 1, label = "Inset Box")
+        r, c = plots[s.plot]
+        ha, va = _INSET_ALIGN[s.position]
+        ia = Axis(plot_layout[r, c]; width = Relative(s.size), height = Relative(s.size), halign = ha, valign = va,
+                  tellwidth = false, tellheight = false, backgroundcolor = :white,
+                  xticklabelsize = 0.75 * ax.xticklabelsize[], yticklabelsize = 0.75 * ax.yticklabelsize[],
+                  xscale = ax.xscale[], yscale = ax.yscale[], alignmode = Mixed(left = 12, right = 12, top = 12, bottom = 12))
+        ax.xscale[] === log10 || (ia.xticks = WilkinsonTicks(3, k_min = 2))   # (a small axis: few ticks)
+        ax.yscale[] === log10 || (ia.yticks = WilkinsonTicks(3, k_min = 2))
+        for cache in values(get(manager.caches, s.plot, Dict()))
+            cache isa EulerianPlotCache || continue
+            for (key, prim) in cache.primitives
+                key in (:lines_1d, :scatter_lines) || continue
+                kw = (color = prim.color[], linewidth = prim.linewidth[], linestyle = prim.linestyle[])
+                key === :lines_1d ? lines!(ia, cache.obs_x, cache.obs_u; kw...) :
+                    scatterlines!(ia, cache.obs_x, cache.obs_u; kw..., marker = prim.marker[], markersize = prim.markersize[])
+            end
+        end
+        try limits!(ia, x0, x1, y0, y1) catch end
+        translate!(ia.blockscene, 0, 0, 100)   # (above the subplot's curves: CairoMakie draws the plots sorted by z)
+        translate!(ia.scene, 0, 0, 100)
+        push!(drawn, ia)
+    end
+    return nothing
+end
+
 _redraw_series!() = (manager.is_open && haskey(manager.triggers, :Plot) && (manager.triggers[:Plot][] += 1); nothing)
 
 # The external series drawn in subplot `i`
