@@ -19,10 +19,14 @@ end
 const MAX_COMPARE_PLOTS = 12
 
 # Numbers in titles, slider labels and descriptions: 3 decimals, small and large values with 3 significant digits
-# (τ = 1e-05, not 0.000; 0.0015, not 0.002; 0.0125, not 0.013)
+# (τ = 1e-5, not 0.000; 0.0015, not 0.002; 0.0125, not 0.013)
 _fmt_value(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 0.1 <= abs(v) < 1e5 ? @sprintf("%.3f", v) :
-                                       @sprintf("%.3g", v)) : string(v)
-_fmt_compare(v) = v isa AbstractFloat ? string(round(v, sigdigits = 4)) : string(v)
+                                       _clean_exponent(@sprintf("%.3g", v))) : string(v)
+# Values in compare titles: 4 significant digits, scientific outside [1e-3, 1e5) (τ = 1e-5, not 1.0e-5)
+_fmt_compare(v) = v isa AbstractFloat ? (iszero(v) || !isfinite(v) || 1e-3 <= abs(v) < 1e5 ? string(round(v, sigdigits = 4)) :
+                                         _clean_exponent(@sprintf("%.4g", v))) : string(v)
+# "1e-05" -> "1e-5", "2.5e+06" -> "2.5e6"
+_clean_exponent(s::AbstractString) = replace(s, r"e\+?(-?)0*(\d)" => s"e\1\2")
 
 # Evenly spread indices into 1:n, at most MAX_COMPARE_PLOTS of them.
 function _compare_picks(n::Int)
@@ -484,12 +488,19 @@ function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFl
     return
 end
 
-# The ticks of an axis: on a log10 axis decades with 2, 3 or 5 between them as the range allows, so the labels are
-# numbers (Makie's default gives ticks like 10^2.5); otherwise the UI's tick count, or Makie's default
+# The ticks of an axis: on a log10 axis decades with 2, 3 or 5 between them as the range allows, labelled as plain
+# numbers or powers of ten (Makie's defaults give ticks like 10^2.5 and labels like 0.000001); otherwise the UI's tick
+# count, or Makie's default. A custom tick format or scale offset (set_axis_styles!) is kept.
 function _set_ticks!(ax::Axis, ui_x, ui_y)
-    xt, yt = _axis_ticks(ui_x, ax.xscale[]), _axis_ticks(ui_y, ax.yscale[])
-    ax.xticks[] === xt || (ax.xticks = xt)   # (only on a change: every assignment redraws the ticks)
-    ax.yticks[] === yt || (ax.yticks = yt)
+    for (ui, format, ticks, scale) in ((ui_x, ax.xtickformat, ax.xticks, ax.xscale[]), (ui_y, ax.ytickformat, ax.yticks, ax.yscale[]))
+        # (formatter first, and both only on a change: every assignment redraws the ticks)
+        if get(ui, :scale_offset, 0.0) == 0.0 && get(ui, :tick_format, "default") == "default"
+            f = scale === log10 ? _log10_labels : Makie.automatic
+            format[] === f || (format[] = f)
+        end
+        t = _axis_ticks(ui, scale)
+        ticks[] === t || (ticks[] = t)
+    end
     return nothing
 end
 
@@ -508,6 +519,30 @@ function _log10_ticks(vmin, vmax)
     # (less than one step of that grid in range: three round values)
     return unique(filter(t -> vmin <= t <= vmax, round.([vmin, sqrt(vmin * vmax), vmax]; sigdigits = 2)))
 end
+
+# Labels of log10 ticks: plain numbers if all of them are in [1e-3, 1e5) (0.002, 50, 1000), powers of ten otherwise
+# (10⁻⁶, 2×10⁻⁶), as rich text like Makie's own log labels
+function _log10_labels(values)
+    all(v -> 1e-3 <= abs(v) < 1e5, values) && return [_plain_number(v) for v in values]
+    return map(values) do v
+        v > 0 || return string(v)
+        m, e = _power_parts(v)
+        exponent = superscript(e < 0 ? "−$(-e)" : string(e); offset = Vec2f(0.1f0, 0.0f0))
+        m == "1" ? rich("10", exponent) : rich(m, "×10", exponent)
+    end
+end
+
+# Shortest decimal of a rounded value without a trailing ".0" (0.001, 20, 2.5)
+_plain_number(v) = (s = string(round(Float64(v), sigdigits = 6)); endswith(s, ".0") ? s[1:end-2] : s)
+
+# v = m × 10^e with 1 <= m < 10 (3 significant digits): ("2", -6) for 2e-6
+function _power_parts(v::Real)
+    e = floor(Int, log10(v))
+    m = round(e >= 0 ? v / 10.0^e : v * 10.0^(-e), sigdigits = 3)
+    m >= 10 && ((m, e) = (m / 10, e + 1))
+    return _plain_number(m), e
+end
+
 
 """
     calculate_layout_dictionary(num_plots, cols_req, link_mode, has_legend, is_detached, halign, valign, has_colorbar)
@@ -942,12 +977,20 @@ function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::Str
     ax.ygridvisible, ax.yticklabelsvisible = y_ui[:grid_visibility], y_ui[:tick_label_visibility] 
 
     x_off = x_ui[:scale_offset] 
-    ax.xtickformat = x_off != 0.0 ? (t -> map(v -> "$(round(x_off, sigdigits=3)) + $(@sprintf("%.1e", v - x_off))", t)) : (x_ui[:tick_format] == "default" ? Makie.automatic : x_ui[:tick_format]) 
+    if x_off != 0.0
+        ax.xtickformat = (t -> map(v -> "$(round(x_off, sigdigits=3)) + $(@sprintf("%.1e", v - x_off))", t))
+    elseif x_ui[:tick_format] != "default"
+        ax.xtickformat = x_ui[:tick_format]
+    end
 
     y_off = y_ui[:scale_offset] 
-    ax.ytickformat = y_off != 0.0 ? (t -> map(v -> "$(round(y_off, sigdigits=3)) $(v - y_off < 0 ? "-" : "+") $(@sprintf("%.1e", abs(v - y_off)))", t)) : (y_ui[:tick_format] == "default" ? Makie.automatic : y_ui[:tick_format]) 
+    if y_off != 0.0
+        ax.ytickformat = (t -> map(v -> "$(round(y_off, sigdigits=3)) $(v - y_off < 0 ? "-" : "+") $(@sprintf("%.1e", abs(v - y_off)))", t))
+    elseif y_ui[:tick_format] != "default"
+        ax.ytickformat = y_ui[:tick_format]
+    end
 
-    # (after the formats: the ticks are drawn with them)
+    # (after the formats: the ticks are drawn with them; the default format depends on the scale)
     _set_ticks!(ax, x_ui, y_ui)
 end
 
