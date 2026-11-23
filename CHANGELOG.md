@@ -6,6 +6,10 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **No-compute mode:** `set_compute!(false)` or `launch_plotter(config; compute = false)`: nothing is computed or
+  written (a dry run); missing runs stay gaps and are listed (status line, `studio_state().missing_runs`,
+  `describe_studio`). Exports record the save path and the run files (`save_path`, `run_files`); loading one where
+  files are missing names them.
 - **Lines over a swept parameter or time** (Plot tab, *Lines* and *Line Values*; `studio_set!(:line_target => …,
   :line_values => …)`): 1D plots draw one line per method and value, labelled in the legend, e.g. the initial
   conditions of a study in one panel or profiles at several times.

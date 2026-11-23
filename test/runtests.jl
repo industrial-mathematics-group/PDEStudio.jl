@@ -1399,6 +1399,35 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     studio_set!(:line_target => :methods, :methods => [:upwind, :lax_friedrichs])
     @test isempty(manager.series) && isnothing(manager.line_state[2])
     @test sort!(collect(keys(studio_data(1).methods))) == [:lax_friedrichs, :upwind]
+    # --- no-compute mode: only stored runs are shown, the missing ones are listed (set_compute! / compute = false) ---
+    old_path = get_save_path()
+    set_save_path!(mktempdir())
+    try
+        n_runs = length(generate_tasks(config))
+        launch_plotter(config; compute = false)
+        s = studio_state()
+        @test length(s.missing_runs) == n_runs && occursin("Not computed", s.status.text) && s.status.level === :warn
+        @test isempty(filter(f -> endswith(f, ".jld2"), readdir(joinpath(get_save_path(), "data"); join = false) |> x -> x)) ||
+              !isdir(joinpath(get_save_path(), "data"))   # (nothing was written)
+        sio = IOBuffer(); describe_studio(sio)
+        @test occursin("Missing runs (not computed", String(take!(sio)))
+        set_compute!(true)
+        studio_press!(:run)
+        @test isempty(studio_state().missing_runs) && occursin("$n_runs ran", studio_state().status.text)
+        # (an export records the save path and the run files; loading it elsewhere names the missing ones)
+        csv = last(studio_export("nocompute"))
+        meta = PDEStudio._read_csv(csv)[1]["Metadata"]["General"]
+        @test meta["save_path"] == get_save_path() && length(meta["run_files"]) == n_runs
+        set_save_path!(mktempdir())
+        set_compute!(false)
+        PDEStudio.load_and_apply_csv!(csv)
+        @test occursin("$n_runs of the $n_runs run files", manager.source_note)
+    finally
+        set_compute!(true)
+        set_save_path!(old_path)
+    end
+    reset_plotter!()
+    launch_plotter(config)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)

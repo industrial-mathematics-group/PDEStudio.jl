@@ -18,6 +18,7 @@ export launch_plotter, @launch, set_sim_config!, reset_plotter!, reset_manager!,
 export set_figure_path!, get_figure_path, set_label!
 export set_sim_preset!, save_sim_preset, save_plot_preset, reset_sim_config!
 # scripting and agents: the studio as functions (src/AgentAPI.jl)
+export set_compute!
 export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_export, studio_data, studio_controls, studio_set!,
        studio_press!, studio_options, studio_option!, studio_view!, studio_zoom!, studio_pan!, studio_rotate!,
        studio_reset_view!
@@ -182,6 +183,7 @@ Base.@kwdef mutable struct PlotManager
     csv_cache::Union{Nothing, NamedTuple} = nothing                  # structural CSV staged until "Run Simulation"
     pending_domain::Any = nothing                                    # data with axes the window lacks (rebuilt on "Run")
     is_exporting::Bool = false
+    missing_runs::Vector{ParamDict} = ParamDict[]                    # runs the last dry run (set_compute!(false)) didn't find
     export_request::Any = nothing                                    # (name, formats) of `studio_export`, read by the Export button
     last_export::Vector{String} = String[]                           # the files the last export wrote
     skip_next_camera_extract::Bool = false

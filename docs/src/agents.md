@@ -79,6 +79,12 @@ studio_set!(:anim_target => :t); studio_export("evolution.mp4"; fps = 24, durati
 
 In a headless studio (`studio_headless!()`) nothing is opened in an image viewer.
 
+**Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`) the studio computes
+nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs
+stay gaps in the plots and are listed in the status line, in `studio_state().missing_runs` and by
+`describe_studio()`. An export records its save path and the data files of its runs (`Metadata, General, save_path`
+/ `run_files`); loading it with another save path names the files that are missing there, so you know what to copy.
+
 ## Operating the controls
 
 [`studio_controls`](@ref) lists every control with its kind, value and choices, under the names

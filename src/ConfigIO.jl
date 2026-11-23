@@ -364,13 +364,37 @@ const _CORE_SKIPS_SOURCES = hasmethod(run_all_simulations, Tuple{SimulationConfi
 """
     _run_simulations(config; kwargs...)
 
-`run_all_simulations(config; kwargs...)`, with the sources included by `_include_sources` (if PDEStudioCore allows).
+`run_all_simulations(config; kwargs...)`, with the sources included by `_include_sources` (if PDEStudioCore allows);
+a dry run that records the missing runs (`manager.missing_runs`) with `set_compute!(false)`.
 """
 function _run_simulations(config::SimulationConfig; kwargs...)
-    _CORE_SKIPS_SOURCES || return run_all_simulations(config; kwargs...)
-    _include_sources(config.sources)
-    return run_all_simulations(config; kwargs..., load_sources = false)
+    compute = _COMPUTE[]   # (`set_compute!(false)`: a dry run, the missing runs are listed)
+    if _CORE_SKIPS_SOURCES
+        _include_sources(config.sources)
+        summary = run_all_simulations(config; kwargs..., dry_run = !compute, load_sources = false)
+    else
+        summary = run_all_simulations(config; kwargs..., dry_run = !compute)
+    end
+    manager.missing_runs = compute ? ParamDict[] : copy(summary.ran)
+    return summary
 end
+
+"""
+    set_compute!(on::Bool = true) -> Bool
+
+Whether the studio may compute: with `set_compute!(false)` *Run Simulation*, `launch_plotter(config)` and loaded
+configuration files only look at what is stored (a dry run of `run_all_simulations`): nothing is computed or
+written, runs that are missing stay gaps in the plots, and the status line, [`studio_state`](@ref) (`missing_runs`)
+and [`describe_studio`](@ref) list them. For expensive data (GPU runs, a copy of the data on another machine): with
+a wrong save path, loading a configuration file would otherwise start the simulations. Statistics and post-processing
+are not computed either: the plots show what the data files hold. Stays set for the session; returns the setting.
+`launch_plotter(config; compute = false)` sets it, too.
+"""
+function set_compute!(on::Bool = true)
+    _COMPUTE[] = on
+    return on
+end
+const _COMPUTE = Ref(true)
 
 """
     _run_bundled_sources(parsed, filepath)
@@ -584,6 +608,7 @@ function load_and_apply_csv!(filepath::AbstractString)
     parsed, raw = _read_csv(filepath)
     bundled_config, ran, sources_of = _run_bundled_sources(parsed, filepath)
     _note_missing_statistics!(parsed, filepath)   # (after the bundled sources: they may register them)
+    _note_missing_run_files!(parsed, filepath)
     # The files that ran are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
     # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
     sources = isnothing(bundled_config) ? ran : unique([_relocate_sources(bundled_config.sources, sources_of); ran])
@@ -969,6 +994,41 @@ function _export_code_note()
     return note
 end
 
+# The data files the configuration's runs use (those stored now: a dry run), by name; for exports, which record what to
+# copy along with them
+function _run_files(config::SimulationConfig)
+    try
+        s = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+            kw = _CORE_SKIPS_SOURCES ? (load_sources = false,) : NamedTuple()
+            run_all_simulations(config; dry_run = true, calculate_stats = false, post_process = false, kw...)
+        end
+        return String[basename(f) for f in s.files if !isnothing(f)]
+    catch e
+        e isa InterruptException && rethrow()
+        @debug "Could not list the run files" exception = (e, catch_backtrace())
+        return String[]
+    end
+end
+
+# Notes (log and status line) the run files a loaded export recorded that the current save path doesn't hold, and
+# where the export found them: what to copy (or the save path to set) before running it
+function _note_missing_run_files!(parsed::Dict, filepath::AbstractString)
+    general = get(get(parsed, "Metadata", Dict()), "General", Dict())
+    files = get(general, "run_files", nothing)
+    files isa AbstractString && (files = isempty(files) ? String[] : [files])
+    files isa AbstractVector || return nothing
+    data_dir = joinpath(get_save_path(), "data")
+    missing_files = String[string(f) for f in files if !isfile(joinpath(data_dir, string(f)))]
+    isempty(missing_files) && return nothing
+    origin = get(general, "save_path", nothing)
+    note = "$(length(missing_files)) of the $(length(files)) run files the export used are not in $(data_dir)" *
+           (isnothing(origin) ? "" : " (they were in $(origin)/data)") *
+           (_COMPUTE[] ? "; Run Simulation would compute them" : "")
+    @warn "Loading $(basename(filepath)): $note: " * join(missing_files, ", ")
+    manager.source_note = join(filter(!isempty, [manager.source_note, note]), "; ")
+    return nothing
+end
+
 # Warns (and notes for the status line) when a loaded export computed statistics this session doesn't register
 function _note_missing_statistics!(parsed::Dict, filepath::AbstractString)
     names = get(get(get(parsed, "Metadata", Dict()), "General", Dict()), "statistics", nothing)
@@ -995,7 +1055,9 @@ sliders, layout, camera, labels, exploration), UI styles, structural limits and 
 Julia environment information to `<save_dir>/<base_filename>.csv`. The configuration's source files are copied next
 to the CSV (`<name>_sources/<file>`, with their originals recorded) so the export can be reloaded elsewhere. The
 registered statistics are recorded (`Metadata, General, statistics`), and so is code the export can't run again
-(`code_outside_sources`: solvers, reference, post-processor or statistics defined outside the sources and packages).
+(`code_outside_sources`: solvers, reference, post-processor or statistics defined outside the sources and packages),
+the save path and the data files of the runs (`save_path`, `run_files`: loading the export elsewhere names those
+missing there).
 
 Returns `true` on a successful write.
 """
@@ -1049,6 +1111,10 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
                      sort!([string(k) for k in keys(get_stat_registry()) if k !== :Solution]))
             outside = _code_outside_sources(config)
             isempty(outside) || add_row!(rows, "Metadata", "General", "code_outside_sources", outside)
+            # (and the data it shows: the run files and where they are, so a load elsewhere says what to copy)
+            add_row!(rows, "Metadata", "General", "save_path", get_save_path())
+            run_files = _run_files(config)
+            isempty(run_files) || add_row!(rows, "Metadata", "General", "run_files", run_files)
         end
 
         # --- 2. Git (Scope = Repo Name) & Julia (Scope = Main Project or Local Sub-Package) ---

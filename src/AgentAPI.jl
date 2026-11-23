@@ -554,7 +554,8 @@ _numbers(x) = ()
 What the studio shows, as data (the same as [`describe_studio`](@ref) prints): the status line, the bound
 configuration (solver, methods, swept parameters), the plot style and the variables on the axes, the comparison,
 the sliders, and per subplot its title, axis labels, shown limits (and 3D camera angles in degrees) and the range of
-the plotted values per method. Use it to check the result of an action; [`studio_data`](@ref) gives the plotted
+the plotted values per method; with `set_compute!(false)` the runs that are missing (`missing_runs`). Use it to check
+the result of an action; [`studio_data`](@ref) gives the plotted
 numbers themselves.
 """
 function studio_state()
@@ -579,6 +580,7 @@ function studio_state()
         axes = (x = _menu_value(:x_axis), y = _menu_value(:y_axis), z = _menu_value(:z_axis),
                 u = _menu_value(:u_axis), component = _menu_value(:component)),
         compare = (target = target, plots = copy(labels)),
+        missing_runs = copy(manager.missing_runs),   # (set_compute!(false): runs not stored, not computed)
         camera_locked = manager.camera_locked[],
         pending = [k for k in (:Simulation, :Layout, :Plot) if manager.flags[k][]],
         sliders = [_slider_state(key) for key in _shown_sliders()],
@@ -634,6 +636,8 @@ function describe_studio(io::IO = stdout)
                     k in unslid ? "  (no slider: the plots show the first value; set_max_params! opens more)" : "")
         end
     end
+    isempty(s.missing_runs) || println(io, "Missing runs (not computed, set_compute!(false)): ",
+                                        _short(join(_run_label.(s.missing_runs), "; "), 300))
     a = s.axes
     println(io, "Plot: style $(s.style) ($(s.style_dim)D); x = $(a.x), y = $(a.y), z = $(a.z), u = $(a.u), component $(a.component)",
             s.compare.target === :none ? "" : "; compare $(s.compare.target): $(join(s.compare.plots, ", "))",

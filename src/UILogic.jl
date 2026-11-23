@@ -749,7 +749,25 @@ _short(s::AbstractString, n::Int = 40) = length(s) > n ? first(s, n - 1) * "…"
 
 # The status line after a run, `(message, level)`: what ran, was cached or failed, from the `RunSummary` of PDEStudioCore
 # (older versions return nothing: then only the time)
+# A run by its swept values (and method): `N = 640, ε = 1e-3`
+function _run_label(p::AbstractDict)
+    config = manager.active_config
+    keys_ = isnothing(config) ? Symbol[] : sort!([k for k in keys(config.varied) if haskey(p, k)], by = string)
+    text = join(("$(frontend_key(k)) = $(_fmt_value(p[k]))" for k in keys_), ", ")
+    # (the method: the one whose own parameters the run has)
+    m = isnothing(config) ? nothing : findfirst(mp -> !isempty(mp) && all(k -> haskey(p, k) && isequal(p[k], mp[k]), keys(mp)), config.methods)
+    isempty(text) && (text = _short(join(("$k = $(_fmt_value(v))" for (k, v) in sort!(collect(p), by = first)), ", "), 60))
+    return isnothing(m) ? text : "$text ($(frontend_key(m)))"
+end
+
 function _run_status(summary, elapsed::Real, n_methods::Integer)
+    if hasproperty(summary, :dry_run) && summary.dry_run   # (set_compute!(false))
+        missing_runs = length(summary.ran)
+        msg = "Not computed (set_compute!(false)): $(length(summary.tasks)) runs, $(length(summary.cached)) stored"
+        missing_runs == 0 && return (msg * ".", :ok)
+        return (msg * ", $missing_runs missing (gaps in the plots): " * _short(join(_run_label.(summary.ran), "; "), 120) *
+                " (studio_state().missing_runs)", :warn)
+    end
     head = "Simulation finished in $(round(elapsed, digits = 1)) s"
     all(p -> hasproperty(summary, p), (:tasks, :ran, :cached, :failed)) || return ("$head ($n_methods methods).", :ok)
     n(field) = hasproperty(summary, field) ? length(getproperty(summary, field)) : 0

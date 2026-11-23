@@ -337,10 +337,12 @@ function reset_plotter!()
 end
 
 """
-    launch_plotter(config = nothing; style = nothing) -> Figure
+    launch_plotter(config = nothing; style = nothing, compute = nothing) -> Figure
 
 Builds the studio window and returns its `Figure` (show it with `display`, or use [`@launch`](@ref), which does).
 
+- `compute = false`: compute nothing, show what is stored (missing runs stay gaps and are listed); sets
+  [`set_compute!`](@ref) for the session (`nothing` keeps the setting).
 - `style`: the plot style to start with, a group (`:lines`, `:scatter`, `:contour`, `:heatmap`, `:volume`,
   `:particles`: its first style) or a style (e.g. `:heatmap_surface`, `:contour_3d`, `:particles_2d`). The axes
   follow from the data: a 2D style shows `x` and `y`, or `x` and `t` for 1D data. The particle styles draw the data
@@ -358,7 +360,9 @@ fig = launch_plotter(test_heat_2d(); style = :heatmap)
 display(fig)
 ```
 """
-function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
+function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing,
+                        compute::Union{Nothing, Bool} = nothing)
+    isnothing(compute) || set_compute!(compute)
     manager.launch_run = nothing
     plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)   # (an unknown style throws before running)
     launch_run = isnothing(config) ? nothing : _prepare_for_config!(config, style)
