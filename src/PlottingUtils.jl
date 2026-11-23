@@ -1287,6 +1287,9 @@ function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::Str
     haskey(y_ui, :label_offset) && (ax.ylabelpadding = y_ui[:label_offset]) 
     
     ax.xgridvisible, ax.xticklabelsvisible = x_ui[:grid_visibility], x_ui[:tick_label_visibility] 
+    rx, ry = get(x_ui, :reversed, false) === true, get(y_ui, :reversed, false) === true
+    ax.xreversed[] == rx || (ax.xreversed = rx)
+    ax.yreversed[] == ry || (ax.yreversed = ry)
     ax.ygridvisible, ax.yticklabelsvisible = y_ui[:grid_visibility], y_ui[:tick_label_visibility] 
 
     x_off = x_ui[:scale_offset] 
@@ -1325,6 +1328,10 @@ function set_axis_styles!(ax::Axis3, def_x::String, def_y::String, def_z::String
     ax.xgridvisible, ax.xticklabelsvisible = x_ui[:grid_visibility], x_ui[:tick_label_visibility] 
     ax.ygridvisible, ax.yticklabelsvisible = y_ui[:grid_visibility], y_ui[:tick_label_visibility] 
     ax.zgridvisible, ax.zticklabelsvisible = z_ui[:grid_visibility], z_ui[:tick_label_visibility] 
+    for (attr, ui) in ((:xreversed, x_ui), (:yreversed, y_ui), (:zreversed, z_ui))
+        r = get(ui, :reversed, false) === true
+        getproperty(ax, attr)[] == r || setproperty!(ax, attr, r)
+    end
 
     haskey(x_ui, :label_offset) && (ax.xlabeloffset = x_ui[:label_offset]) 
     haskey(y_ui, :label_offset) && (ax.ylabeloffset = y_ui[:label_offset]) 
@@ -1485,7 +1492,7 @@ function _collect_legend_elements(ui_app::Dict)
                     push!(group, Makie.LineElement(color=color, linewidth=ui_app[:line_width], linestyle=ls)) 
                 end
                 
-                if :markers in deps && :colors in deps
+                if :markers in deps && :colors in deps && !_no_marker(ui_app[:markers][mod1(m_idx, end)])
                     mrk = ui_app[:markers][mod1(m_idx, end)] 
                     push!(group, Makie.MarkerElement(color=color, marker=mrk, markersize=ui_app[:marker_size])) 
                 end

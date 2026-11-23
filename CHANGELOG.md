@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **No marker for a method or line:** `:none` in the markers list (also `nothing` or a blank character).
+- **Reversed axes:** the axis option `reversed` (`studio_option!(:x_axis_1d, :reversed, true)`, e.g. ε → 0 to the right).
 - **Names for swept values:** `set_value_label!(param, value => "name", …)` (also the tuples of a joint sweep);
   titles, compared subplots, lines and the slider label show the name. Exports keep them (`Scene, Value_Labels`).
 - **Convergence rates and number tables:** `studio_rates(plot)` (local log-log slopes per method or line, also in

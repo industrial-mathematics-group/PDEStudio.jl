@@ -474,7 +474,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
                 
                 for (key, prim) in cache.primitives
                     # Pass the computed cr_obs
-                    apply_ui_style!(key, prim, ui_app, c, cr_obs)
+                    apply_ui_style!(key, prim, ui_app, c, cr_obs; index = m_idx)
                 end
             end
             

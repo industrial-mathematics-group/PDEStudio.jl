@@ -294,6 +294,7 @@ function create_master_ui_dict()
         :tick_format       => "default", 
         :scale_offset      => 0.0, 
         :log_scale         => false, 
+        :reversed          => false,   # (values falling along the axis: ε → 0 to the right)
         :padding           => pad,
         :label_offset      => default_offset,
         :lims              => Any[]
@@ -534,7 +535,15 @@ end
 The runtime style applicator. 
 It queries the strict `STYLE_DEPENDENCIES` matrix to determine exactly which attributes (e.g., line width, colormaps, color limits) the given Makie primitive `prim` fundamentally supports. It then safely binds those values in-place directly from the UI dictionary `ui_app`, averting `MethodError`s on incompatible primitives.
 """
-function apply_ui_style!(prim_key::Union{Symbol, AbstractString}, prim::Any, ui_app::Dict, color::Any, cr_obs::Observable = Observable((0.0, 1.0)))
+# The marker of the `i`-th method or line and its size: `:none` (or `nothing`, a blank character) draws no marker
+function _marker_and_size(ui_app::AbstractDict, i::Integer)
+    m = ui_app[:markers][mod1(i, end)]
+    return _no_marker(m) ? (:circle, 0.0f0) : (m, Float32(ui_app[:marker_size]))
+end
+_no_marker(m) = m === :none || isnothing(m) || (m isa AbstractChar && isspace(m)) || (m isa AbstractString && isempty(strip(m)))
+
+function apply_ui_style!(prim_key::Union{Symbol, AbstractString}, prim::Any, ui_app::Dict, color::Any, cr_obs::Observable = Observable((0.0, 1.0));
+                         index::Union{Nothing, Integer} = nothing)
     k = Symbol(prim_key)
     deps = get(STYLE_DEPENDENCIES, k, Symbol[])
     
@@ -559,7 +568,7 @@ function apply_ui_style!(prim_key::Union{Symbol, AbstractString}, prim::Any, ui_
         end
         
         if :marker_size in deps && haskey(prim.attributes, :markersize)
-            prim.markersize[] = Float32(ui_app[:marker_size])
+            prim.markersize[] = isnothing(index) ? Float32(ui_app[:marker_size]) : last(_marker_and_size(ui_app, index))
         end
     catch e
         @warn "Failed to apply UI style dynamically to $k" exception=(e, catch_backtrace())

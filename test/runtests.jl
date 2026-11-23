@@ -1458,6 +1458,21 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     PDEStudio.load_and_apply_csv!(vpath)
     @test manager.value_labels[:cfl] == Dict{Any, String}(0.25 => "small", 1.0 => "unit")
     set_value_label!(:cfl)
+    # --- a reversed axis; a method without markers (:none) ---
+    studio_set!(:plot_style => :scatter_lines, :x_axis => :x, :u_axis => :Solution)
+    studio_option!(:x_axis_1d, :reversed, true)
+    @test only(PDEStudio._plot_axes()).xreversed[] === true
+    studio_option!(:x_axis_1d, :reversed, false)
+    @test only(PDEStudio._plot_axes()).xreversed[] === false
+    old_markers = copy(manager.ui[:plot_style][:markers])
+    studio_option!(:plot_style, :markers, Any[:none, :rect])
+    sizes = [manager.caches[1][m].primitives[:scatter_lines].markersize[] for m in manager.methods[]]
+    @test sizes[1] == 0 && sizes[2] > 0
+    legend = PDEStudio._collect_legend_elements(manager.ui[:plot_style])[1]
+    @test !any(e -> e isa Makie.MarkerElement, legend[1]) && any(e -> e isa Makie.MarkerElement, legend[2])
+    @test PDEStudio._no_marker(' ') && PDEStudio._no_marker(nothing) && !PDEStudio._no_marker(:circle)
+    studio_option!(:plot_style, :markers, old_markers)
+    studio_set!(:plot_style => :lines)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)
