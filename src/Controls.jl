@@ -45,7 +45,7 @@ const METHOD_FILTERS = (:active, :disabled, :all)
 # The editor shows an overview of the pages (scopes) of its category, or one page with a row per key. Both are
 # fixed sets of widgets, bound to the selected category / scope on the fly (see `_render_editor!`).
 const EDITOR_ROWS = 16        # key rows of a page (the height of the Plot tab); longer scopes get ◀ ▶ pages
-const OVERVIEW_BUTTONS = 30   # page buttons of an overview (UI: 5 general + 5 axes + up to 17 plot styles)
+const OVERVIEW_BUTTONS = 32   # page buttons of an overview (UI: 7 general + 5 axes + up to 17 plot styles)
 const OVERVIEW_COLS = 3
 const OVERVIEW_SECTIONS = 6   # titled groups of an overview (UI: General, Labels, Axes, Plot styles; plot styles: one per base plot and Particles)
 const EDITOR_ROWGAP = 4
@@ -134,6 +134,7 @@ function create_controls(layout::GridLayout)
     build_sliders!(slider_area)
     rowsize!(layout, 6, Fixed(ceil(Int, something(Makie.GridLayoutBase.determinedirsize(slider_area, Makie.GridLayoutBase.Row()), 0f0))))
     _sync_slider_rows!()
+    _sync_layout_rows!()   # (the park exists now: rows that don't apply to the style leave the panel)
 
     # Restore from the persistent cache instead of hard defaults
     apply_layout_options!(manager.layout_cache)
@@ -175,7 +176,13 @@ function create_file_controls!(layout::GridLayout)
     Label(layout[4, 1:4], "Load: a CSV, or a Julia file returning a SimulationConfig (runs its code). Files can also be dropped.",
           halign = :left, fontsize = 11, color = :gray40)
     Label(layout[5, 1], "Data", halign = :left, fontsize = 13)
-    w[:resolution_button] = Button(layout[5, 2:3], label = "Resolution ›", width = nothing)
+    w[:resolution_button]  = Button(layout[5, 2], label = "Resolution ›", width = nothing)
+    # (the session settings `set_compute!` / `set_error_field!`, as buttons showing their state)
+    w[:compute_button]     = Button(layout[5, 3], label = "Compute: on", width = nothing)
+    w[:error_field_button] = Button(layout[5, 4], label = "u − u_ref: off", width = nothing)
+    manager.listeners[:Compute_Click] = on(_ -> set_compute!(!_COMPUTE[]), w[:compute_button].clicks)
+    manager.listeners[:Error_Field_Click] = on(_ -> set_error_field!(!_ERROR_FIELD[]), w[:error_field_button].clicks)
+    _sync_data_buttons!()
 
     Label(layout[6, 1:4], "Presets", halign = :left, font = :bold, color = :darkred)
     neutral = RGBf(0.92, 0.92, 0.92)
@@ -300,10 +307,10 @@ struct ValuesBox
     selection::Observable{String}
 end
 
-function ValuesBox(pos)
+function ValuesBox(pos, name::Symbol = :compare)
     tb = Textbox(pos, placeholder = "all", stored_string = "all", displayed_string = "all", width = nothing)
     vb = ValuesBox(tb, Observable("all"))
-    manager.listeners[:ValuesBox_compare] = on(tb.stored_string) do s
+    manager.listeners[Symbol("ValuesBox_", name)] = on(tb.stored_string) do s
         s isa AbstractString || return
         _set_values_text!(vb, s)
     end
@@ -312,7 +319,9 @@ end
 
 # "all" for an empty text, otherwise the entries separated by ", "
 function _values_text(s)
-    items = filter(!isempty, strip.(split(String(s), r"[,;]")))
+    # (a list may be typed with brackets and any of comma, semicolon or space between the values: `[.1, .2, .5, 1.]`)
+    text = replace(strip(String(s)), r"^[\[\(]|[\]\)]$" => "")
+    items = filter(!isempty, strip.(split(text, r"[,;\s]+")))
     return isempty(items) || (length(items) == 1 && lowercase(only(items)) == "all") ? "all" : join(items, ", ")
 end
 
@@ -329,6 +338,40 @@ function _option_row!(gl::GridLayout, row::Int, name::AbstractString)
     return gl[row, 2]
 end
 
+# One option of the layout panel in a row layout of its own (`manager.panels[:layout_row_<key>]`), so the rows that
+# don't apply to the plot style can be parked (`_sync_layout_rows!`); returns the widget's position.
+function _layout_row!(gl::GridLayout, i::Int, key::Symbol, name::AbstractString)
+    # (attached: blocks need a figure; `tellwidth = false`: the panel keeps the control column's width, so the widgets
+    # fill it instead of the column shrinking to the widest row)
+    row = manager.panels[Symbol("layout_row_", key)] = gl[i, 1] = GridLayout(tellwidth = false)
+    Label(row[1, 1], name, halign = :left, fontsize = 13)
+    colsize!(row, 1, Fixed(140))
+    return row[1, 2]
+end
+
+# The rows of the layout panel, in order; the legend and the lines (*Lines*, *Line Values*) exist for the 1D line and
+# scatter styles only (`LEGEND_SUPPORTED_PLOTS`), the other rows for every style.
+const LAYOUT_ROW_KEYS = (:title, :plot_style, :plot_width, :plot_height, :legend_base, :legend_add, :compare_target,
+                         :compare_columns, :compare_values, :compare_link, :line_target, :line_values)
+const LEGEND_LAYOUT_ROWS = (:legend_base, :legend_add, :line_target, :line_values)
+
+"""
+    _sync_layout_rows!()
+
+Shows the rows of the layout panel (Plot tab) that apply to the plot style and parks the others: the legend and the
+lines rows only for the 1D line and scatter styles. Called when the panel is built and when the style changes.
+"""
+function _sync_layout_rows!()
+    haskey(manager.panels, :layout_options) || return nothing
+    style = haskey(manager.widgets, :plot_style) ? _base_style(manager.widgets[:plot_style].selection[]) : :lines_1d
+    with_legend = style in LEGEND_SUPPORTED_PLOTS
+    rows = [manager.panels[Symbol("layout_row_", k)] for k in LAYOUT_ROW_KEYS]
+    gl = manager.panels[:layout_options]
+    _pack!(gl, rows, [!(k in LEGEND_LAYOUT_ROWS) || with_legend for k in LAYOUT_ROW_KEYS]; gap = 4)
+    size(gl)[1] > 1 && rowgap!(gl, 1, 8)   # below the section title
+    return nothing
+end
+
 # Column widths and gaps of the options panels.
 function _finish_option_panel!(gl::GridLayout)
     colsize!(gl, 1, Fixed(140))
@@ -342,26 +385,32 @@ end
 
 Builds the upper half of the `Plot` tab, one option per row: the structural layout features applied with *Apply
 Layout*: the plot style (chosen on a page of all styles, `StyleChoice`), plot width and height (`NumberBox`),
-legend placement and the multi-plot comparison (target, grid columns, the values compared (`ValuesBox`), coupling).
+legend placement, the multi-plot comparison (target, grid columns, the values compared (`ValuesBox`), coupling) and
+the lines of 1D plots (one per method, or per method and value of a swept parameter or time, *Lines* / *Line Values*).
 """
 function build_layout_options!(menu_layout::GridLayout)
     w = manager.widgets
-    Label(menu_layout[1, 1:2], "Layout options  (Apply Layout)", font = :bold, color = :darkred, halign = :left)
+    manager.panels[:layout_options] = menu_layout
+    title = manager.panels[:layout_row_title] = menu_layout[1, 1] = GridLayout(tellwidth = false)
+    Label(title[1, 1], "Layout options  (Apply Layout)", font = :bold, color = :darkred, halign = :left)
 
-    w[:plot_style]  = StyleChoice(_option_row!(menu_layout, 2, "Plot Style"), manager.mode[] == :eulerian ? :lines_1d : :scatter_1d)
-    w[:plot_width]  = NumberBox(_option_row!(menu_layout, 3, "Plot Width (px)"), 500; lo = 50, hi = 5000, name = "Plot Width")
-    w[:plot_height] = NumberBox(_option_row!(menu_layout, 4, "Plot Height (px)"), 400; lo = 50, hi = 5000, name = "Plot Height")
-    w[:legend_base] = Menu(_option_row!(menu_layout, 5, "Legend"),
+    w[:plot_style]  = StyleChoice(_layout_row!(menu_layout, 2, :plot_style, "Plot Style"), manager.mode[] == :eulerian ? :lines_1d : :scatter_1d)
+    w[:plot_width]  = NumberBox(_layout_row!(menu_layout, 3, :plot_width, "Plot Width (px)"), 500; lo = 50, hi = 5000, name = "Plot Width")
+    w[:plot_height] = NumberBox(_layout_row!(menu_layout, 4, :plot_height, "Plot Height (px)"), 400; lo = 50, hi = 5000, name = "Plot Height")
+    w[:legend_base] = Menu(_layout_row!(menu_layout, 5, :legend_base, "Legend"),
                            options = Any[menu_opt(:none), menu_opt(:center), menu_opt(:left), menu_opt(:right), menu_opt(:top), menu_opt(:bottom)])
-    w[:legend_add]  = Menu(_option_row!(menu_layout, 6, "Legend Placement"),
+    w[:legend_add]  = Menu(_layout_row!(menu_layout, 6, :legend_add, "Legend Placement"),
                            options = Any[menu_opt(:detached), menu_opt(:left), menu_opt(:right), menu_opt(:top), menu_opt(:bottom)])
-    w[:compare_target]  = Menu(_option_row!(menu_layout, 7, "Compare"),
+    w[:compare_target]  = Menu(_layout_row!(menu_layout, 7, :compare_target, "Compare"),
                                options = Any[menu_opt(:none), menu_opt(:methods), menu_opt(:component)])
-    w[:compare_columns] = NumberBox(_option_row!(menu_layout, 8, "Grid Columns"), 2; lo = 1, hi = MAX_COMPARE_PLOTS, name = "Grid Columns")
-    w[:compare_values]  = ValuesBox(_option_row!(menu_layout, 9, "Compare Values"))
-    w[:compare_link]    = Menu(_option_row!(menu_layout, 10, "Compare Link"),
+    w[:compare_columns] = NumberBox(_layout_row!(menu_layout, 8, :compare_columns, "Grid Columns"), 2; lo = 1, hi = MAX_COMPARE_PLOTS, name = "Grid Columns")
+    w[:compare_values]  = ValuesBox(_layout_row!(menu_layout, 9, :compare_values, "Compare Values"))
+    w[:compare_link]    = Menu(_layout_row!(menu_layout, 10, :compare_link, "Compare Link"),
                                options = Any[menu_opt(:fully_coupled), menu_opt(:colorbar_only), menu_opt(:axes_only), menu_opt(:decoupled)])
-    _finish_option_panel!(menu_layout)
+    w[:line_target]     = Menu(_layout_row!(menu_layout, 11, :line_target, "Lines"), options = Any[menu_opt(:methods)])
+    w[:line_values]     = ValuesBox(_layout_row!(menu_layout, 12, :line_values, "Line Values"), :lines)
+    manager.listeners[:Layout_Rows] = on(_ -> _sync_layout_rows!(), w[:plot_style].selection)
+    _sync_layout_rows!()
 end
 
 """

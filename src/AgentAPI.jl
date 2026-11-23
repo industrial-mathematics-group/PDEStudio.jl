@@ -407,9 +407,10 @@ function studio_export(name::AbstractString = "plot_export"; formats = nothing, 
         items = formats isa Union{AbstractString, Symbol} ? [formats] : collect(formats)
         fmts = String[lowercase(lstrip(string(f), '.')) for f in items]
         isempty(fmts) && throw(ArgumentError("studio_export: no formats given"))
-        bad = filter(!in(STATIC_EXPORT_FORMATS), fmts)
+        bad = filter(f -> !(f in STATIC_EXPORT_FORMATS) && !(f in DATA_EXPORT_FORMATS), fmts)
         isempty(bad) || throw(ArgumentError("studio_export: formats $(repr(bad)) can't be exported; formats: " *
-                                            join(STATIC_EXPORT_FORMATS, ", ") * " (animations: name ending in " *
+                                            join(STATIC_EXPORT_FORMATS, ", ") * ", and " * join(DATA_EXPORT_FORMATS, ", ") *
+                                            " for the plotted numbers (animations: name ending in " *
                                             join("." .* ANIMATION_EXPORT_FORMATS, ", ") * ")"))
     end
     settings = manager.ui[:export]
@@ -554,7 +555,8 @@ _numbers(x) = ()
 What the studio shows, as data (the same as [`describe_studio`](@ref) prints): the status line, the bound
 configuration (solver, methods, swept parameters), the plot style and the variables on the axes, the comparison,
 the sliders, and per subplot its title, axis labels, shown limits (and 3D camera angles in degrees) and the range of
-the plotted values per method. Use it to check the result of an action; [`studio_data`](@ref) gives the plotted
+the plotted values per method; with `set_compute!(false)` the runs that are missing (`missing_runs`). Use it to check
+the result of an action; [`studio_data`](@ref) gives the plotted
 numbers themselves.
 """
 function studio_state()
@@ -579,6 +581,7 @@ function studio_state()
         axes = (x = _menu_value(:x_axis), y = _menu_value(:y_axis), z = _menu_value(:z_axis),
                 u = _menu_value(:u_axis), component = _menu_value(:component)),
         compare = (target = target, plots = copy(labels)),
+        missing_runs = copy(manager.missing_runs),   # (set_compute!(false): runs not stored, not computed)
         camera_locked = manager.camera_locked[],
         pending = [k for k in (:Simulation, :Layout, :Plot) if manager.flags[k][]],
         sliders = [_slider_state(key) for key in _shown_sliders()],
@@ -634,6 +637,8 @@ function describe_studio(io::IO = stdout)
                     k in unslid ? "  (no slider: the plots show the first value; set_max_params! opens more)" : "")
         end
     end
+    isempty(s.missing_runs) || println(io, "Missing runs (not computed, set_compute!(false)): ",
+                                        _short(join(_run_label.(s.missing_runs), "; "), 300))
     a = s.axes
     println(io, "Plot: style $(s.style) ($(s.style_dim)D); x = $(a.x), y = $(a.y), z = $(a.z), u = $(a.u), component $(a.component)",
             s.compare.target === :none ? "" : "; compare $(s.compare.target): $(join(s.compare.plots, ", "))",
@@ -645,6 +650,12 @@ function describe_studio(io::IO = stdout)
         println(io, "  plot $(p.plot): \"$(p.title)\" [$(p.xlabel) | $(p.ylabel)$(p.is_3d ? " | " * p.zlabel : "")] $lims")
         for (m, r) in sort!(collect(p.value_ranges), by = first)
             println(io, "    $m: values ", isnothing(r) ? "none" : _fmt_lims(r))
+        end
+        # (over a swept parameter, e.g. errors over N: the local log-log slopes, i.e. the observed orders)
+        if !isnothing(s.config) && (haskey(s.config.swept, a.x) || _is_joint_key(a.x))
+            for (m, sl) in sort!(collect(studio_rates(p.plot)), by = first)
+                isempty(sl) || println(io, "    $m: log-log slopes ", join(_md_num.(sl), ", "))
+            end
         end
         if length(p.value_ranges) == 1 && length(s.drawn_methods) > 1 && :method_index in get(STYLE_DEPENDENCIES, _base_style(s.style), Symbol[])
             order = [filter(m -> !is_reference_method(m), s.drawn_methods); filter(is_reference_method, s.drawn_methods)]
@@ -682,9 +693,13 @@ const _STUDIO_BUTTONS = (run = (:run_button, "Run Simulation"), apply_layout = (
                          update_plot = (:plot_button, "Update Plot"), lock_camera = (:lock_camera_button, "Lock Camera"))
 const _MENU_LABELS = Dict(:x_axis => "X-Axis", :y_axis => "Y-Axis", :z_axis => "Z-Axis", :u_axis => "dependent field",
                           :component => "component", :anim_target => "animation target", :compare_target => "Compare",
-                          :compare_link => "Compare Link", :legend_base => "Legend", :legend_add => "Legend Placement")
+                          :compare_link => "Compare Link", :legend_base => "Legend", :legend_add => "Legend Placement",
+                          :line_target => "Lines (1D plots: per method, or per method and value of time or a swept parameter)")
 const _VALUES_LABEL = "the values compared: :all, or a list (swept values or times: the nearest one each; components: " *
                       "numbers; methods and non-numeric values: names)"
+const _VALUES_CONTROLS = Dict(:compare_values => _VALUES_LABEL,
+                              :line_values => "the values of the lines (Lines over time or a swept parameter): :all, or a " *
+                                              "list (numbers: the nearest one each; non-numeric values: names)")
 const _NUMBER_LABELS = Dict(:plot_width => "Plot Width (px)", :plot_height => "Plot Height (px)",
                             :compare_columns => "Grid Columns")
 
@@ -698,7 +713,8 @@ _control_step(name) = name in PLOT_AXIS_OPTIONS ? :update_plot : name in LAYOUT_
 The controls of the studio, as [`studio_set!`](@ref) and [`studio_press!`](@ref) take them: `(name, kind, value,
 choices, label, applies)`, where `kind` is `:slider` (choices: the slider values), `:menu`, `:number` (choices:
 `(lo, hi)`), `:style` (the plot styles the data allows), `:methods` (the methods of the configuration; the value is
-the active ones, in drawing order), `:values` (`compare_values`: the values a comparison shows, `"all"` or a list) or
+the active ones, in drawing order), `:values` (`compare_values`, `line_values`: the values a comparison or the lines
+show, `"all"` or a list) or
 `:button`, and `applies` the button that applies a change (`studio_set!`
 presses it for you). Sliders are named by their parameter or dimension (e.g. `:N`, `:t`).
 """
@@ -709,7 +725,7 @@ function studio_controls()
     push!(out, (name = :plot_style, kind = :style, value = _public_style(w[:plot_style].selection[]),
                 choices = _style_choices(), label = "plot style (`launch_plotter(; style)` names)", applies = :apply_layout))
     for key in (:x_axis, :y_axis, :z_axis, :u_axis, :component, :anim_target, :compare_target, :compare_link,
-                :legend_base, :legend_add)
+                :legend_base, :legend_add, :line_target)
         haskey(w, key) || continue
         label = key === :u_axis ? join(filter(!isempty, [_MENU_LABELS[key], _statistics_hint()]), "; ") :
                 key === :x_axis && manager.mode[] === :eulerian ?
@@ -724,9 +740,10 @@ function studio_controls()
         push!(out, (name = key, kind = :number, value = nb.selection[], choices = (nb.lo, nb.hi),
                     label = _NUMBER_LABELS[key], applies = :apply_layout))
     end
-    haskey(w, :compare_values) &&
-        push!(out, (name = :compare_values, kind = :values, value = w[:compare_values].selection[], choices = nothing,
-                    label = _VALUES_LABEL, applies = :apply_layout))
+    for (key, label) in sort!(collect(_VALUES_CONTROLS), by = first)
+        haskey(w, key) && push!(out, (name = key, kind = :values, value = w[key].selection[], choices = nothing,
+                                      label = label, applies = :apply_layout))
+    end
     config = manager.active_config
     isnothing(config) || push!(out, (name = :methods, kind = :methods, value = copy(config.defaults),
                                      choices = sort!(collect(keys(config.methods))),
@@ -797,6 +814,7 @@ studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
 studio_set!(:N => 128)
 studio_set!(:compare_target => :methods, :compare_columns => 3)
 studio_set!(:compare_target => :epsilon, :compare_values => [1e-2, 1e-4])   # (some of the swept values)
+studio_set!(:line_target => :ic)   # (1D plots: a line per method and initial condition)
 studio_set!(:compare_target => :none, :cfl => 0.5)   # (the slider the comparison held)
 ```
 """
@@ -859,7 +877,7 @@ end
 # Throws the error `studio_set!` gives for a name that is no control (before anything is set)
 function _check_control_name(n::Symbol)
     w = manager.widgets
-    (n in (:plot_style, :methods) || (n in keys(_MENU_LABELS) && haskey(w, n)) || (n === :compare_values && haskey(w, n)) ||
+    (n in (:plot_style, :methods) || (n in keys(_MENU_LABELS) && haskey(w, n)) || (haskey(_VALUES_CONTROLS, n) && haskey(w, n)) ||
      (n in keys(_NUMBER_LABELS) && haskey(w, n)) || !isnothing(_slider_key(n))) && return nothing
     n in _unslid_parameters() && throw(_unslid_error(n))
     throw(_no_control_error(n))
@@ -875,7 +893,7 @@ _slider_enabled(n) = (key = _slider_key(n); !isnothing(key) && length(manager.wi
 
 # The order `studio_set!` sets controls in (stable within a rank)
 const _SLIDER_RANK = 9
-const _CONTROL_RANKS = Dict(:plot_style => 1, :methods => 2, :compare_target => 3, :compare_link => 3, :compare_columns => 3, :compare_values => 3,
+const _CONTROL_RANKS = Dict(:plot_style => 1, :methods => 2, :compare_target => 3, :compare_link => 3, :compare_columns => 3, :compare_values => 3, :line_target => 3, :line_values => 3,
                             :legend_base => 3, :legend_add => 3, :plot_width => 3, :plot_height => 3, :x_axis => 4,
                             :y_axis => 5, :z_axis => 6, :u_axis => 7, :component => 8, :anim_target => 8)
 _control_rank(name::Symbol) = get(_CONTROL_RANKS, name, _SLIDER_RANK)
@@ -901,9 +919,9 @@ function _set_control!(name::Symbol, value)
         _set_menu_control!(name, w[name], value)
         return _control_step(name)
     end
-    if name === :compare_values && haskey(w, name)
+    if haskey(_VALUES_CONTROLS, name) && haskey(w, name)
         ok = value isa Union{Symbol, AbstractString, Real} || (value isa Union{AbstractVector, Tuple} && !isempty(value))
-        ok || throw(ArgumentError("compare_values = $(repr(value)): " * _VALUES_LABEL))
+        ok || throw(ArgumentError("$name = $(repr(value)): " * _VALUES_CONTROLS[name]))
         _set_values_text!(w[name], value isa Union{AbstractVector, Tuple} ? [_values_entry(v) for v in value] : _values_entry(value))
         return :apply_layout
     end
@@ -1176,3 +1194,231 @@ function studio_data(plot::Integer = 1)
     a = studio_state().axes
     return (plot = plot, variables = a, methods = data)
 end
+
+"""
+    studio_rates(plot = 1) -> Dict{Symbol, Vector{Float64}}
+
+The local slopes of the curves of 1D subplot `plot` on log-log axes, per method (or line, see *Lines*): entry `k` is
+`Δlog u / Δlog x` between the `k`-th and the `k+1`-th point in the order of `x`. For an error over a swept grid size
+`N` the observed order of convergence is `-slope`; over a step size `h` it is the slope. Pairs with a value or
+coordinate that isn't positive and finite give `NaN`. [`describe_studio`](@ref) lists them when the x axis is a swept
+parameter; [`studio_export_data`](@ref) writes them with the plotted numbers.
+"""
+function studio_rates(plot::Integer = 1)
+    out = Dict{Symbol, Vector{Float64}}()
+    for (m, c) in studio_data(plot).methods
+        xu = _curve_points(c)
+        isnothing(xu) && continue
+        out[m] = _loglog_slopes(xu...)
+    end
+    return out
+end
+
+# The points of a 1D curve `(x, u)` sorted by x, or `nothing` for other data
+function _curve_points(c)
+    hasproperty(c, :x) || return nothing
+    x, u = c.x, c.u
+    (x isa AbstractVector && u isa AbstractVector && length(x) == length(u) && all(v -> v isa Real, x) &&
+     all(v -> v isa Real, u)) || return nothing
+    p = sortperm(x)
+    return Float64.(x[p]), Float64.(u[p])
+end
+
+_loglog_slopes(x, u) = [x[k] > 0 && x[k + 1] > 0 && u[k] > 0 && u[k + 1] > 0 && isfinite(u[k]) && isfinite(u[k + 1]) &&
+                        x[k + 1] != x[k] ? log(u[k + 1] / u[k]) / log(x[k + 1] / x[k]) : NaN for k in 1:length(x) - 1]
+
+"""
+    studio_export_data(path; plot = :all) -> String
+
+Writes the numbers the 1D subplots draw: per subplot and method (or line) the points `x`, `u` and the local log-log
+slope from the previous point ([`studio_rates`](@ref); none at the first point, as in a convergence table). `path` ending in `.md` gives Markdown tables, one per subplot under
+its title, with a column of values and of slopes per method when they share the x values; any other path a CSV file
+with the columns `plot, title, series, x, u, slope`. Returns the path.
+
+```julia
+studio_set!(:x_axis => :N, :u_axis => :l1error, :t => 1.0)
+studio_export_data("convergence.md")   # | N | upwind | slope | lax_wendroff | slope |
+```
+"""
+function studio_export_data(path::AbstractString; plot = :all)
+    n = length(_plot_axes())
+    plots = plot === :all ? collect(1:n) : [plot]
+    all(p -> p isa Integer && 1 <= p <= n, plots) || throw(ArgumentError("plot = $(repr(plot)): there are $n plot(s); use 1…$n or :all"))
+    states = studio_state().plots
+    xname, uname = frontend_key(something(_menu_value(:x_axis), :x)), frontend_key(something(_menu_value(:u_axis), :u))
+    md = endswith(lowercase(path), ".md")
+    io = IOBuffer()
+    md || println(io, "plot,title,series,x,u,slope")
+    for p in plots
+        curves = [(m, _curve_points(c)) for (m, c) in studio_data(p).methods]
+        curves = sort!([(m, xu) for (m, xu) in curves if !isnothing(xu)], by = c -> something(_style_index(c[1]), typemax(Int)))
+        title = states[p].title
+        if !md
+            for (m, (x, u)) in curves, (k, s) in enumerate([NaN; _loglog_slopes(x, u)])
+                println(io, p, ",", _csv_field(title), ",", _csv_field(frontend_key(m)), ",", x[k], ",", u[k], ",", s)
+            end
+            continue
+        end
+        println(io, "### ", isempty(title) ? "Plot $p" : title, "\n")
+        if !isempty(curves) && all(c -> c[2][1] == curves[1][2][1], curves)   # (shared x: one row per x)
+            x = curves[1][2][1]
+            println(io, "| $xname | ", join(("$(frontend_key(m)) | slope" for (m, _) in curves), " | "), " |")
+            println(io, "|", repeat("---|", 1 + 2 * length(curves)))
+            slopes = [[NaN; _loglog_slopes(xu...)] for (_, xu) in curves]
+            for k in eachindex(x)
+                cells = [string(_md_num(xu[2][k]), " | ", k == 1 ? "" : _md_num(slopes[j][k])) for (j, (_, xu)) in enumerate(curves)]
+                println(io, "| ", _md_num(x[k]), " | ", join(cells, " | "), " |")
+            end
+        else
+            println(io, "| series | $xname | $uname | slope |\n|---|---|---|---|")
+            for (m, (x, u)) in curves, (k, s) in enumerate([NaN; _loglog_slopes(x, u)])
+                println(io, "| ", frontend_key(m), " | ", _md_num(x[k]), " | ", _md_num(u[k]), " | ", k == 1 ? "" : _md_num(s), " |")
+            end
+        end
+        println(io)
+    end
+    isempty(dirname(path)) || mkpath(dirname(path))
+    write(path, take!(io))
+    return String(path)
+end
+
+"""
+    studio_add_series!(label, x, y) -> Int
+    studio_clear_series!()
+
+Draws data from outside the studio (the errors a paper reports, a measurement, a curve `y(x)` separating regions
+of a heatmap) in the 1D and 2D plots, like the HUD but in the plot's coordinates: the points `(x, y)` in the
+plotted x variable and the vertical one, the dependent field of a 1D plot (`studio_set!(:x_axis => :N, :u_axis =>
+:l1error)` first, then a paper's errors over `N`) or the y variable of a 2D plot (`(:x_axis => :x, :y_axis => :t)`,
+then a front `t(x)` over the heatmap). The series belong to the axes shown when they are added and are drawn (with
+a legend entry where the style has one, counting for the limits of 1D plots, also in exports) while the plot shows
+those; they are hidden when the axes change and shown again when they are back. Colours and markers
+continue the methods' lists (`plot_style`); line style, width and marker size are the options of *UI → External
+Series* (`studio_option!(:series, …)`), where the points can be edited too (`data`: `Dict("label" => [(x, u), …])`),
+and which presets and exports save. The same label again replaces the series; adding a series under other axes
+replaces all of them. In the window, a plain CSV file with two numeric columns loads the same way, named after the
+file (*Load*, or drop it): one point per line, its first two numbers, separated by a comma, a semicolon, a tab or
+spaces (a decimal comma with a semicolon or tab); quotes and a header line are skipped. Returns the number of series.
+"""
+function studio_add_series!(label::AbstractString, x::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+    length(x) == length(y) || throw(ArgumentError("studio_add_series!: x has $(length(x)) values, y $(length(y))"))
+    isempty(x) && throw(ArgumentError("studio_add_series!: no points"))
+    all(v -> isfinite(v), x) && all(v -> isfinite(v), y) || throw(ArgumentError("studio_add_series!: the points must be finite numbers"))
+    isempty(strip(label)) && throw(ArgumentError("studio_add_series!: give a label"))
+    haskey(manager.ui, :series) || (manager.ui[:series] = deepcopy(MASTER_UI_DICT[:series]))
+    ui = manager.ui[:series]
+    x_sel = haskey(manager.widgets, :x_axis) ? something(_menu_value(:x_axis), :none) : :none
+    vertical = something(_series_vertical(), :none)   # (the dependent field of a 1D plot, the y variable of a 2D one)
+    vertical === :none && haskey(manager.widgets, :plot_style) &&
+        throw(ArgumentError("studio_add_series!: a 3D plot has no plane for the series; choose a 1D or 2D style first"))
+    if !isempty(ui[:data]) && (ui[:x_axis] !== x_sel || ui[:y_axis] !== vertical)
+        @warn "The External Series were added for $(ui[:x_axis]) / $(ui[:y_axis]); the plot now shows $x_sel / $vertical: " *
+              "they are replaced."
+        empty!(ui[:data])
+    end
+    ui[:x_axis], ui[:y_axis] = x_sel, vertical
+    ui[:data][String(strip(label))] = [(Float64(xi), Float64(yi)) for (xi, yi) in zip(x, y)]
+    ui[:visible] = true
+    _redraw_series!()
+    return length(ui[:data])
+end
+
+function studio_clear_series!()
+    haskey(manager.ui, :series) && empty!(manager.ui[:series][:data])
+    _redraw_series!()
+    return nothing
+end
+
+"""
+    studio_inset!(xlims, ylims; plot = 1, position = :rt, size = 0.4) -> Int
+    studio_clear_insets!()
+
+A zoom inset in 1D subplot `plot`: a small axis in a corner (`position`: `:rt`, `:lt`, `:rb`, `:lb`) of `size` times
+the subplot's width and height, which shows the subplot's curves in `xlims` × `ylims` (e.g. a contact
+discontinuity), and a box marking that region in the subplot. The inset follows the sliders and is drawn by exports.
+The insets stay until `studio_clear_insets!()`. Returns the number of insets. In the window, one inset is set under
+*UI → Zoom Inset* (`studio_option!(:inset, :x_lims, …)`, `:y_lims`, `:visible`, `:position`, `:size`, `:plot`); that
+one is saved with the look (presets, exports). `studio_inset!` adds more for the session.
+
+```julia
+studio_inset!((0.45, 0.6), (0.9, 1.6); position = :lt)
+studio_export("riemann_with_contact")
+```
+"""
+function studio_inset!(xlims, ylims; plot::Integer = 1, position::Symbol = :rt, size::Real = 0.4)
+    ok(l) = length(l) == 2 && all(v -> v isa Real && isfinite(v), l) && l[1] < l[2]
+    ok(xlims) && ok(ylims) || throw(ArgumentError("studio_inset!: xlims and ylims are (lo, hi) with lo < hi"))
+    position in keys(_INSET_ALIGN) || throw(ArgumentError("position = $(repr(position)): one of :rt, :lt, :rb, :lb"))
+    0.1 <= size <= 0.9 || throw(ArgumentError("size = $size: a fraction of the subplot from 0.1 to 0.9"))
+    plot >= 1 || throw(ArgumentError("plot = $plot: a subplot number"))
+    push!(manager.insets, (plot = Int(plot), xlims = Float64.(Tuple(xlims)), ylims = Float64.(Tuple(ylims)),
+                           position = position, size = Float64(size)))
+    _redraw_series!()
+    return length(manager.insets)
+end
+
+function studio_clear_insets!()
+    empty!(manager.insets)
+    _redraw_series!()
+    return nothing
+end
+
+const _INSET_ALIGN = Dict(:rt => (:right, :top), :lt => (:left, :top), :rb => (:right, :bottom), :lb => (:left, :bottom))
+
+# Draws the insets (`studio_inset!`) of the 1D subplots `axes` in `plot_layout`, replacing those drawn before
+function _draw_insets!(plot_layout, axes)
+    for ia in get(manager.inset_axes, objectid(plot_layout), Any[])
+        try delete!(ia) catch end   # (a rebuilt layout has removed them already)
+    end
+    delete!(manager.inset_axes, objectid(plot_layout))
+    insets = [manager.insets; _ui_insets()]
+    isempty(insets) && return nothing   # (no entry kept for layouts without insets, e.g. exports)
+    drawn = Any[]
+    manager.inset_axes[objectid(plot_layout)] = drawn
+    plots = get(manager.layout_dict[], :Plots, nothing)
+    for s in insets
+        (s.plot <= length(axes) && axes[s.plot] isa Axis && !isnothing(plots) && s.plot <= length(plots)) || continue
+        ax = axes[s.plot]
+        delete_plots_by_label!(ax, "Inset Box")
+        (x0, x1), (y0, y1) = s.xlims, s.ylims
+        lines!(ax, [x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0]; color = :gray40, linewidth = 1, label = "Inset Box")
+        r, c = plots[s.plot]
+        ha, va = _INSET_ALIGN[s.position]
+        ia = Axis(plot_layout[r, c]; width = Relative(s.size), height = Relative(s.size), halign = ha, valign = va,
+                  tellwidth = false, tellheight = false, backgroundcolor = :white,
+                  xticklabelsize = 0.75 * ax.xticklabelsize[], yticklabelsize = 0.75 * ax.yticklabelsize[],
+                  xscale = ax.xscale[], yscale = ax.yscale[], alignmode = Mixed(left = 12, right = 12, top = 12, bottom = 12))
+        ax.xscale[] === log10 || (ia.xticks = WilkinsonTicks(3, k_min = 2))   # (a small axis: few ticks)
+        ax.yscale[] === log10 || (ia.yticks = WilkinsonTicks(3, k_min = 2))
+        for cache in values(get(manager.caches, s.plot, Dict()))
+            cache isa EulerianPlotCache || continue
+            for (key, prim) in cache.primitives
+                key in (:lines_1d, :scatter_lines) || continue
+                kw = (color = prim.color[], linewidth = prim.linewidth[], linestyle = prim.linestyle[])
+                key === :lines_1d ? lines!(ia, cache.obs_x, cache.obs_u; kw...) :
+                    scatterlines!(ia, cache.obs_x, cache.obs_u; kw..., marker = prim.marker[], markersize = prim.markersize[])
+            end
+        end
+        try limits!(ia, x0, x1, y0, y1) catch end
+        translate!(ia.blockscene, 0, 0, 100)   # (above the subplot's curves: CairoMakie draws the plots sorted by z)
+        translate!(ia.scene, 0, 0, 100)
+        push!(drawn, ia)
+    end
+    return nothing
+end
+
+_redraw_series!() = (manager.is_open && haskey(manager.triggers, :Plot) && (manager.triggers[:Plot][] += 1); nothing)
+
+# The inset of the UI options (*UI → Zoom Inset*, `studio_option!(:inset, …)`), as `studio_inset!` stores one, or none
+function _ui_insets()
+    ui = get(manager.ui, :inset, nothing)
+    (isnothing(ui) && return NamedTuple[])
+    ok(l) = l isa Union{AbstractVector, Tuple} && length(l) == 2 && all(v -> v isa Real && isfinite(v), l) && l[1] < l[2]
+    (get(ui, :visible, false) === true && ok(ui[:x_lims]) && ok(ui[:y_lims])) || return NamedTuple[]
+    return NamedTuple[(plot = Int(get(ui, :plot, 1)), xlims = Float64.(Tuple(ui[:x_lims])), ylims = Float64.(Tuple(ui[:y_lims])),
+                       position = Symbol(get(ui, :position, :rt)), size = Float64(get(ui, :size, 0.4)))]
+end
+
+
+_md_num(v::Real) = isnan(v) ? "–" : isinteger(v) && abs(v) < 1e15 ? string(Int(v)) : _fmt_compare(Float64(v))
+_csv_field(s) = (s = string(s); occursin(r"[,\"\n]", s) ? "\"" * replace(s, "\"" => "\"\"") * "\"" : s)

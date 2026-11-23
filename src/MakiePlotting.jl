@@ -337,10 +337,12 @@ function reset_plotter!()
 end
 
 """
-    launch_plotter(config = nothing; style = nothing) -> Figure
+    launch_plotter(config = nothing; style = nothing, compute = nothing) -> Figure
 
 Builds the studio window and returns its `Figure` (show it with `display`, or use [`@launch`](@ref), which does).
 
+- `compute = false`: compute nothing, show what is stored (missing runs stay gaps and are listed); sets
+  [`set_compute!`](@ref) for the session (`nothing` keeps the setting).
 - `style`: the plot style to start with, a group (`:lines`, `:scatter`, `:contour`, `:heatmap`, `:volume`,
   `:particles`: its first style) or a style (e.g. `:heatmap_surface`, `:contour_3d`, `:particles_2d`). The axes
   follow from the data: a 2D style shows `x` and `y`, or `x` and `t` for 1D data. The particle styles draw the data
@@ -358,7 +360,9 @@ fig = launch_plotter(test_heat_2d(); style = :heatmap)
 display(fig)
 ```
 """
-function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing)
+function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; style::Union{Nothing, Symbol} = nothing,
+                        compute::Union{Nothing, Bool} = nothing)
+    isnothing(compute) || set_compute!(compute)
     manager.launch_run = nothing
     plot_style = isnothing(style) ? nothing : _resolve_plot_style(style)   # (an unknown style throws before running)
     launch_run = isnothing(config) ? nothing : _prepare_for_config!(config, style)
@@ -466,8 +470,10 @@ _sweep_changed(config::SimulationConfig) = isnothing(manager.active_config) || m
 
 # Back to comparing all values (Compare Values; `all` is the default of a new window)
 function _reset_compare_values!()
-    manager.layout_cache[:compare_values] = "all"
-    haskey(manager.widgets, :compare_values) && _set_values_text!(manager.widgets[:compare_values], "all")
+    for key in (:compare_values, :line_values)
+        manager.layout_cache[key] = "all"
+        haskey(manager.widgets, key) && _set_values_text!(manager.widgets[key], "all")
+    end
     return nothing
 end
 
@@ -480,6 +486,11 @@ function _reset_config_view!()
     manager.exploration_cache = Dict{Symbol, Any}(:anim_target => :none, :component => 1)
     manager.layout_cache[:compare_target] = :none
     manager.compare_state = (:none, nothing, String[], Any[])
+    manager.layout_cache[:line_target] = :methods
+    manager.line_state = (:methods, nothing, String[], Any[])
+    empty!(manager.series)
+    empty!(manager.series_labels)
+    empty!(manager.series_style)
     manager.camera_cache = Dict{Symbol, Any}()
     manager.view_context = nothing
     manager.methods.val = Symbol[]   # (the first layout of the window would look for data of the old methods)
@@ -498,6 +509,10 @@ function _reset_open_view!()
     if haskey(w, :compare_target)
         i = findfirst(o -> o[2] === :none, w[:compare_target].options[])
         isnothing(i) || w[:compare_target].i_selected[] == i || (w[:compare_target].i_selected[] = i)
+    end
+    if haskey(w, :line_target)
+        i = findfirst(o -> o[2] === :methods, w[:line_target].options[])
+        isnothing(i) || w[:line_target].i_selected[] == i || (w[:line_target].i_selected[] = i)
     end
     for k in [[Symbol("param_", i) for i in 1:manager.max_params]; get_base_variables()]
         haskey(w, k) && w[k].range[] != [0.0] && (w[k].range[] = [0.0])

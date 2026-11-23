@@ -18,7 +18,7 @@ the scatter style they are based on.
 
 ## Shared Marker Options
 Because every scatter plot relies on discrete geometry, they uniformly support the following structural modifiers:
-*   **Markers (`:markers`):** Defines the geometric shape of the points (e.g., circles, crosses, triangles).
+*   **Markers (`:markers`):** Defines the geometric shape of the points (e.g., circles, crosses, triangles); `:none` draws no marker for that method or line (a line without points next to lines with markers).
 *   **Marker Size (`:marker_size`):** Controls the pixel scaling of the plotted geometries.
 
 ## 1D Scatter Styles

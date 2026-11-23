@@ -15,10 +15,11 @@ if !(isdefined(PDEStudioCore, :StatsView) && hasfield(SimulationConfig, :varied)
 end
 
 export launch_plotter, @launch, set_sim_config!, reset_plotter!, reset_manager!, set_mode!, set_allowed_dims!, set_max_params!, set_plot_preset!, force_simulation, set_resolution!
-export set_figure_path!, get_figure_path, set_label!
+export set_figure_path!, get_figure_path, set_label!, set_value_label!
 export set_sim_preset!, save_sim_preset, save_plot_preset, reset_sim_config!
 # scripting and agents: the studio as functions (src/AgentAPI.jl)
-export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_export, studio_data, studio_controls, studio_set!,
+export set_compute!, set_error_field!
+export studio_headless!, describe_studio, studio_state, studio_snapshot, studio_export, studio_rates, studio_export_data, studio_add_series!, studio_clear_series!, studio_inset!, studio_clear_insets!, studio_data, studio_controls, studio_set!,
        studio_press!, studio_options, studio_option!, studio_view!, studio_zoom!, studio_pan!, studio_rotate!,
        studio_reset_view!
 
@@ -115,6 +116,7 @@ Base.@kwdef mutable struct PlotManager
 
     # --- display names, presets and the slider mapping ---
     labels::Dict{Symbol, String} = Dict{Symbol, String}()            # custom display names (`set_label!`)
+    value_labels::Dict{Symbol, Dict{Any, String}} = Dict{Symbol, Dict{Any, String}}()   # names of swept values (`set_value_label!`)
     presets::Dict{Symbol, String} = Dict{Symbol, String}()           # visual presets: name => description
     sim_presets::Dict{Symbol, String} = Dict{Symbol, String}()       # simulation presets: name => description
     param_map::Dict{Symbol, Symbol} = Dict{Symbol, Symbol}()         # slider key (:param_i) => swept parameter
@@ -168,6 +170,14 @@ Base.@kwdef mutable struct PlotManager
     plot_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     exploration_cache::Dict{Symbol, Any} = Dict{Symbol, Any}()
     compare_state::Tuple{Symbol, Union{Nothing, Int}, Vector{String}, Vector} = (:none, nothing, String[], Any[])
+    # Lines over a swept parameter or time (Plot tab, *Lines*): (target, index into plot_vars, labels, slider values);
+    # `:methods` draws one line per method only. The lines are series (one per method and value), see `_fetch_series`.
+    line_state::Tuple{Symbol, Union{Nothing, Int}, Vector{String}, Vector} = (:methods, nothing, String[], Any[])
+    series::Vector{Symbol} = Symbol[]                                  # the series keys in drawing order (colours, legend)
+    series_labels::Dict{Symbol, String} = Dict{Symbol, String}()       # series key => legend label
+    series_style::Dict{Symbol, Int} = Dict{Symbol, Int}()              # series key => colour / marker index (`_style_index`)
+    insets::Vector{NamedTuple} = NamedTuple[]                          # zoom insets of 1D subplots (`studio_inset!`)
+    inset_axes::Dict{UInt, Vector{Any}} = Dict{UInt, Vector{Any}}()    # the inset axes drawn, per plot layout
     plot_titles::Vector{String} = String[]
     launch_run::Any = nothing                                          # (RunSummary, seconds) of the run before a launch
     bound_setup::Any = nothing                                         # `_view_setup` of the bound configuration
@@ -177,6 +187,7 @@ Base.@kwdef mutable struct PlotManager
     csv_cache::Union{Nothing, NamedTuple} = nothing                  # structural CSV staged until "Run Simulation"
     pending_domain::Any = nothing                                    # data with axes the window lacks (rebuilt on "Run")
     is_exporting::Bool = false
+    missing_runs::Vector{ParamDict} = ParamDict[]                    # runs the last dry run (set_compute!(false)) didn't find
     export_request::Any = nothing                                    # (name, formats) of `studio_export`, read by the Export button
     last_export::Vector{String} = String[]                           # the files the last export wrote
     skip_next_camera_extract::Bool = false

@@ -79,6 +79,31 @@ studio_set!(:anim_target => :t); studio_export("evolution.mp4"; fps = 24, durati
 
 In a headless studio (`studio_headless!()`) nothing is opened in an image viewer.
 
+**Convergence rates and tables:** [`studio_rates`](@ref) gives the local log-log slopes of the 1D curves of a
+subplot (for an error over `N` the observed order is the negative slope), `describe_studio` lists them when the x
+axis is a swept parameter, and [`studio_export_data`](@ref) writes the plotted numbers with them, as Markdown
+(`"convergence.md"`: a table per subplot) or CSV.
+
+**Data from outside:** [`studio_add_series!`](@ref) draws a small table in the plot's coordinates, e.g. a paper's
+errors next to the study's (`studio_set!(:x_axis => :N, :u_axis => :l1error); studio_add_series!("SL7 (paper)", Ns,
+errors)`) or a front `t(x)` over a heatmap (`studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)`
+first). The series belong to the axes shown when they are added (x and the vertical variable: the dependent field
+of a 1D plot, the y variable of a 2D plot) and are hidden while the plot shows others; they get a legend entry
+where the style has one, count for the limits of 1D plots and are drawn by exports. Their options are the UI scope `series`
+(`studio_option!(:series, :line_style, :dot)`, `:data` holds the points), saved with the look;
+`studio_clear_series!()` removes them. In the window the same comes from loading a plain two-column CSV.
+
+**Zoom insets:** [`studio_inset!`](@ref) adds a small axis in a corner of a 1D subplot that shows its curves in a
+region (e.g. a contact discontinuity), with a box marking the region; exports draw it, `studio_clear_insets!()` removes
+them. One inset is also a UI option page, *UI → Zoom Inset* (`studio_option!(:inset, :x_lims, (0.45, 0.6))`, `:y_lims`,
+`:visible`), saved with the look.
+
+**Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`, or the Files tab's
+*Compute: on/off* button) the studio computes nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs
+stay gaps in the plots and are listed in the status line, in `studio_state().missing_runs` and by
+`describe_studio()`. An export records its save path and the data files of its runs (`Metadata, General, save_path`
+/ `run_files`); loading it with another save path names the files that are missing there, so you know what to copy.
+
 ## Operating the controls
 
 [`studio_controls`](@ref) lists every control with its kind, value and choices, under the names

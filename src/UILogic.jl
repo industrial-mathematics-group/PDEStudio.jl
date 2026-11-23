@@ -368,6 +368,61 @@ function _request_load(path::AbstractString)
     _handle_load(path)
 end
 
+# Whether a CSV file has the studio's header (`Category, Scope, Parameter, Value`)
+function _is_studio_csv(path::AbstractString)
+    first_line = try
+        first(eachline(path))
+    catch
+        return false
+    end
+    return occursin("Category", first_line) && occursin("Parameter", first_line)
+end
+
+# The numeric columns `x, y` of a plain CSV file: one point per line, its first two numbers, separated by a comma, a
+# semicolon, a tab or spaces (with a semicolon or tab a decimal comma is read, `0,25;2e-3`); quotes, a header line
+# and other text are skipped. `nothing` if it is not one: a studio CSV, fewer than two points, or a Julia file.
+function _series_csv_points(path::AbstractString)
+    (isfile(path) && endswith(lowercase(path), ".csv") && !_is_studio_csv(path)) || return nothing
+    lines = try
+        readlines(path)
+    catch
+        return nothing
+    end
+    x, y = Float64[], Float64[]
+    for line in lines
+        line = strip(replace(line, '"' => "", '\'' => ""))
+        isempty(line) && continue
+        cells = occursin(r"[;\t]", line) ? replace.(split(line, r"[;\t]"), ',' => '.') :
+                occursin(',', line) ? split(line, ',') : split(line)
+        length(cells) >= 2 || continue
+        a, b = tryparse(Float64, strip(cells[1])), tryparse(Float64, strip(cells[2]))
+        (isnothing(a) || isnothing(b)) && continue
+        push!(x, a); push!(y, b)
+    end
+    return length(x) >= 2 ? (x, y) : nothing
+end
+
+# Loads a plain two-column CSV as an External Series named after the file (`studio_add_series!`: in the plotted x
+# variable and field); `true` if `path` was one
+function _load_series_csv!(path::AbstractString)
+    pts = _series_csv_points(path)
+    isnothing(pts) && return false
+    label = first(splitext(basename(path)))
+    try
+        n = studio_add_series!(label, pts[1], pts[2])
+        ui = manager.ui[:series]
+        _status!("Added $(basename(path)) ($(length(pts[1])) points) as the external series '$label' (UI → External " *
+                 "Series, $n): drawn while the plot shows x = $(ui[:x_axis]) and $(ui[:y_axis]) vertically; loading it " *
+                 "again replaces it.", :ok)
+        haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightgreen)
+    catch e
+        e isa InterruptException && rethrow()
+        _status!("Not loaded: $(_short(sprint(showerror, e), 120))", :error)
+        haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightcoral)
+    end
+    return true
+end
+
 # What a confirmation (the second Load) is for: the path and the content of the file and of the source files a CSV
 # bundles, so another file under the same name (a new upload, a file changed on disk) needs its own confirmation.
 function _load_key(path::AbstractString)
@@ -397,6 +452,13 @@ end
 function _handle_load(path::AbstractString)
     w = manager.widgets
     load_btn, run_btn = w[:load_config_button], w[:run_button]
+    _load_series_csv!(path) && return nothing   # (a plain two-column CSV: data from outside)
+    if endswith(lowercase(path), ".csv") && !_is_studio_csv(path)
+        _status!("$(basename(path)) is neither a studio CSV (header Category, Scope, Parameter, Value) nor a table of " *
+                 "two numeric columns (x, y per line; comma, semicolon, tab or spaces between them).", :error)
+        load_btn.buttoncolor[] = :lightcoral
+        return nothing
+    end
     local structural
     try
         structural = endswith(lowercase(path), ".jl") ? load_config_file!(path) : load_and_apply_csv!(path)
@@ -747,9 +809,38 @@ end
 # Shortens a value for a status message.
 _short(s::AbstractString, n::Int = 40) = length(s) > n ? first(s, n - 1) * "…" : s
 
+# The Data buttons of the Files tab show the session settings (`set_compute!`, `set_error_field!`)
+function _sync_data_buttons!()
+    w = manager.widgets
+    if haskey(w, :compute_button)
+        w[:compute_button].label[] = "Compute: " * (_COMPUTE[] ? "on" : "off")
+        w[:compute_button].buttoncolor[] = _COMPUTE[] ? RGBf(0.94, 0.94, 0.94) : :lightyellow
+    end
+    haskey(w, :error_field_button) && (w[:error_field_button].label[] = "u − u_ref: " * (_ERROR_FIELD[] ? "on" : "off"))
+    return nothing
+end
+
 # The status line after a run, `(message, level)`: what ran, was cached or failed, from the `RunSummary` of PDEStudioCore
 # (older versions return nothing: then only the time)
+# A run by its swept values (and method): `N = 640, ε = 1e-3`
+function _run_label(p::AbstractDict)
+    config = manager.active_config
+    keys_ = isnothing(config) ? Symbol[] : sort!([k for k in keys(config.varied) if haskey(p, k)], by = string)
+    text = join(("$(frontend_key(k)) = $(_fmt_value(p[k]))" for k in keys_), ", ")
+    # (the method: the one whose own parameters the run has)
+    m = isnothing(config) ? nothing : findfirst(mp -> !isempty(mp) && all(k -> haskey(p, k) && isequal(p[k], mp[k]), keys(mp)), config.methods)
+    isempty(text) && (text = _short(join(("$k = $(_fmt_value(v))" for (k, v) in sort!(collect(p), by = first)), ", "), 60))
+    return isnothing(m) ? text : "$text ($(frontend_key(m)))"
+end
+
 function _run_status(summary, elapsed::Real, n_methods::Integer)
+    if hasproperty(summary, :dry_run) && summary.dry_run   # (set_compute!(false))
+        missing_runs = length(summary.ran)
+        msg = "Not computed (set_compute!(false)): $(length(summary.tasks)) runs, $(length(summary.cached)) stored"
+        missing_runs == 0 && return (msg * ".", :ok)
+        return (msg * ", $missing_runs missing (gaps in the plots): " * _short(join(_run_label.(summary.ran), "; "), 120) *
+                " (studio_state().missing_runs)", :warn)
+    end
     head = "Simulation finished in $(round(elapsed, digits = 1)) s"
     all(p -> hasproperty(summary, p), (:tasks, :ran, :cached, :failed)) || return ("$head ($n_methods methods).", :ok)
     n(field) = hasproperty(summary, field) ? length(getproperty(summary, field)) : 0
@@ -976,11 +1067,25 @@ function _invalid_ui_reason(key::Symbol, val)
                                all(v -> v isa Real && isfinite(v), val) && val[1] < val[2]))) &&
         return "colour range: [] (automatic) or [lo, hi] with lo < hi"
     key === :levels && !(val isa Integer && val >= 2) && return "number of contour levels (an integer ≥ 2)"
+    key in (:x_lims, :y_lims) && !(val isa Union{AbstractVector, Tuple} && (isempty(val) || (length(val) == 2 &&
+                                   all(v -> v isa Real && isfinite(v), val) && val[1] < val[2]))) &&
+        return "range of the inset: [] (none) or [lo, hi] with lo < hi"
+    key === :position && !(val in keys(_INSET_ALIGN)) && return "corner of the inset: :rt, :lt, :rb or :lb"
+    key === :size && !(val isa Real && 0.1 <= val <= 0.9) && return "size of the inset: a fraction of the subplot from 0.1 to 0.9"
+    key === :plot && !(val isa Integer && val >= 1) && return "subplot number (1, 2, …)"
+    key === :data && !_valid_series_data(val) && return "series: Dict(\"label\" => [(x, u), …]) with numbers"
     key in (:animation_FPS, :animation_time, :dpi) && !(val isa Real && isfinite(val) && val > 0) &&
         return "$(key === :animation_FPS ? "frame rate" : key === :dpi ? "resolution" : "duration") (a positive number)"
     return nothing
 end
 _valid_ui_value(key::Symbol, val) = isnothing(_invalid_ui_reason(key, val))
+
+# `data` of the External Series: labels => points `[(x, u), …]` (tuples or 2-vectors of finite numbers, at least one)
+_valid_series_data(val) = val isa AbstractDict && all(kv -> (first(kv) isa Union{AbstractString, Symbol}) &&
+                                                             _valid_series_points(last(kv)), val)
+_valid_series_points(pts) = pts isa Union{AbstractVector, Tuple} && !isempty(pts) &&
+                            all(p -> p isa Union{Tuple, AbstractVector} && length(p) == 2 &&
+                                     all(v -> v isa Real && isfinite(v), p), pts)
 
 # Value restored by typing `default` into the editor: the built-in default of a UI option, the baseline configuration
 # (see `reset_sim_config!`) of a simulation entry. Returns `missing` if there is none.
@@ -2392,6 +2497,19 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
         
         name_part, ext = splitext(raw_filename)
         ext = lowercase(lstrip(ext, '.'))
+
+        if ext in DATA_EXPORT_FORMATS   # the plotted numbers (`studio_export_data`), no figure: the window stays as it is
+            path = isabspath(raw_filename) ? raw_filename : joinpath(get_figure_path(), "figures", raw_filename)
+            try
+                studio_export_data(path)
+                push!(manager.last_export, path)
+                _status!("Exported the plotted numbers to $path", :ok)
+            catch e
+                @error "Export Failed" exception = (e, catch_backtrace())
+                _status!("Export failed: $(_short(sprint(showerror, e), 90))", :error)
+            end
+            return
+        end
         
         is_anim = ext in ANIMATION_EXPORT_FORMATS
         if is_anim
@@ -2486,6 +2604,13 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 for fmt in formats
                     full_path = joinpath(save_dir, base_name * ".$fmt")
                     mkpath(dirname(full_path))
+                    if fmt in DATA_EXPORT_FORMATS   # (the plotted numbers next to the figure; `<name>.csv` is the export's state)
+                        fmt == "csv" && (full_path = joinpath(save_dir, base_name * "_data.csv"))
+                        studio_export_data(full_path)
+                        push!(manager.last_export, full_path)
+                        @info "Plotted numbers ($fmt) saved to $full_path"
+                        continue
+                    end
                     if fmt in ("png", "jpg", "jpeg")
                         save(full_path, export_fig; backend=CairoMakie, px_per_unit=dpi_val/96.0)
                     else
@@ -2503,7 +2628,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                          (isempty(note) ? "" : "; " * note), isempty(note) ? :ok : :warn)
                 
             else
-                _report(:warn, "No valid static formats selected and no animation extension provided. Export bypassed.")
+                _report(:warn, "No valid export formats selected (Files → Settings ›: $(join(STATIC_EXPORT_FORMATS, ", ")), " *
+                               "$(join(DATA_EXPORT_FORMATS, ", ")) for the plotted numbers) and no animation extension given. Export bypassed.")
             end
             
         catch e
@@ -2668,7 +2794,12 @@ function _setup_chain_A!(::Val{:eulerian})
                 # Use menu_opt instead of string()
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
+            # (fields: one subplot per dependent field, see `_compare_selection`)
+            any(k -> k !== :Solution, keys(sim_data.stats)) && push!(compare_opts, menu_opt(:fields))
             update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
+            # (lines of 1D plots: per method, or per method and value of time or a swept parameter)
+            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component, :fields)), compare_opts)];
+                                                      fallbacks=[:methods], force_notify=false, sort=false)
 
             ptype = manager.widgets[:plot_style].selection[]
             p_dim = get(PLOT_DIM_MAP, ptype, 1)
@@ -2785,7 +2916,12 @@ function _setup_chain_A!(::Val{:lagrangian})
             for p_key in pd_first.active_param_keys
                 push!(compare_opts, menu_opt(Symbol(p_key)))
             end
+            # (fields: one subplot per dependent field, see `_compare_selection`)
+            any(k -> k !== :Solution, keys(l_data.stats)) && push!(compare_opts, menu_opt(:fields))
             update_menu_safe!(w[:compare_target], compare_opts; fallbacks=[:none], force_notify=false, sort=false)
+            # (lines of 1D plots: per method, or per method and value of time or a swept parameter)
+            haskey(w, :line_target) && update_menu_safe!(w[:line_target], Any[menu_opt(:methods); filter(o -> !(o[2] in (:none, :methods, :component, :fields)), compare_opts)];
+                                                      fallbacks=[:methods], force_notify=false, sort=false)
         end
     end
 end

@@ -576,8 +576,7 @@ function initialize_base_plot!(plot_layout::GridLayout, ax, active_methods, data
         end
 
         c   = Makie.to_color(ui_app[:colors][mod1(m_idx, end)])
-        mrk = ui_app[:markers][mod1(m_idx, end)] 
-        ms  = ui_app[:marker_size] 
+        mrk, ms = _marker_and_size(ui_app, m_idx)   # (`:none`: no marker)
         
         raster = manager.ui[:export][:rasterization_enabled] ?  manager.ui[:export][:rasterization_quality] : false
 
@@ -611,8 +610,7 @@ function initialize_base_plot!(plot_layout::GridLayout, ax, active_methods, data
         c   = Makie.to_color(ui_app[:colors][mod1(m_idx, end)])
         ls  = ui_app[:dashed_lines] ? ui_app[:line_styles][mod1(m_idx, end)] : nothing 
         lw  = ui_app[:line_width] 
-        mrk = ui_app[:markers][mod1(m_idx, end)] 
-        ms  = ui_app[:marker_size] 
+        mrk, ms = _marker_and_size(ui_app, m_idx)   # (`:none`: no marker)
         raster = manager.ui[:export][:rasterization_enabled] ?  manager.ui[:export][:rasterization_quality] : false
         
         obs_coord = is_eul ? cache.obs_x : cache.obs_pts

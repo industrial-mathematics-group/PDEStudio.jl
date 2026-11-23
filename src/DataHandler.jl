@@ -172,9 +172,18 @@ end
 function _load_for_display(params::ParamDict, domain, mode::Val)
     try
         mode === Val(:eulerian) || return load_sim_data(params, mode)
-        res = build_res_tuple(domain.dim_keys; is_ref = false)
-        isnothing(domain.time_dim) && return load_sim_data(params, mode, res)
-        return _load_snapshots(params, res, findfirst(==(domain.time_dim), domain.dim_keys))
+        dim_keys, time_dim = Tuple(domain.dim_keys), domain.time_dim
+        # (a dataset with other axes than the template's, e.g. static data among transient data, is resampled over
+        # its own axes)
+        info = isdefined(PDEStudioCore, :get_sim_data_info) ? (try get_sim_data_info(params) catch; nothing end) : nothing
+        own_axes = !isnothing(info) && hasproperty(info, :dim_keys) && Tuple(info.dim_keys) != dim_keys
+        own_axes && ((dim_keys, time_dim) = (Tuple(info.dim_keys), info.time_dim))
+        res = build_res_tuple(dim_keys; is_ref = false)
+        # (such data is shown at its own points, not interpolated to the display resolution: a table of a few values)
+        own_axes && hasproperty(info, :shape) && length(info.shape) == length(res) &&
+            (res = Tuple(min(r, Int(n)) for (r, n) in zip(res, info.shape)))
+        isnothing(time_dim) && return load_sim_data(params, mode, res)
+        return _load_snapshots(params, res, findfirst(==(time_dim), dim_keys))
     catch e
         # A missing file is normal (the simulation has not run yet); anything else is worth a warning.
         e isa SimFileNotFoundError || @warn "Could not load the data of $(params)" exception = (e, catch_backtrace())
@@ -360,6 +369,56 @@ function _reference_stats!(ref, post_func, post_name)
 end
 const _REFERENCE_POST_WARNED = Set{Any}()
 
+"""
+    set_error_field!(on::Bool = true) -> Bool
+
+Adds the dependent field `:reference_error` ("u − u_ref") to the numerical data the studio loads: the pointwise
+difference of the data to the configuration's reference solution, evaluated at the data's own points (the grid at
+the display resolution, or the particles). Choose it like a statistic (*U-Axis*, `studio_set!(:u_axis =>
+:reference_error)`), per component. Off by default: it evaluates the reference at every drawn point of every
+dataset. The data is the displayed one: on a grid at the display resolution (`set_resolution!` to the grid's size
+for the error at the grid points). Takes effect when data is loaded next (*Run Simulation*); stays set for the
+session; returns the setting.
+"""
+function set_error_field!(on::Bool = true)
+    changed = _ERROR_FIELD[] != on
+    _ERROR_FIELD[] = on
+    _sync_data_buttons!()
+    if changed && haskey(manager.flags, :Simulation)   # (the field is added when data is loaded)
+        manager.flags[:Simulation][] = true
+        haskey(manager.widgets, :status_label) &&
+            _status!(on ? "The field u − u_ref is added when the data is loaded: Run Simulation." :
+                          "The field u − u_ref is dropped when the data is loaded: Run Simulation.", :ok)
+    end
+    return on
+end
+const _ERROR_FIELD = Ref(false)
+
+# Adds `:reference_error` (data − reference at the data's points) to a loaded dataset; a reference that fails leaves
+# the dataset without it (reported once per session)
+function _add_reference_error!(d::AbstractSimData{D, DS, M, T}, ref_factory, params) where {D, DS, M, T}
+    try
+        ref = Base.invokelatest(ref_factory, params)
+        value(r) = r isa Number ? SVector{M, T}(ntuple(_ -> T(r), M)) : SVector{M, T}(Tuple(r))
+        err = if d isa ESimData
+            [d.u[I] - value(Base.invokelatest(ref, SVector{D, T}(ntuple(k -> d.axes[k][I[k]], D)))) for I in CartesianIndices(d.u)]
+        else
+            [[d.u[n][p] - value(Base.invokelatest(ref, SVector{D, T}((Tuple(d.x[n][p])..., (D > DS ? (d.t[n],) : ())...))))
+              for p in eachindex(d.x[n])] for n in eachindex(d.x)]
+        end
+        Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do   # (add_stat! reports every field it adds)
+            add_stat!(d, :reference_error, err, :all)
+        end
+    catch e
+        e isa InterruptException && rethrow()
+        if !(:reference_error in _REFERENCE_POST_WARNED)
+            push!(_REFERENCE_POST_WARNED, :reference_error)
+            @warn "The difference to the reference (set_error_field!) could not be evaluated: $(_short(sprint(showerror, e), 200)) (said once per session)."
+        end
+    end
+    return d
+end
+
 # The dataset of a numerical method at the sweep point `idx` (the first of `numeric` that has one), or `nothing`.
 function _numeric_at(numeric, idx::Tuple)
     for pd in numeric
@@ -407,6 +466,7 @@ function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_confi
     end
 
     post_func = is_reference ? resolve_dynamic_function(sim_config.postprocess) : nothing
+    err_factory = !is_reference && _ERROR_FIELD[] ? resolve_dynamic_function(sim_config.reference) : nothing   # (set_error_field!)
     # Numerical data of the same sweep grid (data of an earlier configuration is not used)
     numeric = [pd for pd in numeric if size(pd.data) == grid_dims && pd.active_param_keys == active_keys]
     loaded = Dict{Any, Union{Nothing, AbstractSimData}}()   # identical tasks (and domains) share one dataset
@@ -424,7 +484,8 @@ function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_confi
                 ref = Base.invokelatest(_make_reference, ref_factory, params, ref_domain, mode, t_axis)
                 isnothing(ref) ? ref : _reference_stats!(ref, post_func, sim_config.postprocess)
             else
-                _load_for_display(params, domain, mode)
+                d = _load_for_display(params, domain, mode)
+                isnothing(d) || isnothing(err_factory) ? d : _add_reference_error!(d, err_factory, params)
             end
         end
 

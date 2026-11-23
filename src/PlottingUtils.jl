@@ -117,6 +117,8 @@ end
 # that format, anything else is part of the name.
 const ANIMATION_EXPORT_FORMATS = ("mp4", "gif", "webm", "mkv")
 const STATIC_EXPORT_FORMATS = ("png", "pdf", "svg", "eps", "jpg", "jpeg")
+# The plotted numbers instead of a figure (`studio_export_data`): a Markdown table (.md) or CSV (.csv, .txt)
+const DATA_EXPORT_FORMATS = ("md", "csv", "txt")
 
 """
     _export_formats(setting)
@@ -130,9 +132,10 @@ function _export_formats(setting)
     fmts = String[lowercase(lstrip(strip(string(f)), '.')) for f in items if !isnothing(f)]
     anim = filter(in(ANIMATION_EXPORT_FORMATS), fmts)
     isempty(anim) || @warn "Animation formats $anim in the export settings are ignored. To export an animation, add the extension (e.g. '.mp4') to the filename instead."
-    unknown = filter(f -> !(f in STATIC_EXPORT_FORMATS) && !(f in ANIMATION_EXPORT_FORMATS) && !isempty(f), fmts)
-    isempty(unknown) || @warn "Unknown export formats $unknown are ignored. Supported: $(join(STATIC_EXPORT_FORMATS, ", "))."
-    return unique!(filter(in(STATIC_EXPORT_FORMATS), fmts))
+    unknown = filter(f -> !(f in STATIC_EXPORT_FORMATS) && !(f in ANIMATION_EXPORT_FORMATS) && !(f in DATA_EXPORT_FORMATS) && !isempty(f), fmts)
+    isempty(unknown) || @warn "Unknown export formats $unknown are ignored. Supported: $(join(STATIC_EXPORT_FORMATS, ", ")) " *
+                              "and $(join(DATA_EXPORT_FORMATS, ", ")) (the plotted numbers)."
+    return unique!(filter(f -> f in STATIC_EXPORT_FORMATS || f in DATA_EXPORT_FORMATS, fmts))
 end
 
 # A joint sweep of several parameters (`joint_sweep`: their names joined by `&`)
@@ -150,6 +153,23 @@ function _joint_text(key::Symbol, shown, fmt)
     return join(("$(frontend_key(p)) = $(fmt(raw[i][j]; sci = _sci_set([r[j] for r in raw])))" for (j, p) in enumerate(parts)), ", ")
 end
 
+# The tuple of a joint sweep shown by its first entry `shown` (or `shown` itself), or `nothing`
+function _joint_raw(key::Symbol, shown)
+    config = manager.active_config
+    raw = isnothing(config) ? Any[] : collect(get(config.varied, key, Any[]))
+    i = findfirst(r -> r isa Tuple && (isequal(r, shown) || isequal(first(r), shown)), raw)
+    return isnothing(i) ? nothing : raw[i]
+end
+
+# A swept value as titles, compared subplots and lines show it: its name (`set_value_label!`), every parameter of a
+# joint sweep, or `parameter = value` (`fmt`: `_fmt_value` or `_fmt_compare`; `sci`: one notation for the sweep)
+function _param_text(key::Symbol, v, fmt; sci::Bool = false)
+    label = _value_label(key, v)
+    isnothing(label) || return label
+    _is_joint_key(key) && return _joint_text(key, v, fmt)
+    return "$(frontend_key(key)) = $(fmt(v; sci))"
+end
+
 # Whether the values of the `i`-th parameter are written scientifically (all of them, see `_sci_set`)
 function _param_sci(i::Int)
     data = manager.plot_data[]
@@ -163,7 +183,10 @@ function _slider_value_text(widget_key::Symbol, v)
     param = get(manager.param_map, widget_key, nothing)
     if !isnothing(param)
         i = findfirst(isequal(param), manager.plot_vars)
-        isnothing(i) || return _fmt_value(_param_display_value(i, v); sci = _param_sci(i))
+        if !isnothing(i)
+            shown = _param_display_value(i, v)
+            return something(_value_label(param, shown), Some(_fmt_value(shown; sci = _param_sci(i))))
+        end
     end
     return _fmt_value(v)
 end
@@ -207,10 +230,12 @@ function _title_parts(plot_dims::Tuple, dim_names::Vector{Symbol}, sel_vals, sim
             continue
         elseif i <= length(sel_vals)
             val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
-            if i <= n_params && _is_joint_key(name_sym)   # (every parameter of a joint sweep: N = 40, IC Cell = 0.15)
+            # (a named value, every parameter of a joint sweep: N = 40, IC Cell = 0.15)
+            if i <= n_params && (_is_joint_key(name_sym) || haskey(manager.value_labels, name_sym))
                 data = manager.plot_data[]
                 shown = isempty(data) ? Any[] : get(_primary_sweep(data).active_param_values, i, Any[])
-                push!(parts, (_joint_text(name_sym, val, _fmt_value), [_joint_text(name_sym, v, _fmt_value) for v in shown]))
+                sci = _param_sci(i)
+                push!(parts, (_param_text(name_sym, val, _fmt_value; sci), [_param_text(name_sym, v, _fmt_value; sci) for v in shown]))
                 continue
             end
             others = ["$name = $v" for v in _title_values(i, i <= n_params, name_sym, sim_data)]
@@ -930,7 +955,14 @@ function create_or_update_legend!(plot_layout::GridLayout, plotted_objects::Vect
     if !haskey(layout_dict, :Legend) || isnothing(layout_dict[:Legend]); return; end
     
     ui_style = manager.ui[:axis_general]
-    title_str = manager.ui[:labels][:legend_label] 
+    title_str = manager.ui[:labels][:legend_label]
+    # (lines over a parameter or time: the default title names it, after the methods if there are several)
+    line_target = manager.line_state[1]
+    if title_str == "Methods" && !isnothing(manager.line_state[2])
+        name = frontend_key(line_target === :time ? :t : line_target)
+        # (compared methods are the subplots' titles: the legend names the values only)
+        title_str = length(manager.methods[]) > 1 && manager.compare_state[1] !== :methods ? "Methods, $name" : name
+    end
     final_title = isempty(strip(title_str)) ? nothing : title_str
     font_size = ui_style[:font_size] 
     
@@ -1234,7 +1266,8 @@ function _outer_labels(ax::Axis)
     (isnothing(plots) || length(plots) < 2 || isnothing(gc)) && return true, true
     r, c = first(gc.span.rows), first(gc.span.cols)
     (r, c) in plots || return true, true
-    return !any(p -> p[2] == c && p[1] > r, plots), !any(p -> p[1] == r && p[2] < c, plots)
+    # (Compare: fields: every subplot plots another field, so each keeps its y label)
+    return !any(p -> p[2] == c && p[1] > r, plots), manager.compare_state[1] === :fields || !any(p -> p[1] == r && p[2] < c, plots)
 end
 
 function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::String)
@@ -1259,6 +1292,9 @@ function set_axis_styles!(ax::Axis, def_x::String, def_y::String, def_title::Str
     haskey(y_ui, :label_offset) && (ax.ylabelpadding = y_ui[:label_offset]) 
     
     ax.xgridvisible, ax.xticklabelsvisible = x_ui[:grid_visibility], x_ui[:tick_label_visibility] 
+    rx, ry = get(x_ui, :reversed, false) === true, get(y_ui, :reversed, false) === true
+    ax.xreversed[] == rx || (ax.xreversed = rx)
+    ax.yreversed[] == ry || (ax.yreversed = ry)
     ax.ygridvisible, ax.yticklabelsvisible = y_ui[:grid_visibility], y_ui[:tick_label_visibility] 
 
     x_off = x_ui[:scale_offset] 
@@ -1297,6 +1333,10 @@ function set_axis_styles!(ax::Axis3, def_x::String, def_y::String, def_z::String
     ax.xgridvisible, ax.xticklabelsvisible = x_ui[:grid_visibility], x_ui[:tick_label_visibility] 
     ax.ygridvisible, ax.yticklabelsvisible = y_ui[:grid_visibility], y_ui[:tick_label_visibility] 
     ax.zgridvisible, ax.zticklabelsvisible = z_ui[:grid_visibility], z_ui[:tick_label_visibility] 
+    for (attr, ui) in ((:xreversed, x_ui), (:yreversed, y_ui), (:zreversed, z_ui))
+        r = get(ui, :reversed, false) === true
+        getproperty(ax, attr)[] == r || setproperty!(ax, attr, r)
+    end
 
     haskey(x_ui, :label_offset) && (ax.xlabeloffset = x_ui[:label_offset]) 
     haskey(y_ui, :label_offset) && (ax.ylabeloffset = y_ui[:label_offset]) 
@@ -1385,12 +1425,80 @@ end
 
 plot_HUD!(ax::Axis3) = nothing
 
+# The vertical variable of the plot a series' second coordinate lives in: the dependent field of a 1D plot (`u_field`:
+# the subplot's own, else the selected one), the y variable of a 2D plot, `nothing` for 3D plots (no series)
+function _series_vertical(u_field = nothing)
+    w = manager.widgets
+    haskey(w, :plot_style) || return nothing
+    style = _base_style(w[:plot_style].selection[])
+    dim = get(PLOT_DIM_MAP, style, 1)
+    (dim == 3 || is_surface(style)) && return nothing
+    return dim == 1 ? something(u_field, w[:u_axis].selection[]) : w[:y_axis].selection[]
+end
 
-function _apply_axis_styles!(ax, T::Symbol)
+# The External Series (`manager.ui[:series]`, `studio_add_series!`) as `(label, x, y)`, sorted by label, if the plot
+# shows the x variable and the vertical variable they were added for (else none); `u_field`: the subplot's field
+function _shown_series(u_field = nothing)
+    ui = get(manager.ui, :series, nothing)
+    out = Tuple{String, Vector{Float64}, Vector{Float64}}[]
+    (isnothing(ui) && return out)
+    (ui[:visible] === true && _valid_series_data(ui[:data]) && !isempty(ui[:data])) || return out
+    vertical = _series_vertical(u_field)
+    isnothing(vertical) && return out
+    x_sel = haskey(manager.widgets, :x_axis) ? manager.widgets[:x_axis].selection[] : nothing
+    (ui[:x_axis] === :none || ui[:x_axis] === x_sel) || return out
+    (ui[:y_axis] === :none || ui[:y_axis] === vertical) || return out
+    for (label, pts) in sort!(collect(ui[:data]); by = p -> string(first(p)))
+        push!(out, (string(label), Float64[p[1] for p in pts], Float64[p[2] for p in pts]))
+    end
+    return out
+end
+
+# The colour / marker index of the `j`-th series: after the methods (or the lines) in the lists of `plot_style`
+_series_style_index(j::Int) = (isempty(manager.series) ? length(manager.methods[]) : length(manager.series)) + j
+
+"""
+    plot_series!(ax::Axis, u_field)
+
+Draws the External Series (*UI → External Series*, `studio_add_series!`) in a 1D or 2D subplot, in the plot's
+coordinates (above a heatmap: e.g. a curve `y(x)` separating regions), tagged "External Series" (replaced on every
+UI step); nothing if the plot does not show their x and vertical variable.
+"""
+function plot_series!(ax::Axis, u_field)
+    delete_plots_by_label!(ax, "External Series")
+    ui_app, ui = manager.ui[:plot_style], get(manager.ui, :series, nothing)
+    isnothing(ui) && return nothing
+    for (j, (label, x, u)) in enumerate(_shown_series(u_field))
+        k = _series_style_index(j)
+        color = Makie.to_color(ui_app[:colors][mod1(k, end)])
+        mrk, ms = _marker_and_size(ui_app, k)
+        lw, ls = Float32(ui[:line_width]), ui[:line_style]
+        p = if ms > 0 && !_no_marker(mrk)
+            scatterlines!(ax, x, u; color, linewidth = lw, linestyle = ls, marker = mrk, markersize = Float32(ui[:marker_size]),
+                          label = "External Series")
+        else
+            lines!(ax, x, u; color, linewidth = lw, linestyle = ls, label = "External Series")
+        end
+        translate!(p, 0, 0, 50)   # (above a heatmap or filled contours; CairoMakie draws by z)
+    end
+    return nothing
+end
+plot_series!(ax::Axis3, u_field) = nothing
+
+# The slices of a 1D subplot with the shown External Series added (for the axis limits); `field` is `:x` or `:y`
+function _with_series(slices, field::Symbol)
+    shown = _shown_series()
+    isempty(shown) && return slices
+    return Any[collect(slices); [field === :x ? s[2] : s[3] for s in shown]]
+end
+
+
+function _apply_axis_styles!(ax, T::Symbol; u = nothing)
+    u_field = u
     x = frontend_key(manager.widgets[:x_axis].selection[])
     y = frontend_key(manager.widgets[:y_axis].selection[])
     z = frontend_key(manager.widgets[:z_axis].selection[])
-    u = frontend_key(manager.widgets[:u_axis].selection[])
+    u = frontend_key(something(u, manager.widgets[:u_axis].selection[]))   # (Compare: fields: the subplot's own)
     
     dim = PLOT_DIM_MAP[T] 
     def_title = ax.title[]
@@ -1399,6 +1507,7 @@ function _apply_axis_styles!(ax, T::Symbol)
         def_y = dim == 1 ? u : y
         set_axis_styles!(ax, x, def_y, def_title)
         plot_HUD!(ax)
+        plot_series!(ax, u_field)   # (1D and 2D plots)
     elseif ax isa Axis3
         def_z = dim == 2 ? u : z
         set_axis_styles!(ax, x, y, def_z, def_title)
@@ -1422,26 +1531,38 @@ end
 
 Scans the active `PlotCache` and constructs the precise array of `Makie.LineElement`, `Makie.MarkerElement`, and `Makie.PolyElement` prototypes needed to render a visually accurate legend block.
 """
+# The plot cache of a method or series in the first subplot that draws it, or `nothing`
+function _legend_cache(key::Symbol)
+    for i in sort!(collect(keys(manager.caches)))
+        haskey(manager.caches[i], key) && return manager.caches[i][key]
+    end
+    return nothing
+end
+
 function _collect_legend_elements(ui_app::Dict)
     
     plotted_objects = []
     labels_for_legend = String[]
     
-    if !haskey(manager.caches, 1)
-        return [], []
-    end
+    isempty(manager.caches) && return [], []
     
     get_color(idx) = get(ui_app, :colors, nothing) !== nothing ? ui_app[:colors][mod1(idx, end)] : :black 
 
-    for (m_idx, method_name) in enumerate(manager.methods[])
-        if haskey(manager.caches[1], method_name)
-            prims = manager.caches[1][method_name].primitives
+    seen = Set{String}()
+    for method_name in (isempty(manager.series) ? manager.methods[] : manager.series)
+        cache = _legend_cache(method_name)   # (any subplot: compared methods draw their lines in their own)
+        if !isnothing(cache)
+            m_idx = something(_style_index(method_name), 1)
+            prims = cache.primitives
             color = get_color(m_idx)
             
             group = []
             is_base = false
             
             method_label_str = frontend_key(method_name)
+            # (compared methods with lines over a parameter: the lines of a value share the label and colour)
+            method_label_str in seen && continue
+            push!(seen, method_label_str)
             
             for (pkey, prim) in prims
                 deps = get(STYLE_DEPENDENCIES, pkey, Symbol[])
@@ -1457,7 +1578,7 @@ function _collect_legend_elements(ui_app::Dict)
                     push!(group, Makie.LineElement(color=color, linewidth=ui_app[:line_width], linestyle=ls)) 
                 end
                 
-                if :markers in deps && :colors in deps
+                if :markers in deps && :colors in deps && !_no_marker(ui_app[:markers][mod1(m_idx, end)])
                     mrk = ui_app[:markers][mod1(m_idx, end)] 
                     push!(group, Makie.MarkerElement(color=color, marker=mrk, markersize=ui_app[:marker_size])) 
                 end
@@ -1471,7 +1592,18 @@ function _collect_legend_elements(ui_app::Dict)
             end
         end
     end
-    
+    # (the External Series, after the methods, if the plot shows them)
+    ui = get(manager.ui, :series, nothing)
+    for (j, (label, _, _)) in enumerate(_shown_series())
+        k = _series_style_index(j)
+        c = Makie.to_color(get_color(k))
+        group = Any[Makie.LineElement(color = c, linewidth = Float32(ui[:line_width]), linestyle = ui[:line_style])]
+        mrk, ms = _marker_and_size(ui_app, k)
+        (ms > 0 && !_no_marker(mrk)) && push!(group, Makie.MarkerElement(color = c, marker = mrk, markersize = Float32(ui[:marker_size])))
+        push!(plotted_objects, group)
+        push!(labels_for_legend, label)
+    end
+
     return plotted_objects, labels_for_legend
 end
 

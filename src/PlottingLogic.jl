@@ -86,7 +86,8 @@ function _handle_plot_trigger!(
             target_c_int = (is_compare && target == :component) ? manager.compare_state[4][i] : c_sel[]
             local_methods = _subplot_methods(is_compare && target == :methods, i)
             
-            data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
+            u_obs = _subplot_field(u_sel, i)   # (Compare: fields)
+        data_tuples, valid_methods = _fetch_series(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_obs, target_c_int)
             isempty(valid_methods) && continue
             
             data_tuples = apply_outlier_mask(axes[i], data_tuples, valid_methods, is_3d_axis)
@@ -95,7 +96,7 @@ function _handle_plot_trigger!(
             sim_data = _get_first_valid(_primary_sweep(data))
             active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
             
-            parts = _title_parts(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+            parts = _title_parts(_title_skips(active_title_indices), manager.plot_vars, mutated_sel_vals,
                                  something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
             
             ts = join(first.(parts), " | ")
@@ -107,7 +108,7 @@ function _handle_plot_trigger!(
             x_str = frontend_key(x_sel[])
             y_str = frontend_key(y_sel[])
             z_str = frontend_key(z_sel[])
-            u_str = frontend_key(u_sel[])
+            u_str = frontend_key(u_obs[])
 
             initialize_base_plot!(plot_layout, axes[i], valid_methods, data_tuples, x_str, y_str, z_str, u_str, ts, Val(T), i)
             _set_title!(axes[i], default_title)
@@ -147,8 +148,8 @@ function _handle_plot_trigger!(
             for i in 1:num_plots
                 !haskey(plot_x_slices, i) && continue
                 
-                use_x = is_linked ? global_x_slices : plot_x_slices[i]
-                use_y = is_linked ? global_y_slices : plot_y_slices[i]
+                use_x = _with_series(is_linked ? global_x_slices : plot_x_slices[i], :x)
+                use_y = _with_series(is_linked && manager.compare_state[1] !== :fields ? global_y_slices : plot_y_slices[i], :y)
                 
                 # Check safe log scales instantly
                 min_x = _safe_extrema(use_x)[1]
@@ -227,7 +228,7 @@ function _handle_slider_trigger!(u_sel)
             is_spatial, is_physically_disabled = i > n_params ?
                 _is_spatial_dim(Val(manager.mode[]), dim_sym, sim_data, kept_syms) : (false, false)
 
-            if i in active_axes || is_spatial || is_physically_disabled || target_idx == i
+            if i in active_axes || is_spatial || is_physically_disabled || target_idx == i || manager.line_state[2] == i
                 if ctrl.range[] != [0.0]
                     ctrl.range[] = [0.0]
                 end
@@ -326,7 +327,8 @@ function _handle_data_trigger!(
         target_c_int = (is_compare && target == :component) ? manager.compare_state[4][i] : c_sel[]
         local_methods = _subplot_methods(is_compare && target == :methods, i)
         
-        data_tuples, valid_methods = fetch_pipeline_tuples(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_sel, target_c_int)
+        u_obs = _subplot_field(u_sel, i)   # (Compare: fields)
+            data_tuples, valid_methods = _fetch_series(Val(manager.mode[]), data, local_methods, _build_param_indices, mutated_sel_vals, x_sel, y_sel, z_sel, u_obs, target_c_int)
         isempty(valid_methods) && continue
         
         data_tuples = apply_outlier_mask(axes[i], data_tuples, valid_methods, is_3d_axis)
@@ -352,7 +354,7 @@ function _handle_data_trigger!(
         
         active_title_indices = _get_active_title_indices(Val(manager.mode[]), x_sel, y_sel, z_sel, sim_data)
         
-        parts = _title_parts(Tuple(active_title_indices), manager.plot_vars, mutated_sel_vals,
+        parts = _title_parts(_title_skips(active_title_indices), manager.plot_vars, mutated_sel_vals,
                              something(_drawn_dataset(data, valid_methods, mutated_sel_vals), sim_data))
         
         ts = join(first.(parts), " | ")
@@ -382,8 +384,8 @@ function _handle_data_trigger!(
         for i in 1:num_plots
             !haskey(plot_x_slices, i) && continue
             
-            use_x = is_linked ? global_x_slices : plot_x_slices[i]
-            use_y = is_linked ? global_y_slices : plot_y_slices[i]
+            use_x = _with_series(is_linked ? global_x_slices : plot_x_slices[i], :x)
+            use_y = _with_series(is_linked && manager.compare_state[1] !== :fields ? global_y_slices : plot_y_slices[i], :y)
             
             min_x = _safe_extrema(use_x)[1]
             min_y = _safe_extrema(use_y)[1]
@@ -446,7 +448,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
             _set_title!(ax, default_title)
         end
         
-        _apply_axis_styles!(ax, T)
+        _apply_axis_styles!(ax, T; u = _subplot_field(u_sel, i)[])
         apply_axis_limits_overrides!(ax)
         
         if !is_3d_axis && haskey(ui_app, :reference)
@@ -466,7 +468,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
             cr_obs = is_linked_cb ? global_cr_obs : local_cr_obs
 
             for (method_name, cache) in manager.caches[i]
-                m_idx = findfirst(isequal(method_name), manager.methods[])
+                m_idx = _style_index(method_name)
                 isnothing(m_idx) && continue 
                 
                 colors = get(ui_app, :colors, nothing)
@@ -474,7 +476,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
                 
                 for (key, prim) in cache.primitives
                     # Pass the computed cr_obs
-                    apply_ui_style!(key, prim, ui_app, c, cr_obs)
+                    apply_ui_style!(key, prim, ui_app, c, cr_obs; index = m_idx)
                 end
             end
             
@@ -482,12 +484,13 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
                 plot_obj = _find_first_drawable_primitive(manager.caches[i])
                 if !isnothing(plot_obj)
                     # Push the mathematically perfect cr_obs to the colorbar
-                    create_or_update_colorbar!(plot_layout, plot_obj, cr_obs, frontend_key(u_sel[]), i)
+                    create_or_update_colorbar!(plot_layout, plot_obj, cr_obs, frontend_key(_subplot_field(u_sel, i)[]), i)
                 end
             end
         end
     end
     
+    PLOT_DIM_MAP[T] == 1 && !is_3d_axis && _draw_insets!(plot_layout, axes)   # (studio_inset!)
     if !is_3d_axis && T in LEGEND_SUPPORTED_PLOTS
         create_or_update_legend!(plot_layout, _collect_legend_elements(ui_app)...)
     end
@@ -569,7 +572,7 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
     
     num_plots, compare_labels, compare_vals = 1, String[], Any[]
 
-    sim_data = nothing
+    sim_data, pd_first = nothing, nothing
     if !isempty(manager.plot_data[])
         pd_first = _primary_sweep(manager.plot_data[])
         sim_data = _get_first_valid(pd_first)
@@ -582,6 +585,12 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
                 compare_labels = String[frontend_key(m) for m in names[picks]]
                 compare_vals = picks   # (indices into the active methods, see `_subplot_methods`)
                 num_plots = length(compare_labels)
+            elseif target == :fields
+                names = Symbol[o[2] for o in w[:u_axis].options[] if o[2] isa Symbol && o[2] !== :none]
+                picks = _compare_selection(chosen, names, :names)
+                compare_vals = names[picks]   # (the dependent field of each subplot)
+                compare_labels = String[frontend_key(f) for f in compare_vals]
+                num_plots = length(compare_vals)
             elseif target == :component
                 target_tensor = get(sim_data.stats, u_sel[], sim_data.stats[:Solution])
                 picks = _compare_selection(chosen, collect(1:_get_component_num_plots(Val(manager.mode[]), target_tensor)),
@@ -604,8 +613,7 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
                     vals = pd_first.active_param_values[idx]
                     picks = _compare_selection(chosen, vals, _is_numeric_sweep(vals) ? :numbers : :names)
                     sci = _sci_set(vals[picks])   # (one notation for all: 1e-5, 1e-4, not 1e-5, 0.0001)
-                    compare_labels = _is_joint_key(target) ? [_joint_text(target, v, _fmt_compare) for v in vals[picks]] :
-                                     ["$(frontend_key(target)) = $(_fmt_compare(v; sci))" for v in vals[picks]]
+                    compare_labels = [_param_text(target, v, _fmt_compare; sci) for v in vals[picks]]
                     # Non-numeric sweeps are addressed by index (like their sliders).
                     compare_vals = _is_numeric_sweep(vals) ? collect(vals[picks]) : collect(picks)
                     num_plots = length(compare_vals)
@@ -619,8 +627,11 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
         num_plots = 1; target = :none; compare_labels = String[]; compare_vals = Any[]
     end
     is_det, halign, valign = _parse_legend_position(target)  # the new target (Compare_State is stored below)
+    _resolve_line_state!(T, target, pd_first, sim_data)
     
-    has_legend = T in LEGEND_SUPPORTED_PLOTS && target != :methods
+    # (compared methods need no legend: the titles name them; unless lines run over a parameter or time, which the
+    # legend names, the same in every subplot)
+    has_legend = T in LEGEND_SUPPORTED_PLOTS && (target != :methods || !isnothing(manager.line_state[2]))
     has_colorbar = T in COLORBAR_SUPPORTED_PLOTS
 
     layout_dict = calculate_layout_dictionary(num_plots, cols, link_mode, has_legend, is_det, halign, valign, has_colorbar)
@@ -645,12 +656,13 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
     end
     
     if !is_3d_axis && link_mode in (:fully_coupled, :axes_only)
-        linkaxes!(axes...)
+        # (Compare: fields: other quantities, so only the x axes are shared)
+        target === :fields ? linkxaxes!(axes...) : linkaxes!(axes...)
     end
     
     target_idx = if target === :time
         isnothing(sim_data) ? nothing : findfirst(isequal(sim_data.domain.time_dim), manager.plot_vars)
-    elseif target in (:none, :methods, :component)
+    elseif target in (:none, :methods, :component, :fields)
         nothing
     else
         findfirst(isequal(target), manager.plot_vars)
@@ -660,3 +672,88 @@ function _initialize_render_layout!(plot_layout::GridLayout, ::Val{T}) where T
 
     return axes, num_plots, compare_labels, x_sel, y_sel, z_sel, u_sel, c_sel, selector_obs, has_colorbar
 end
+
+# The lines of 1D plots (*Lines*, *Line Values*): one per method, or one per method and chosen value of time or a swept
+# parameter (not the compared one); `manager.line_state`, and the series keys in drawing order (`manager.series`).
+# With the methods compared (one per subplot) the lines are named and coloured by their value alone, the same in
+# every subplot, and the legend lists each value once.
+function _resolve_line_state!(T::Symbol, compare_target, pd, sim_data)
+    w = manager.widgets
+    manager.line_state = (:methods, nothing, String[], Any[])
+    empty!(manager.series)
+    empty!(manager.series_labels)
+    empty!(manager.series_style)
+    target = haskey(w, :line_target) ? w[:line_target].selection[] : :methods
+    if target === compare_target && !(target in (:methods, :none))
+        _status!("Lines over $(frontend_key(target === :time ? :t : target)) are off: it is the compared variable " *
+                 "(Compare); choose another one for the lines or the comparison.", :warn)
+    end
+    (target in (:methods, :none) || target === compare_target || !(T in LEGEND_SUPPORTED_PLOTS) || isnothing(sim_data) ||
+     isnothing(pd)) && return
+    chosen = haskey(w, :line_values) ? w[:line_values].selection[] : "all"
+    if target === :time
+        t_dim = sim_data.domain.time_dim
+        isnothing(t_dim) && return
+        idx = findfirst(==(t_dim), manager.plot_vars)
+        t_vals = collect(_get_time_vals(Val(manager.mode[]), sim_data, findfirst(==(t_dim), sim_data.domain.dim_keys)))
+        vals = t_vals[_compare_selection(chosen, t_vals, :numbers)]
+        sci = _sci_set(vals)
+        labels = ["$(frontend_key(t_dim)) = $(_fmt_compare(t; sci))" for t in vals]
+    else
+        idx = findfirst(isequal(target), manager.plot_vars)
+        (isnothing(idx) || idx > length(pd.active_param_values)) && return
+        all_vals = pd.active_param_values[idx]
+        numeric = _is_numeric_sweep(all_vals)
+        picks = _compare_selection(chosen, all_vals, numeric ? :numbers : :names)
+        sci = _sci_set(all_vals[picks])
+        labels = [_param_text(target, v, _fmt_compare; sci) for v in all_vals[picks]]
+        vals = numeric ? collect(all_vals[picks]) : collect(picks)   # (non-numeric sweeps by index, like their sliders)
+    end
+    (isnothing(idx) || isempty(vals)) && return
+    manager.line_state = (target, idx, labels, vals)
+    methods = manager.methods[]
+    by_value = compare_target === :methods   # (the methods are the subplots' titles)
+    for (j, label) in enumerate(labels), m in methods
+        key = _series_key(m, j)
+        push!(manager.series, key)
+        manager.series_labels[key] = by_value || length(methods) == 1 ? label : "$(frontend_key(m)), $label"
+        manager.series_style[key] = by_value ? j : length(manager.series)
+    end
+    return
+end
+
+_series_key(m::Symbol, j::Int) = Symbol(m, "##", j)
+
+# The data of the lines of a subplot: `fetch_pipeline_tuples` for the methods, or, with *Lines* over a parameter or time,
+# for every method and chosen value (its slider position set to that value), keyed by the series keys
+function _fetch_series(mode, data, local_methods, build_idx, sel_vals, x_sel, y_sel, z_sel, u_sel, c_int)
+    _, idx, _, vals = manager.line_state
+    (isnothing(idx) || isempty(vals)) &&
+        return fetch_pipeline_tuples(mode, data, local_methods, build_idx, sel_vals, x_sel, y_sel, z_sel, u_sel, c_int)
+    cols, keys = nothing, Symbol[]
+    for (j, v) in enumerate(vals)
+        sv = collect(sel_vals)
+        sv[idx] = v
+        tuples, valid = fetch_pipeline_tuples(mode, data, local_methods, build_idx, sv, x_sel, y_sel, z_sel, u_sel, c_int)
+        isnothing(cols) && (cols = [Any[] for _ in tuples])
+        for (m_i, m) in enumerate(valid)
+            for c in eachindex(tuples)
+                push!(cols[c], tuples[c][m_i])
+            end
+            push!(keys, _series_key(m, j))
+        end
+    end
+    return (isnothing(cols) ? () : Tuple(cols)), keys
+end
+
+# The colour, marker and line style index of a method or series: its position in the drawing order, or, with the
+# methods compared, the index of the line's value (see `_resolve_line_state!`)
+_style_index(key::Symbol) = haskey(manager.series_style, key) ? manager.series_style[key] : findfirst(==(key), manager.methods[])
+
+# The plot_vars a title leaves out: the plotted axes and the parameter the lines run over
+_title_skips(active) = Tuple(isnothing(manager.line_state[2]) ? active : [collect(active); manager.line_state[2]])
+
+# The dependent field of subplot `i`: the selected one, or with *Compare: fields* the subplot's own (a `Ref`, read like
+# the selection's observable)
+_subplot_field(u_sel, i::Int) = manager.compare_state[1] === :fields && i <= length(manager.compare_state[4]) ?
+                                Ref{Any}(manager.compare_state[4][i]) : u_sel

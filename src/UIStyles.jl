@@ -4,13 +4,16 @@
 
 const LEGEND_SUPPORTED_PLOTS = (:lines_1d, :scatter_colors, :scatter_lines, :contour_colors, :contour_surface)
 const COLORBAR_SUPPORTED_PLOTS = (:heatmap_flat, :scatter_1d, :scatter_2d, :scatter_surface, :contour_f, :contour_3d, :scatter_3d, :heatmap_surface, :volume_3d, :contour_cmap, :lines_2d, :lines_3d)
-const REPLOT_OPTIONS = (:use_color_map, :line_direction, :method_index, :padding, :log_scale, :dashed_lines, :levels, :rasterization_enabled, :rasterization_quality, :legend_label)
-const LAYOUT_OPTIONS = (:plot_style, :compare_target, :compare_columns, :compare_values, :compare_link, :legend_base, :legend_add, :plot_width, :plot_height)
+const REPLOT_OPTIONS = (:use_color_map, :line_direction, :method_index, :padding, :log_scale, :dashed_lines, :levels, :rasterization_enabled, :rasterization_quality, :legend_label, :data)
+const LAYOUT_OPTIONS = (:plot_style, :compare_target, :compare_columns, :compare_values, :compare_link, :line_target, :line_values, :legend_base, :legend_add, :plot_width, :plot_height)
 const PLOT_AXIS_OPTIONS = (:x_axis, :y_axis, :z_axis, :u_axis, :component)
 const EXPLORATION_OPTIONS = (:anim_target, :component)
 
 # --- SYMBOL / LABEL ROUTING ---
 const SYMBOL_TO_LABEL_MAP = Dict{Symbol, String}(
+    :reference_error => "u − u_ref",
+    :inset => "Zoom Inset",
+    :series => "External Series",
     :hud => "HUD",
     :fps => "FPS",
     :x_axis => "X-Axis",
@@ -67,6 +70,38 @@ function set_label!(sym::Symbol, label::AbstractString)
 end
 
 """
+    set_value_label!(param::Symbol, value => label, ...)
+    set_value_label!(param::Symbol)
+
+Names values of a swept parameter: `set_value_label!(:Grid_randomness_factor, (0.0,) => "lattice", (0.2,) => "jittered")`.
+Titles, compared subplots, the lines of *Lines* and the slider label show the name instead of `parameter = value`.
+For a joint sweep (`joint_sweep`) name its tuples: `set_value_label!(Symbol("IC_type&IC_cell"), ("sharp", 0.1) => "sharp")`.
+Without values it removes the names of `param`. Like [`set_label!`](@ref), names only change what is shown (exports
+keep them, as `Scene, Value_Labels`); returns the names of `param`.
+"""
+function set_value_label!(param::Symbol, pairs::Pair...)
+    isempty(pairs) && (delete!(manager.value_labels, param); return Dict{Any, String}())
+    names = get!(() -> Dict{Any, String}(), manager.value_labels, param)
+    for (v, label) in pairs
+        names[v] = String(label)
+    end
+    return copy(names)
+end
+
+# The name of a swept value (`set_value_label!`), or `nothing`; a joint sweep's value by its tuple, also when shown by
+# its first entry
+function _value_label(param, v)
+    names = get(manager.value_labels, param, nothing)
+    isnothing(names) && return nothing
+    haskey(names, v) && return names[v]
+    if _is_joint_key(param) && !(v isa Tuple)
+        raw = _joint_raw(param, v)
+        isnothing(raw) || return get(names, raw, nothing)
+    end
+    return nothing
+end
+
+"""
     frontend_key(s::Symbol)
 
 Translates an internal variable or method `Symbol` into a clean, human-readable string suitable for dropdown menus, Makie axis labels, or legend entries.
@@ -76,6 +111,7 @@ function frontend_key(s::Symbol)
     if haskey(manager.labels, s)
         return manager.labels[s]
     end
+    haskey(manager.series_labels, s) && return manager.series_labels[s]   # (a line of *Lines*: method and value)
     # 2. Default Mappings
     if haskey(SYMBOL_TO_LABEL_MAP, s)
         return SYMBOL_TO_LABEL_MAP[s]
@@ -245,6 +281,30 @@ function create_master_ui_dict()
         :dpi                  => 300,
         :mp4_compression      => 15,
     )
+    # Data from outside (a paper's errors, a measurement, a curve y(x) over a heatmap) drawn in the 1D and 2D plots
+    # like the HUD, in the plot's coordinates: `data` maps a label to its points `[(x, y), …]` in the plotted x
+    # variable (`x_axis`) and the vertical one (`y_axis`: the dependent field of a 1D plot, the y variable of a 2D
+    # plot), set when the data is added: the series show while the plot shows those (`:none`: any). Their colours and
+    # markers continue the methods' lists of `plot_style`, after the methods.
+    master[:series] = Dict{Symbol, Any}(
+        :visible     => true,
+        :data        => Dict{String, Any}(),
+        :x_axis      => :none,
+        :y_axis      => :none,
+        :line_style  => :dash,
+        :line_width  => 2.0,
+        :marker_size => 10.0,
+    )
+    # A zoom inset of a 1D subplot (the same as `studio_inset!`, which adds more of them): a corner axis showing the
+    # curves in x_lims × y_lims, with a box marking the region
+    master[:inset] = Dict{Symbol, Any}(
+        :visible  => false,
+        :plot     => 1,        # the subplot
+        :x_lims   => Any[],    # [lo, hi]
+        :y_lims   => Any[],
+        :position => :rt,      # the corner: :rt, :lt, :rb, :lb
+        :size     => 0.4,      # of the subplot's width and height
+    )
     master[:outliers_extrema] = Dict{Symbol, Any}(
         :remove_outliers      => false, 
         :mark_outliers        => false, 
@@ -261,6 +321,7 @@ function create_master_ui_dict()
         :tick_format       => "default", 
         :scale_offset      => 0.0, 
         :log_scale         => false, 
+        :reversed          => false,   # (values falling along the axis: ε → 0 to the right)
         :padding           => pad,
         :label_offset      => default_offset,
         :lims              => Any[]
@@ -299,7 +360,7 @@ const MASTER_UI_DICT = create_master_ui_dict()
 
 # The UI scopes kept in `manager.ui`: the general scopes, one scope per axis variant (the renderer uses the variant of
 # the active plot type, see `_ui_template_scope`) and the plot style options shared by all plot types.
-const UI_GENERAL_SCOPES = (:axis_general, :labels, :hud, :outliers_extrema)
+const UI_GENERAL_SCOPES = (:axis_general, :labels, :hud, :series, :outliers_extrema, :inset)
 const UI_AXIS_SCOPES = (:x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d)
 const UI_SCOPES = (UI_GENERAL_SCOPES..., :export, UI_AXIS_SCOPES..., :plot_style)
 
@@ -501,7 +562,15 @@ end
 The runtime style applicator. 
 It queries the strict `STYLE_DEPENDENCIES` matrix to determine exactly which attributes (e.g., line width, colormaps, color limits) the given Makie primitive `prim` fundamentally supports. It then safely binds those values in-place directly from the UI dictionary `ui_app`, averting `MethodError`s on incompatible primitives.
 """
-function apply_ui_style!(prim_key::Union{Symbol, AbstractString}, prim::Any, ui_app::Dict, color::Any, cr_obs::Observable = Observable((0.0, 1.0)))
+# The marker of the `i`-th method or line and its size: `:none` (or `nothing`, a blank character) draws no marker
+function _marker_and_size(ui_app::AbstractDict, i::Integer)
+    m = ui_app[:markers][mod1(i, end)]
+    return _no_marker(m) ? (:circle, 0.0f0) : (m, Float32(ui_app[:marker_size]))
+end
+_no_marker(m) = m === :none || isnothing(m) || (m isa AbstractChar && isspace(m)) || (m isa AbstractString && isempty(strip(m)))
+
+function apply_ui_style!(prim_key::Union{Symbol, AbstractString}, prim::Any, ui_app::Dict, color::Any, cr_obs::Observable = Observable((0.0, 1.0));
+                         index::Union{Nothing, Integer} = nothing)
     k = Symbol(prim_key)
     deps = get(STYLE_DEPENDENCIES, k, Symbol[])
     
@@ -526,7 +595,7 @@ function apply_ui_style!(prim_key::Union{Symbol, AbstractString}, prim::Any, ui_
         end
         
         if :marker_size in deps && haskey(prim.attributes, :markersize)
-            prim.markersize[] = Float32(ui_app[:marker_size])
+            prim.markersize[] = isnothing(index) ? Float32(ui_app[:marker_size]) : last(_marker_and_size(ui_app, index))
         end
     catch e
         @warn "Failed to apply UI style dynamically to $k" exception=(e, catch_backtrace())
