@@ -7,6 +7,10 @@ program that reads text and looks at images) can explore results the way a perso
 The functions work on the open studio (`launch_plotter`) through the same widgets as a mouse: a visible window shows
 what the script does, and when a function returns, the studio has finished updating.
 
+A studio binds one `SimulationConfig` at a time, by design (see *One configuration per studio* on the [home page](index.md)):
+results of other configurations are combined into that one (methods, a sweep), brought in as data
+([`studio_add_series!`](@ref)) or plotted in a studio of their own.
+
 ## Without a display
 
 [`studio_headless!`](@ref) makes CairoMakie the active backend. The studio is then built in memory, so no window,
@@ -95,8 +99,10 @@ where the style has one, count for the limits of 1D plots and are drawn by expor
 
 **Zoom insets:** [`studio_inset!`](@ref) adds a small axis in a corner of a 1D subplot that shows its curves in a
 region (e.g. a contact discontinuity), with a box marking the region; exports draw it, `studio_clear_insets!()` removes
-them. One inset is also a UI option page, *UI → Zoom Inset* (`studio_option!(:inset, :x_lims, (0.45, 0.6))`, `:y_lims`,
-`:visible`), saved with the look.
+them. The insets are the UI option page *UI → Zoom Inset*, saved with the look: the first has the named options
+(`studio_option!(:inset, :x_lims, (0.45, 0.6))`, `:y_lims`, `:position`, `:size`, `:plot`, `:visible`), `more_insets`
+lists further ones as `(x_lo, x_hi, y_lo, y_hi)` with the corner, size and subplot optional; `studio_inset!` appends
+to it.
 
 **Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`, or the Files tab's
 *Compute: on/off* button) the studio computes nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs

@@ -295,15 +295,16 @@ function create_master_ui_dict()
         :line_width  => 2.0,
         :marker_size => 10.0,
     )
-    # A zoom inset of a 1D subplot (the same as `studio_inset!`, which adds more of them): a corner axis showing the
-    # curves in x_lims × y_lims, with a box marking the region
+    # Zoom insets of the 1D subplots: corner axes showing the curves in a region, with a box marking it. The first one
+    # has the named options; `more_insets` lists further ones (`studio_inset!` adds to it)
     master[:inset] = Dict{Symbol, Any}(
-        :visible  => false,
-        :plot     => 1,        # the subplot
-        :x_lims   => Any[],    # [lo, hi]
-        :y_lims   => Any[],
-        :position => :rt,      # the corner: :rt, :lt, :rb, :lb
-        :size     => 0.4,      # of the subplot's width and height
+        :visible     => false,
+        :plot        => 1,        # the subplot
+        :x_lims      => Any[],    # [lo, hi]
+        :y_lims      => Any[],
+        :position    => :rt,      # the corner: :rt, :lt, :rb, :lb
+        :size        => 0.4,      # of the subplot's width and height
+        :more_insets => Any[],    # [(x_lo, x_hi, y_lo, y_hi), (x_lo, x_hi, y_lo, y_hi, corner, size, plot), …]
     )
     master[:outliers_extrema] = Dict{Symbol, Any}(
         :remove_outliers      => false, 

@@ -35,8 +35,11 @@ tab, the presets in the **Files** tab.
 
 The look of the renderer and the display names. The overview is fixed and lists every page:
 *   **General:** *Axis General* (font sizes, legend sorting), *HUD*, *Outliers & Extrema*.
-*   **Labels:** *Plot* (the title and the axis, colorbar and legend labels of the plot) and the display names of
-    *Components* (`component_1`, …), *Variables* (dimensions and swept parameters) and *Methods*. *Example:* if your
+*   **Labels:** *Plot* (the title and the axis, colorbar and legend labels of the plot), the display names of
+    *Components* (`component_1`, …), *Variables* (dimensions and swept parameters) and *Methods*, and *Swept Values*:
+    one row per value of every swept parameter (`Cfl = 0.250`, the tuples of a joint sweep); a name typed there
+    (`set_value_label!`) replaces `parameter = value` in titles, compared subplots, lines and the slider label.
+    *Example:* if your
     solver names a swept parameter `:rho`, the UI shows "Rho"; open *Variables* and type `Density` into the `rho`
     row: every dropdown, legend and slider label now says "Density". Display names are text; `default` restores the
     built-in name. They are stored in exports and look presets.

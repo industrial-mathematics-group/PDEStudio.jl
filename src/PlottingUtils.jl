@@ -165,10 +165,11 @@ end
 # joint sweep, or `parameter = value` (`fmt`: `_fmt_value` or `_fmt_compare`; `sci`: one notation for the sweep)
 function _param_text(key::Symbol, v, fmt; sci::Bool = false)
     label = _value_label(key, v)
-    isnothing(label) || return label
-    _is_joint_key(key) && return _joint_text(key, v, fmt)
-    return "$(frontend_key(key)) = $(fmt(v; sci))"
+    return isnothing(label) ? _value_text(key, v, fmt; sci) : label
 end
+# The built-in text of a swept value (without its name): every parameter of a joint sweep, or `parameter = value`
+_value_text(key::Symbol, v, fmt = _fmt_value; sci::Bool = false) =
+    _is_joint_key(key) ? _joint_text(key, v, fmt) : "$(frontend_key(key)) = $(fmt(v; sci))"
 
 # Whether the values of the `i`-th parameter are written scientifically (all of them, see `_sci_set`)
 function _param_sci(i::Int)
