@@ -3538,7 +3538,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         set_sim_config!(two)
         click_button!(:run_button)
         # the compare targets keep their order (not sorted by label)
-        @test [o[2] for o in w()[:compare_target].options[]] == [:none, :methods, :component, :time, :cfl]
+        @test [o[2] for o in w()[:compare_target].options[]] == [:none, :methods, :component, :time, :cfl, :fields]
 
         # 5. Compare = methods, then a configuration with fewer active methods (not run yet): plot updates still work
         click_menu!(w()[:compare_target], :methods)
