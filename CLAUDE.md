@@ -66,6 +66,12 @@ fix without having looked at the result.
 ## Conventions
 
 - Requires Julia 1.12.
+- **One configuration per studio (1.0 contract).** The studio binds exactly one `SimulationConfig`
+  (`set_sim_config!`): sliders, caches, comparisons, lines, the CSV state and the agent API all
+  assume one sweep and one method list. Never add features that make the studio hold a second
+  configuration (panels or lines from another config, several bound sweeps). Results of different
+  configurations are combined into one (methods, a swept parameter), brought in as data (External
+  Series) or plotted separately. Documented in `docs/src/index.md`.
 - **CSV config format is a user-facing file format.** Changing categories or keys
   (`Simulation, Sweep`, `Simulation, Config`, …) breaks users' saved files; only when asked,
   and documented in the CHANGELOG under "Breaking". CSV files store backend keys, never

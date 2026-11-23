@@ -7,8 +7,9 @@ What has changed since the last release. Released versions are described in the
 
 ### New
 - **Zoom insets:** `studio_inset!(xlims, ylims; plot, position, size)` shows a region of a 1D subplot in a corner
-  axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them. In the window one inset is
-  set under *UI → Zoom Inset* (`x_lims`, `y_lims`, `visible`, `position`, `size`, `plot`; saved with the look).
+  axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them. The insets are the UI option
+  page *UI → Zoom Inset*, saved with the look: the first has `x_lims`, `y_lims`, `visible`, `position`, `size`,
+  `plot`; `more_insets` lists further ones as `(x_lo, x_hi, y_lo, y_hi)`, optionally with corner, size and subplot.
 - **External Series:** data from outside (a paper's table, a curve `y(x)` over a heatmap) drawn in the 1D and 2D
   plots like the HUD, in the plot's coordinates: the UI scope *External Series* holds the points per label (`data`),
   the x variable and the vertical one they belong to (the dependent field of a 1D plot, the y variable of a 2D plot;
@@ -25,6 +26,7 @@ What has changed since the last release. Released versions are described in the
 - **Reversed axes:** the axis option `reversed` (`studio_option!(:x_axis_1d, :reversed, true)`, e.g. ε → 0 to the right).
 - **Names for swept values:** `set_value_label!(param, value => "name", …)` (also the tuples of a joint sweep);
   titles, compared subplots, lines and the slider label show the name. Exports keep them (`Scene, Value_Labels`).
+  In the window: *UI → Labels → Swept Values*, one row per swept value.
 - **Convergence rates and number tables:** `studio_rates(plot)` (local log-log slopes per method or line, also in
   `describe_studio` over a swept parameter) and `studio_export_data(path)` (the plotted numbers with the slopes, as
   Markdown or CSV). The Export button writes them for a name ending in `.md` (Markdown) or `.txt` (CSV text), or
@@ -132,6 +134,10 @@ What has changed since the last release. Released versions are described in the
   stay distinct; at most two lines, one line on 3D axes) instead of running into the next plot.
 
 ### Changed
+- **One configuration per studio is a documented design contract:** the studio binds exactly one `SimulationConfig`
+  (sliders, caches, comparisons, lines, CSV state and the agent API assume one sweep and one method list); this will
+  not change. Results of other configurations are combined into one, brought in as External Series or plotted
+  separately (see the README and the docs home page).
 - **`set_label!` is exported:** give parameters, methods, statistics and dimensions display names, e.g.
   `set_label!(:Grid_Ns__1, "N")` instead of the automatic "Grid Ns[1]".
 - **Statistics for agents:** the `:u_axis` entry of `studio_controls` / `describe_studio` and the error of an

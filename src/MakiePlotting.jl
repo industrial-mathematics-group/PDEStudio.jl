@@ -89,6 +89,10 @@ The studio works on a copy of `config` (returned; `copy_config = false` binds th
 studio already owns): what is edited in the window (methods, parameters, the sweep) does not change the
 configuration passed in. A configuration without `methods` runs its shared parameters alone, shown
 as the single method `:default`.
+
+The studio binds exactly one configuration at a time, by design: binding another replaces the first. Results of
+several configurations are shown by combining them into one (methods, a swept parameter), as External Series
+([`studio_add_series!`](@ref)) or in separate studios.
 """
 function set_sim_config!(config::SimulationConfig; snapshot::Bool = true, copy_config::Bool = true)
     copy_config && (config = deepcopy(config))   # the studio edits its own copy: the caller's configuration stays as it was
