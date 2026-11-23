@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Error view:** `set_error_field!(true)` adds the field *u − u_ref* (`:reference_error`), the pointwise difference
+  of the data to the reference at the drawn points, selectable like a statistic.
 - **No marker for a method or line:** `:none` in the markers list (also `nothing` or a blank character).
 - **Reversed axes:** the axis option `reversed` (`studio_option!(:x_axis_1d, :reversed, true)`, e.g. ε → 0 to the right).
 - **Names for swept values:** `set_value_label!(param, value => "name", …)` (also the tuples of a joint sweep);

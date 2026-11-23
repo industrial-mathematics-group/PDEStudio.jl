@@ -1473,6 +1473,20 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test PDEStudio._no_marker(' ') && PDEStudio._no_marker(nothing) && !PDEStudio._no_marker(:circle)
     studio_option!(:plot_style, :markers, old_markers)
     studio_set!(:plot_style => :lines)
+    # --- the difference to the reference as a field (set_error_field!) ---
+    set_error_field!(true)
+    try
+        reset_plotter!()
+        launch_plotter(test_advection_1d())
+        studio_set!(:methods => [:upwind, :lax_wendroff])
+        studio_set!(:u_axis => :reference_error, :t => 1.0)
+        errs = Dict(m => maximum(abs.(first.(v.u))) for (m, v) in studio_data(1).methods)
+        @test 0 < errs[:lax_wendroff] < errs[:upwind] < 1 && studio_state().plots[1].ylabel == "u − u_ref"
+    finally
+        set_error_field!(false)
+    end
+    reset_plotter!()
+    launch_plotter(config)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)

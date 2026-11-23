@@ -11,6 +11,7 @@ const EXPLORATION_OPTIONS = (:anim_target, :component)
 
 # --- SYMBOL / LABEL ROUTING ---
 const SYMBOL_TO_LABEL_MAP = Dict{Symbol, String}(
+    :reference_error => "u − u_ref",
     :hud => "HUD",
     :fps => "FPS",
     :x_axis => "X-Axis",
