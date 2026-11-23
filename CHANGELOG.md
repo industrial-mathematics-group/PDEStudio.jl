@@ -6,8 +6,10 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
-- **Joint sweeps** (`joint_sweep` of the next PDEStudioCore release: several parameters changing together, e.g. `N` and a cell
-  width `6/N`) are shown over their first parameter: one numeric slider named by it, usable as a plot axis.
+- **Joint sweeps** (`joint_sweep` of PDEStudioCore 0.6.2: several parameters changing together, e.g. `N` and a cell
+  width `6/N`) are shown over their first parameter: one numeric slider named by it, usable as a plot axis. Scripts
+  name it by its first parameter (sliders, axis and compare menus); titles name all of its parameters
+  (`N = 80, IC Cell = 0.075`).
 - **Statistics on references:** a reference evaluates the registered statistics that need no reference and runs the
   configuration's post-processor, so derived fields (primitive variables, …) can be drawn against it. A
   post-processor that fails on reference data is reported once; the reference is then drawn without its fields.
@@ -28,6 +30,10 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- **Labels of reference slopes keep apart**, also for several slopes next to one curve: each goes to the first of a few
+  places along its line (and on either side of it) that is clear of the other labels, slopes and curves.
+- **Compare Values goes back to `all`** when a configuration with other swept values is bound or launched (a relaunch
+  of the same sweep keeps it); the values it named may not exist there.
 - **Titles:** a tuple value shows its elements (`jitter = 0.200`, was `(0.2,)`), and the values of one parameter or
   comparison use one notation (`1e-5, 1e-4, 1e-3`, was `1e-5, 0.0001, 0.001`).
 - **A grid of subplots shows the axis labels once** per row and column (they repeated on every subplot).

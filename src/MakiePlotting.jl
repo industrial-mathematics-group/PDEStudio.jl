@@ -99,6 +99,7 @@ function set_sim_config!(config::SimulationConfig; snapshot::Bool = true, copy_c
         _reset_config_view!()
         manager.is_open && _reset_open_view!()
     end
+    _sweep_changed(config) && _reset_compare_values!()
     manager.bound_setup = setup
     manager.active_config = config
     manager.csv_cache = nothing  # a staged (structural) CSV is superseded by this configuration
@@ -363,6 +364,7 @@ function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; styl
     launch_run = isnothing(config) ? nothing : _prepare_for_config!(config, style)
     # the view of another setup doesn't fit this one (a relaunch of the same setup keeps it)
     fresh = !isnothing(config) && _view_setup(config) != manager.bound_setup
+    !isnothing(config) && _sweep_changed(config) && _reset_compare_values!()
 
     reset_plotter!()
     if fresh   # (after `reset_plotter!`: until then the old window, e.g. its animation, can still move the sliders)
@@ -457,6 +459,16 @@ end
 function _view_setup(config::SimulationConfig)
     solvers = [get(config.shared, :sim_func_name, nothing); [get(m, :sim_func_name, nothing) for m in values(config.methods)]]
     return (sort!(string.(collect(keys(config.varied)))), sort!(unique(string.(filter(!isnothing, solvers)))))
+end
+
+# Whether `config` sweeps other values than the bound configuration (the values a comparison shows may not exist)
+_sweep_changed(config::SimulationConfig) = isnothing(manager.active_config) || manager.active_config.varied != config.varied
+
+# Back to comparing all values (Compare Values; `all` is the default of a new window)
+function _reset_compare_values!()
+    manager.layout_cache[:compare_values] = "all"
+    haskey(manager.widgets, :compare_values) && _set_values_text!(manager.widgets[:compare_values], "all")
+    return nothing
 end
 
 # Forgets the view of the last configuration (the windows keep it in caches that outlive them): plotted axes,
