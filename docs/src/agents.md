@@ -84,10 +84,12 @@ subplot (for an error over `N` the observed order is the negative slope), `descr
 axis is a swept parameter, and [`studio_export_data`](@ref) writes the plotted numbers with them, as Markdown
 (`"convergence.md"`: a table per subplot) or CSV.
 
-**Data from outside:** [`studio_add_series!`](@ref) draws a small table in the 1D plots, e.g. a paper's errors next
-to the study's: `studio_add_series!("SL7 (paper)", Ns, errors; color = :green, marker = :diamond)`. It appears in the
-legend, counts for the limits and is exported (written to the export's CSV and drawn again when it is loaded);
-`studio_clear_series!()` removes the series. In the window the same comes from loading a plain two-column CSV.
+**Data from outside:** [`studio_add_series!`](@ref) adds a small table, e.g. a paper's errors next to the study's,
+as a method of the configuration (`PDEStudioCore.tabulated_method`): `studio_set!(:x_axis => :N, :u_axis =>
+:l1error); studio_add_series!("SL7 (paper)", Ns, errors)`. It is run and cached like a solver, drawn and styled like
+the other methods (`studio_option!(:plot_style, :colors, …)`), listed in the Methods tab and written to exports with
+the configuration, so the figure stays reproducible; `studio_clear_series!()` removes the tabulated methods. In the
+window the same comes from loading a plain two-column CSV.
 
 **Zoom insets:** [`studio_inset!`](@ref) adds a small axis in a corner of a 1D subplot that shows its curves in a
 region (e.g. a contact discontinuity), with a box marking the region; exports draw it, `studio_clear_insets!()` removes

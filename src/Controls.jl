@@ -319,7 +319,9 @@ end
 
 # "all" for an empty text, otherwise the entries separated by ", "
 function _values_text(s)
-    items = filter(!isempty, strip.(split(String(s), r"[,;]")))
+    # (a list may be typed with brackets and any of comma, semicolon or space between the values: `[.1, .2, .5, 1.]`)
+    text = replace(strip(String(s)), r"^[\[\(]|[\]\)]$" => "")
+    items = filter(!isempty, strip.(split(text, r"[,;\s]+")))
     return isempty(items) || (length(items) == 1 && lowercase(only(items)) == "all") ? "all" : join(items, ", ")
 end
 
@@ -339,7 +341,9 @@ end
 # One option of the layout panel in a row layout of its own (`manager.panels[:layout_row_<key>]`), so the rows that
 # don't apply to the plot style can be parked (`_sync_layout_rows!`); returns the widget's position.
 function _layout_row!(gl::GridLayout, i::Int, key::Symbol, name::AbstractString)
-    row = manager.panels[Symbol("layout_row_", key)] = gl[i, 1] = GridLayout()   # (attached: blocks need a figure)
+    # (attached: blocks need a figure; `tellwidth = false`: the panel keeps the control column's width, so the widgets
+    # fill it instead of the column shrinking to the widest row)
+    row = manager.panels[Symbol("layout_row_", key)] = gl[i, 1] = GridLayout(tellwidth = false)
     Label(row[1, 1], name, halign = :left, fontsize = 13)
     colsize!(row, 1, Fixed(140))
     return row[1, 2]
@@ -387,7 +391,7 @@ the lines of 1D plots (one per method, or per method and value of a swept parame
 function build_layout_options!(menu_layout::GridLayout)
     w = manager.widgets
     manager.panels[:layout_options] = menu_layout
-    title = manager.panels[:layout_row_title] = menu_layout[1, 1] = GridLayout()
+    title = manager.panels[:layout_row_title] = menu_layout[1, 1] = GridLayout(tellwidth = false)
     Label(title[1, 1], "Layout options  (Apply Layout)", font = :bold, color = :darkred, halign = :left)
 
     w[:plot_style]  = StyleChoice(_layout_row!(menu_layout, 2, :plot_style, "Plot Style"), manager.mode[] == :eulerian ? :lines_1d : :scatter_1d)

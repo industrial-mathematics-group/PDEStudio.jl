@@ -117,8 +117,8 @@ end
 # that format, anything else is part of the name.
 const ANIMATION_EXPORT_FORMATS = ("mp4", "gif", "webm", "mkv")
 const STATIC_EXPORT_FORMATS = ("png", "pdf", "svg", "eps", "jpg", "jpeg")
-# The plotted numbers instead of a figure (`studio_export_data`): a Markdown table, or CSV text in a .txt file
-const DATA_EXPORT_FORMATS = ("md", "txt")
+# The plotted numbers instead of a figure (`studio_export_data`): a Markdown table (.md) or CSV (.csv, .txt)
+const DATA_EXPORT_FORMATS = ("md", "csv", "txt")
 
 """
     _export_formats(setting)
@@ -1522,14 +1522,6 @@ function _collect_legend_elements(ui_app::Dict)
                 end
             end
         end
-    end
-    # (data from outside, `studio_add_series!`, after the methods)
-    for s in _series_for(1)
-        c = Makie.to_color(s.color)
-        group = Any[Makie.LineElement(color = c, linewidth = ui_app[:line_width], linestyle = s.linestyle)]
-        _no_marker(s.marker) || push!(group, Makie.MarkerElement(color = c, marker = s.marker, markersize = ui_app[:marker_size]))
-        push!(plotted_objects, group)
-        push!(labels_for_legend, s.label)
     end
 
     return plotted_objects, labels_for_legend

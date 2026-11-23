@@ -389,15 +389,22 @@ function _series_csv_points(path::AbstractString)
     return length(x) >= 2 ? (x, y) : nothing
 end
 
-# Loads a plain two-column CSV as a series named after the file (`studio_add_series!`); `true` if `path` was one
+# Loads a plain two-column CSV as a tabulated method named after the file (`studio_add_series!`: over the plotted x
+# variable, as the plotted field); `true` if `path` was one
 function _load_series_csv!(path::AbstractString)
     pts = _series_csv_points(path)
     isnothing(pts) && return false
     label = first(splitext(basename(path)))
-    studio_add_series!(label, pts[1], pts[2])
-    _status!("Added the series '$label' ($(length(pts[1])) points) from $(basename(path)) to the 1D plots; loading it " *
-             "again replaces it, studio_clear_series!() removes all.", :ok)
-    haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightgreen)
+    try
+        name = studio_add_series!(label, pts[1], pts[2])
+        _status!("Added $(basename(path)) ($(length(pts[1])) points) as the method $name (Methods tab); loading it again " *
+                 "replaces it, studio_clear_series!() removes all tabulated methods.", :ok)
+        haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightgreen)
+    catch e
+        e isa InterruptException && rethrow()
+        _status!("Not loaded: $(_short(sprint(showerror, e), 120))", :error)
+        haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightcoral)
+    end
     return true
 end
 
@@ -2568,7 +2575,8 @@ function _setup_export_interactions!(master_fig::Figure, plot_layout::GridLayout
                 for fmt in formats
                     full_path = joinpath(save_dir, base_name * ".$fmt")
                     mkpath(dirname(full_path))
-                    if fmt in DATA_EXPORT_FORMATS   # (the plotted numbers next to the figure)
+                    if fmt in DATA_EXPORT_FORMATS   # (the plotted numbers next to the figure; `<name>.csv` is the export's state)
+                        fmt == "csv" && (full_path = joinpath(save_dir, base_name * "_data.csv"))
                         studio_export_data(full_path)
                         push!(manager.last_export, full_path)
                         @info "Plotted numbers ($fmt) saved to $full_path"

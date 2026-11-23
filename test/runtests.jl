@@ -271,6 +271,9 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         picks = PDEStudio._compare_picks(100)
         @test length(picks) == MAX_COMPARE_PLOTS && first(picks) == 1 && last(picks) == 100
         @test PDEStudio._preset_symbol(" My  Preset ") == :my_preset
+        # values of Compare Values / Line Values: with or without brackets, comma, semicolon or space separated
+        @test PDEStudio._values_text("[.1,.2,.5,1.]") == ".1, .2, .5, 1."
+        @test PDEStudio._values_text("(1; 2  3)") == "1, 2, 3" && PDEStudio._values_text(" ALL ") == "all"
     end
 
     @testset "Colour ranges & colour validation" begin
@@ -1496,14 +1499,16 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test manager.compare_state[4] == [:l1error, :l2error] && studio_data(2).variables.u === :l1error   # (the menu keeps its field)
     studio_set!(:compare_target => :none, :compare_values => :all)
     studio_set!(:x_axis => :x, :u_axis => :Solution)
-    # --- data from outside as a series (studio_add_series!) ---
-    @test studio_add_series!("paper", [0.1, 0.2], [2.0, 2.5]; color = :green, marker = :none) == 1
-    ax1 = first(PDEStudio._plot_axes())
-    @test count(p -> haskey(p, :label) && p.label[] == "External Series", ax1.scene.plots) == 1
-    @test last(PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2]) == "paper"
-    @test_throws ArgumentError studio_add_series!("bad", [1.0], [1.0, 2.0])
-    studio_clear_series!()
-    @test count(p -> haskey(p, :label) && p.label[] == "External Series", first(PDEStudio._plot_axes()).scene.plots) == 0
+    # --- data from outside as a method of the configuration (studio_add_series!, PDEStudioCore.tabulated_method) ---
+    if isdefined(PDEStudioCore, :tabulated_method)
+        @test studio_add_series!("paper", [0.1, 0.2, 0.5], [2.0, 2.5, 2.2]) === :paper   # a profile over x
+        @test :paper in manager.methods[] && manager.active_config.methods[:paper][:sim_func_name] === :tabulated_data
+        @test haskey(studio_data(1).methods, :paper) && studio_data(1).methods[:paper].u == [2.0, 2.5, 2.2]
+        @test "paper" in PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2]
+        @test_throws ArgumentError studio_add_series!("bad", [1.0], [1.0, 2.0])
+        studio_clear_series!()
+        @test !(:paper in manager.methods[]) && !haskey(manager.active_config.methods, :paper)
+    end
     # --- a zoom inset (studio_inset!), drawn again with every update and by exports ---
     @test studio_inset!((0.1, 0.3), (2.0, 3.0); position = :lt, size = 0.3) == 1
     insets = manager.inset_axes[objectid(PDEStudio._plot_layout())]   # (the window's; exports have their own)
@@ -1716,6 +1721,11 @@ ingroup("agent") && @testset "Studio features: window access, lines with compare
     studio_export("with_table"; formats = ["png", "txt"])
     @test any(endswith(".png"), manager.last_export) && any(endswith(".txt"), manager.last_export)
     @test occursin("plot,title,series,x,u,slope", read(only(filter(endswith(".txt"), manager.last_export)), String))
+    studio_export("numbers.csv")                                     # a .csv name: the numbers, not a figure
+    @test occursin("plot,title,series", read(only(filter(endswith("numbers.csv"), manager.last_export)), String))
+    @test !any(endswith("numbers.csv.png"), manager.last_export)
+    studio_export("both"; formats = ["png", "csv"])                   # next to the figure: <name>_data.csv (the state is <name>.csv)
+    @test any(endswith("both_data.csv"), manager.last_export) && any(endswith("both.png"), manager.last_export)
 
     # 5. A zoom inset from the UI options (UI → Zoom Inset)
     studio_option!(:inset, :x_lims, [0.1, 0.3]); studio_option!(:inset, :y_lims, [1.5, 3.0]); studio_option!(:inset, :visible, true)
@@ -1725,20 +1735,26 @@ ingroup("agent") && @testset "Studio features: window access, lines with compare
     studio_option!(:inset, :visible, false)
     @test all(isempty, values(manager.inset_axes))
 
-    # 6. External series: a two-column CSV loads as a series, exports keep the series
-    dir = mktempdir()
-    csv = joinpath(dir, "paper.csv"); write(csv, "N,error\n40,2e-3\n80,5e-4\n160,1.2e-4\n")
-    PDEStudio._handle_load(csv)
-    @test length(manager.extra_series) == 1 && manager.extra_series[1].label == "paper" && manager.extra_series[1].x == [40, 80, 160]
-    PDEStudio._handle_load(csv)                      # the same file again replaces it
-    @test length(manager.extra_series) == 1
-    @test isnothing(PDEStudio._series_csv_points(joinpath(dir, "none.csv")))
-    @test PDEStudio.save_params_to_csv("series_export", dir, Dict("Save Type" => "Test"))
-    studio_clear_series!()
-    @test isempty(manager.extra_series)
-    PDEStudio.load_and_apply_csv!(joinpath(dir, "series_export.csv"))
-    @test length(manager.extra_series) == 1 && manager.extra_series[1].label == "paper"
-    studio_clear_series!()
+    # 6. Data from outside is a tabulated method: over a swept parameter, loaded from a two-column CSV, in exports
+    if isdefined(PDEStudioCore, :tabulated_method)
+        studio_set!(:x_axis => :cfl, :u_axis => :l1error, :t => 1.0)
+        dir = mktempdir()
+        csv = joinpath(dir, "paper.csv"); write(csv, "cfl,error\n0.25,2e-3\n0.5,5e-4\n1.0,1.2e-4\n")
+        PDEStudio._handle_load(csv)
+        @test :paper in manager.methods[] && manager.active_config.methods[:paper][:table_key] === :cfl
+        d = studio_data(1).methods[:paper]
+        @test d.x == [0.25, 0.5, 1.0] && d.u ≈ [2e-3, 5e-4, 1.2e-4]            # l1error of the rows over cfl
+        @test occursin("paper", studio_state().status.text)
+        PDEStudio._handle_load(csv)                                             # the same file again replaces it
+        @test count(==(:paper), manager.methods[]) == 1
+        @test isnothing(PDEStudio._series_csv_points(joinpath(dir, "none.csv")))
+        @test PDEStudio.save_params_to_csv("series_export", dir, Dict("Save Type" => "Test"))
+        studio_clear_series!()
+        @test !haskey(manager.active_config.methods, :paper)
+        PDEStudio.load_and_apply_csv!(joinpath(dir, "series_export.csv"))      # the method is part of the configuration
+        @test haskey(manager.active_config.methods, :paper) && :paper in manager.active_config.defaults
+        studio_clear_series!()
+    end
 end
 
 any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" begin

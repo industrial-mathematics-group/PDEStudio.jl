@@ -9,10 +9,12 @@ What has changed since the last release. Released versions are described in the
 - **Zoom insets:** `studio_inset!(xlims, ylims; plot, position, size)` shows a region of a 1D subplot in a corner
   axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them. In the window one inset is
   set under *UI → Zoom Inset* (`x_lims`, `y_lims`, `visible`, `position`, `size`, `plot`; saved with the look).
-- **External data as a series:** `studio_add_series!(label, x, y; color, marker, linestyle, plot)` draws data from
-  outside (a paper's table) in the 1D plots, in the legend and in exports; `studio_clear_series!()` removes them.
-  In the window, *Load* (or a drop) of a plain CSV file with two numeric columns adds it as a series named after the
-  file; exports write the series (`Scene, Series`) and draw them again when loaded.
+- **External data as a method:** `studio_add_series!(label, x, y; key, field)` adds data from outside (a paper's
+  table) as a method of the configuration (`PDEStudioCore.tabulated_method`, PDEStudioCore 0.7.1): over the plotted
+  swept parameter, with the values as the plotted statistic of each row, or as a profile over `x`. It is run and
+  cached, drawn and styled like the other methods, listed in the Methods tab and written to exports with the
+  configuration (reproducible); `studio_clear_series!()` removes the tabulated methods. In the window, *Load* (or a
+  drop) of a plain CSV file with two numeric columns adds it the same way, named after the file.
 - **Compare: fields:** one subplot per dependent field (`studio_set!(:compare_target => :fields, :compare_values =>
   [:l1error, :l2error])`), each with its own y label and range.
 - **Error view:** `set_error_field!(true)` (Files tab, Data: *u − u_ref: on/off*) adds the field *u − u_ref*

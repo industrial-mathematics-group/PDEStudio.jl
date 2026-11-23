@@ -172,9 +172,18 @@ end
 function _load_for_display(params::ParamDict, domain, mode::Val)
     try
         mode === Val(:eulerian) || return load_sim_data(params, mode)
-        res = build_res_tuple(domain.dim_keys; is_ref = false)
-        isnothing(domain.time_dim) && return load_sim_data(params, mode, res)
-        return _load_snapshots(params, res, findfirst(==(domain.time_dim), domain.dim_keys))
+        dim_keys, time_dim = Tuple(domain.dim_keys), domain.time_dim
+        # (a dataset with other axes than the template's, e.g. a static profile (`tabulated_method`) among transient
+        # data, is resampled over its own axes)
+        info = isdefined(PDEStudioCore, :get_sim_data_info) ? (try get_sim_data_info(params) catch; nothing end) : nothing
+        own_axes = !isnothing(info) && hasproperty(info, :dim_keys) && Tuple(info.dim_keys) != dim_keys
+        own_axes && ((dim_keys, time_dim) = (Tuple(info.dim_keys), info.time_dim))
+        res = build_res_tuple(dim_keys; is_ref = false)
+        # (such data is shown at its own points, not interpolated to the display resolution: a table of a few values)
+        own_axes && hasproperty(info, :shape) && length(info.shape) == length(res) &&
+            (res = Tuple(min(r, Int(n)) for (r, n) in zip(res, info.shape)))
+        isnothing(time_dim) && return load_sim_data(params, mode, res)
+        return _load_snapshots(params, res, findfirst(==(time_dim), dim_keys))
     catch e
         # A missing file is normal (the simulation has not run yet); anything else is worth a warning.
         e isa SimFileNotFoundError || @warn "Could not load the data of $(params)" exception = (e, catch_backtrace())
