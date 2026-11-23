@@ -80,7 +80,10 @@ function frontend_key(s::Symbol)
     if haskey(SYMBOL_TO_LABEL_MAP, s)
         return SYMBOL_TO_LABEL_MAP[s]
     end
-    # 3. Algorithmic Fallback: words at underscores (as written when they have capitals: `PDE_tau` is "PDE Tau"),
+    # 3. A joint sweep of several parameters (`Grid_Ns__1&IC_cell`) is named and shown by its first parameter
+    parts = split(String(s), '&')
+    length(parts) > 1 && !isempty(first(parts)) && return frontend_key(Symbol(first(parts)))
+    # 4. Algorithmic Fallback: words at underscores (as written when they have capitals: `PDE_tau` is "PDE Tau"),
     #    an entry of a tuple parameter in brackets (`Grid_Ns__1` is "Grid Ns[1]", `Ns__all` "Ns (all)")
     m = match(r"^(.+?)__([A-Za-z0-9]+)$", String(s))
     isnothing(m) || return frontend_key(Symbol(m.captures[1])) * (m.captures[2] == "all" ? " (all)" : "[$(m.captures[2])]")

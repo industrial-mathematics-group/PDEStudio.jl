@@ -928,9 +928,18 @@ function _unslid_parameters()
     return Symbol[k for k in keys(config.varied) if !(k in values(manager.param_map))]
 end
 
-# The widget key of a slider named by its parameter, its dimension or its key (`:param_1`)
+# The joint sweep (`joint_sweep`) whose first parameter is `name`, or `name` itself
+function _joint_key(name)
+    for k in keys(manager.reverse_map)
+        k isa Symbol && startswith(String(k), String(name) * "&") && return k
+    end
+    return name
+end
+
+# The widget key of a slider named by its parameter (a joint sweep also by its first one), its dimension or its key
+# (`:param_1`)
 function _slider_key(name)
-    key = get(manager.reverse_map, name, name)
+    key = get(manager.reverse_map, name, get(manager.reverse_map, _joint_key(name), name))
     return key in _slider_keys() && haskey(manager.widgets, key) && manager.widgets[key] isa Makie.Slider ? key : nothing
 end
 

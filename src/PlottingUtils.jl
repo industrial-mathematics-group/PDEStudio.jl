@@ -103,7 +103,7 @@ end
 function _fallback_selector_value(name::Symbol)
     config = manager.active_config
     if !isnothing(config) && haskey(config.varied, name) && !isempty(config.varied[name])
-        vals = config.varied[name]
+        vals = _shown_sweep_values(name, config.varied[name])
         return _is_numeric_sweep(vals) ? first(vals) : 1
     end
     return 0.0

@@ -121,6 +121,16 @@ end
 # --- SWEEP VALUES (numeric and non-numeric parameters) ---
 # ==============================================================================
 
+# The values a sweep is shown with (sliders, axes, titles): a joint sweep of several parameters (`joint_sweep`: a key
+# joining them with `&`, with tuples of values) over its first parameter if that has distinct numbers, e.g. the grid
+# size of `joint_sweep(:Grid_Ns__1 => Ns, :IC_cell => 6 ./ Ns)`; other sweeps as they are.
+function _shown_sweep_values(key::Symbol, vals::AbstractVector)
+    occursin('&', String(key)) || return vals
+    all(v -> v isa Tuple && !isempty(v) && first(v) isa Real, vals) || return vals
+    firsts = Any[first(v) for v in vals]
+    return allunique(firsts) ? firsts : vals
+end
+
 """
     _is_numeric_sweep(vals)
 
@@ -383,7 +393,8 @@ function create_plot_data(method_name::Symbol, base_params::ParamDict, sim_confi
 
     grid_dims = isempty(active_values) ? (1,) : Tuple(length.(active_values))
     data_store = Array{Union{Nothing, AbstractSimData}, length(grid_dims)}(nothing, grid_dims...)
-    result = PlotSweepData{length(grid_dims)}(data_store, active_keys, active_values)
+    shown = Vector{Any}[_shown_sweep_values(k, v) for (k, v) in zip(active_keys, active_values)]
+    result = PlotSweepData{length(grid_dims)}(data_store, active_keys, shown)
     isnothing(domain) && return result
 
     is_reference = is_reference_method(method_name)

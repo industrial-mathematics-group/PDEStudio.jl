@@ -1295,6 +1295,23 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     set_resolution!(:x, 300; is_ref = true)
     @test PDEStudio.build_res_tuple([:x, :t]; is_ref = true) == (300, 100)
     delete!(manager.resolution_ref, :x)
+    # (a joint sweep of several parameters, `joint_sweep`, is shown over its first parameter)
+    @test PDEStudio._shown_sweep_values(Symbol("N&cfl"), Any[(32, 0.8), (64, 0.4)]) == [32, 64]
+    @test PDEStudio._shown_sweep_values(Symbol("N&cfl"), Any[(32, 0.8), (32, 0.4)]) == Any[(32, 0.8), (32, 0.4)]   # (not distinct)
+    @test PDEStudio._shown_sweep_values(:N, Any[(32, 0.8)]) == Any[(32, 0.8)]
+    @test PDEStudio.frontend_key(Symbol("Grid_Ns__1&IC_cell")) == "Grid Ns[1]"
+    if isdefined(PDEStudioCore, :joint_sweep)   # (from the next PDEStudioCore release on)
+        jbase = test_advection_1d()
+        joint_config = SimulationConfig(jbase.shared, jbase.methods, [:upwind, :lax_wendroff];
+                                        varied = create_varied_dict(PDEStudioCore.joint_sweep(:N => [32, 64, 128], :cfl => [0.8, 0.6, 0.4])),
+                                        reference = jbase.reference)
+        reset_plotter!()
+        launch_plotter(joint_config)
+        studio_set!(:N => 64)   # (by its first parameter)
+        @test occursin("N = 64", studio_state().plots[1].title)
+        studio_set!(:x_axis => Symbol("N&cfl"), :u_axis => :l1error, :t => 1.0)
+        @test studio_data(1).methods[:upwind].x == [32, 64, 128] && studio_state().plots[1].xlabel == "N"
+    end
     # (statistics of references: the post-processor's fields and registered fields; errors need a reference)
     base = test_advection_1d()
     post_config = SimulationConfig(base.shared, base.methods, [:upwind, :exact]; varied = base.varied,

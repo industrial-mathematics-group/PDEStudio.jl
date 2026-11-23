@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Joint sweeps** (`joint_sweep` of the next PDEStudioCore release: several parameters changing together, e.g. `N` and a cell
+  width `6/N`) are shown over their first parameter: one numeric slider named by it, usable as a plot axis.
 - **Statistics on references:** a reference evaluates the registered statistics that need no reference and runs the
   configuration's post-processor, so derived fields (primitive variables, …) can be drawn against it. A
   post-processor that fails on reference data is reported once; the reference is then drawn without its fields.
