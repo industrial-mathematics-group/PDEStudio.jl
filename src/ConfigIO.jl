@@ -61,6 +61,9 @@ function _add_scene_rows!(rows::_CSVRows)
     for (k, v) in _sorted_pairs(exp_opts)
         add_row!(rows, "Scene", "Exploration", k, v)
     end
+    for (k, names) in _sorted_pairs(manager.value_labels)   # (names of swept values: value => name)
+        isempty(names) || add_row!(rows, "Scene", "Value_Labels", k, Dict{Any, String}(names))
+    end
     return rows
 end
 
@@ -669,7 +672,7 @@ the plot style, UI overrides, layout, axes and slider positions, camera, labels 
 """
 # Categories and scopes of the studio CSV format (other categories, e.g. of a newer version, are ignored).
 const _CSV_SCOPES = Dict("Metadata" => ("General", "Preset"), "Git" => nothing, "Julia" => nothing,
-                         "Scene" => ("Plot", "Layout", "Camera", "Labels", "Exploration"), "UI" => nothing,
+                         "Scene" => ("Plot", "Layout", "Camera", "Labels", "Exploration", "Value_Labels"), "UI" => nothing,
                          "Simulation" => nothing, "Config" => ("Dimensions", "Resolution_Base", "Resolution_Ref"))
 
 # Warns about categories and scopes the studio doesn't read (typos in hand-written files, e.g. `Scene, plot`).
@@ -774,6 +777,15 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
     if !isnothing(labels_source)
         for (k, v) in labels_source
             set_label!(Symbol(k), something(_raw_value(raw, "Scene", "Labels", k), string(v)))
+        end
+    end
+
+    # --- 7b. NAMES OF SWEPT VALUES ---
+    vl_source = _scene_source(parsed, "Value_Labels")
+    if !isnothing(vl_source)
+        for (k, v) in vl_source
+            v isa AbstractDict ? set_value_label!(Symbol(k), (key => string(name) for (key, name) in v)...) :
+                @warn "Ignoring the Value_Labels row $k = $(repr(v)): a Dict of value => name."
         end
     end
 

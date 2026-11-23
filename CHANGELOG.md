@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Names for swept values:** `set_value_label!(param, value => "name", …)` (also the tuples of a joint sweep);
+  titles, compared subplots, lines and the slider label show the name. Exports keep them (`Scene, Value_Labels`).
 - **Convergence rates and number tables:** `studio_rates(plot)` (local log-log slopes per method or line, also in
   `describe_studio` over a swept parameter) and `studio_export_data(path)` (the plotted numbers with the slopes, as
   Markdown or CSV).

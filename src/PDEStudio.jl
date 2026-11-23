@@ -15,7 +15,7 @@ if !(isdefined(PDEStudioCore, :StatsView) && hasfield(SimulationConfig, :varied)
 end
 
 export launch_plotter, @launch, set_sim_config!, reset_plotter!, reset_manager!, set_mode!, set_allowed_dims!, set_max_params!, set_plot_preset!, force_simulation, set_resolution!
-export set_figure_path!, get_figure_path, set_label!
+export set_figure_path!, get_figure_path, set_label!, set_value_label!
 export set_sim_preset!, save_sim_preset, save_plot_preset, reset_sim_config!
 # scripting and agents: the studio as functions (src/AgentAPI.jl)
 export set_compute!
@@ -116,6 +116,7 @@ Base.@kwdef mutable struct PlotManager
 
     # --- display names, presets and the slider mapping ---
     labels::Dict{Symbol, String} = Dict{Symbol, String}()            # custom display names (`set_label!`)
+    value_labels::Dict{Symbol, Dict{Any, String}} = Dict{Symbol, Dict{Any, String}}()   # names of swept values (`set_value_label!`)
     presets::Dict{Symbol, String} = Dict{Symbol, String}()           # visual presets: name => description
     sim_presets::Dict{Symbol, String} = Dict{Symbol, String}()       # simulation presets: name => description
     param_map::Dict{Symbol, Symbol} = Dict{Symbol, Symbol}()         # slider key (:param_i) => swept parameter

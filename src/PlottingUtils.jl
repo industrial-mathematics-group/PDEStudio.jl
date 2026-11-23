@@ -150,6 +150,23 @@ function _joint_text(key::Symbol, shown, fmt)
     return join(("$(frontend_key(p)) = $(fmt(raw[i][j]; sci = _sci_set([r[j] for r in raw])))" for (j, p) in enumerate(parts)), ", ")
 end
 
+# The tuple of a joint sweep shown by its first entry `shown` (or `shown` itself), or `nothing`
+function _joint_raw(key::Symbol, shown)
+    config = manager.active_config
+    raw = isnothing(config) ? Any[] : collect(get(config.varied, key, Any[]))
+    i = findfirst(r -> r isa Tuple && (isequal(r, shown) || isequal(first(r), shown)), raw)
+    return isnothing(i) ? nothing : raw[i]
+end
+
+# A swept value as titles, compared subplots and lines show it: its name (`set_value_label!`), every parameter of a
+# joint sweep, or `parameter = value` (`fmt`: `_fmt_value` or `_fmt_compare`; `sci`: one notation for the sweep)
+function _param_text(key::Symbol, v, fmt; sci::Bool = false)
+    label = _value_label(key, v)
+    isnothing(label) || return label
+    _is_joint_key(key) && return _joint_text(key, v, fmt)
+    return "$(frontend_key(key)) = $(fmt(v; sci))"
+end
+
 # Whether the values of the `i`-th parameter are written scientifically (all of them, see `_sci_set`)
 function _param_sci(i::Int)
     data = manager.plot_data[]
@@ -163,7 +180,10 @@ function _slider_value_text(widget_key::Symbol, v)
     param = get(manager.param_map, widget_key, nothing)
     if !isnothing(param)
         i = findfirst(isequal(param), manager.plot_vars)
-        isnothing(i) || return _fmt_value(_param_display_value(i, v); sci = _param_sci(i))
+        if !isnothing(i)
+            shown = _param_display_value(i, v)
+            return something(_value_label(param, shown), Some(_fmt_value(shown; sci = _param_sci(i))))
+        end
     end
     return _fmt_value(v)
 end
@@ -207,10 +227,12 @@ function _title_parts(plot_dims::Tuple, dim_names::Vector{Symbol}, sel_vals, sim
             continue
         elseif i <= length(sel_vals)
             val = i <= n_params ? _param_display_value(i, sel_vals[i]) : _drawn_value(sim_data, name_sym, sel_vals[i])
-            if i <= n_params && _is_joint_key(name_sym)   # (every parameter of a joint sweep: N = 40, IC Cell = 0.15)
+            # (a named value, every parameter of a joint sweep: N = 40, IC Cell = 0.15)
+            if i <= n_params && (_is_joint_key(name_sym) || haskey(manager.value_labels, name_sym))
                 data = manager.plot_data[]
                 shown = isempty(data) ? Any[] : get(_primary_sweep(data).active_param_values, i, Any[])
-                push!(parts, (_joint_text(name_sym, val, _fmt_value), [_joint_text(name_sym, v, _fmt_value) for v in shown]))
+                sci = _param_sci(i)
+                push!(parts, (_param_text(name_sym, val, _fmt_value; sci), [_param_text(name_sym, v, _fmt_value; sci) for v in shown]))
                 continue
             end
             others = ["$name = $v" for v in _title_values(i, i <= n_params, name_sym, sim_data)]

@@ -1441,6 +1441,23 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     end
     reset_plotter!()
     launch_plotter(config)
+    # --- names of swept values (set_value_label!): titles, compared subplots, lines, the slider label, exports ---
+    set_value_label!(:cfl, 0.25 => "small", 1.0 => "unit")
+    studio_set!(:x_axis => :x, :u_axis => :Solution, :cfl => 0.25)
+    @test occursin("small", studio_state().plots[1].title) && !occursin("Cfl = 0.25", studio_state().plots[1].title)
+    @test only(s for s in studio_state().sliders if s.name === :cfl).shown == "small"
+    studio_set!(:compare_target => :cfl, :compare_values => [1.0, 0.5])
+    @test [p.title for p in studio_state().plots] == ["unit", "Cfl = 0.5"]
+    studio_set!(:compare_target => :none, :compare_values => :all, :line_target => :cfl, :line_values => [0.25], :methods => [:upwind])
+    @test PDEStudio.frontend_key(only(manager.series)) == "small"
+    studio_set!(:line_target => :methods, :methods => [:upwind, :lax_friedrichs])
+    rows = PDEStudio._CSVRows(); PDEStudio._add_scene_rows!(rows)
+    vpath = joinpath(mktempdir(), "vl.csv"); PDEStudio._write_rows(vpath, rows)
+    set_value_label!(:cfl)
+    @test isempty(manager.value_labels)
+    PDEStudio.load_and_apply_csv!(vpath)
+    @test manager.value_labels[:cfl] == Dict{Any, String}(0.25 => "small", 1.0 => "unit")
+    set_value_label!(:cfl)
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)

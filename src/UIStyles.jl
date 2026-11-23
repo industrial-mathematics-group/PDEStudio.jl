@@ -67,6 +67,38 @@ function set_label!(sym::Symbol, label::AbstractString)
 end
 
 """
+    set_value_label!(param::Symbol, value => label, ...)
+    set_value_label!(param::Symbol)
+
+Names values of a swept parameter: `set_value_label!(:Grid_randomness_factor, (0.0,) => "lattice", (0.2,) => "jittered")`.
+Titles, compared subplots, the lines of *Lines* and the slider label show the name instead of `parameter = value`.
+For a joint sweep (`joint_sweep`) name its tuples: `set_value_label!(Symbol("IC_type&IC_cell"), ("sharp", 0.1) => "sharp")`.
+Without values it removes the names of `param`. Like [`set_label!`](@ref), names only change what is shown (exports
+keep them, as `Scene, Value_Labels`); returns the names of `param`.
+"""
+function set_value_label!(param::Symbol, pairs::Pair...)
+    isempty(pairs) && (delete!(manager.value_labels, param); return Dict{Any, String}())
+    names = get!(() -> Dict{Any, String}(), manager.value_labels, param)
+    for (v, label) in pairs
+        names[v] = String(label)
+    end
+    return copy(names)
+end
+
+# The name of a swept value (`set_value_label!`), or `nothing`; a joint sweep's value by its tuple, also when shown by
+# its first entry
+function _value_label(param, v)
+    names = get(manager.value_labels, param, nothing)
+    isnothing(names) && return nothing
+    haskey(names, v) && return names[v]
+    if _is_joint_key(param) && !(v isa Tuple)
+        raw = _joint_raw(param, v)
+        isnothing(raw) || return get(names, raw, nothing)
+    end
+    return nothing
+end
+
+"""
     frontend_key(s::Symbol)
 
 Translates an internal variable or method `Symbol` into a clean, human-readable string suitable for dropdown menus, Makie axis labels, or legend entries.
