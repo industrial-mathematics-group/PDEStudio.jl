@@ -97,6 +97,9 @@ studio_set!(:plot_style => :lines, :x_axis => :t, :u_axis => :l1error)   # the e
 studio_set!(:x_axis => :N, :u_axis => :l1error, :t => 1.0)               # the error over a swept parameter, at t = 1
 ```
 
+For lines with markers (a convergence plot), use the style `:scatter_lines` (*Scatter Lines*) instead of `:lines`;
+`studio_option!(:plot_style, :marker_size, 10)` sets the size of its markers.
+
 Over a swept parameter, each run is taken at its stored time nearest to the `:t` slider; runs with other time steps can
 differ there (the title shows one of them), so for convergence studies use a common output time or a statistic of the
 final state.

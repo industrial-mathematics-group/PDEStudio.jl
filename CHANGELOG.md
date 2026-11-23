@@ -20,6 +20,12 @@ What has changed since the last release. Released versions are described in the
   `N` showed "Position (X) = −0.0101").
 - **Log axes** have ticks at 1, 2, 3, 5 × 10ᵏ (as the range allows), written as numbers, instead of ticks like
   `10^2.5`.
+- **Log-axis labels** are plain numbers if all ticks lie in [0.001, 10⁵) and powers of ten (10⁻⁶, 2×10⁻⁶) otherwise,
+  instead of decimals such as `0.000001`. A custom tick format or scale offset is kept.
+- **Small and large values in titles** are written as `1e-5` and `2.5e6`, in compare titles (were `1.0e-5`) and in
+  the other titles (were `1e-05`, `2.5e+06`).
+- **Lines with markers:** the docs of the lines styles and of `studio_set!` point to *Scatter Lines*
+  (`:scatter_lines`), and the scatter page lists its marker options.
 - **Smaller default markers** (8 px, were 15 px) in the 1-D and particle styles.
 - **Loading the package prints nothing** (the reset of the look at start-up logged an Info line).
 - **Results of earlier source code** (kept after editing a configuration) are still counted in the status line, but no

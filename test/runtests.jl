@@ -1200,11 +1200,19 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     studio_set!(:u_axis => :l1error, :x_axis => :cfl)   # (over the swept parameter, at the time of the slider)
     # (the title names the time of the statistic, not the position it doesn't keep)
     @test occursin("Time (T)", studio_state().plots[1].title) && !occursin("Position", studio_state().plots[1].title)
-    # (log axes: decades with 2, 3, 5 between them, written as numbers)
+    # (log axes: decades with 2, 3, 5 between them, written as numbers or powers of ten; a custom format is kept)
     studio_option!(:x_axis_1d, :log_scale, true)
-    @test only(b for b in manager.master_fig.content if b isa Axis).xticks[] === PDEStudio._log10_ticks
+    ax = only(b for b in manager.master_fig.content if b isa Axis)
+    @test ax.xticks[] === PDEStudio._log10_ticks && ax.xtickformat[] === PDEStudio._log10_labels
+    studio_option!(:x_axis_1d, :tick_format, "{:.2f}")
+    @test ax.xtickformat[] == "{:.2f}" && ax.xticks[] === PDEStudio._log10_ticks
+    studio_option!(:x_axis_1d, :tick_format, "default")
+    @test ax.xtickformat[] === PDEStudio._log10_labels
     studio_option!(:x_axis_1d, :log_scale, false)
-    @test only(b for b in manager.master_fig.content if b isa Axis).xticks[] !== PDEStudio._log10_ticks
+    @test ax.xticks[] !== PDEStudio._log10_ticks && ax.xtickformat[] === Makie.automatic
+    @test PDEStudio._log10_labels([0.002, 0.005, 0.01, 20.0, 50000.0]) == ["0.002", "0.005", "0.01", "20", "50000"]
+    @test all(l -> l isa Makie.RichText, PDEStudio._log10_labels([1e-6, 2e-6, 1e-3]))
+    @test PDEStudio._power_parts.((1e-6, 2e-6, 2.5e7, 9.999e-3, 1.0)) == (("1", -6), ("2", -6), ("2.5", 7), ("1", -2), ("1", 0))
     @test PDEStudio._log10_ticks(100.0, 1000.0) == [100.0, 200.0, 300.0, 500.0, 1000.0]
     @test PDEStudio._log10_ticks(0.25, 1.0) == [0.3, 0.5, 1.0] && length(PDEStudio._log10_ticks(1e-6, 1.0)) == 7
     @test PDEStudio._log10_ticks(150.0, 180.0) == [150.0, 160.0, 180.0] && isempty(PDEStudio._log10_ticks(-1.0, 1.0))
@@ -1247,8 +1255,10 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     # --- names and numbers: tuple entries, capitals as written, small values ---
     @test PDEStudio.frontend_key.((:Grid_Ns__1, :PDE_tau, :Ns__all, :l1error, :cfl)) ==
           ("Grid Ns[1]", "PDE Tau", "Ns (all)", "L1Error", "Cfl")
-    @test PDEStudio._fmt_value.((1e-5, 0.0015, 0.002, 0.0125, 0.013, 0.25, 0.0, 2.5e6, 3)) ==
-          ("1e-05", "0.0015", "0.002", "0.0125", "0.013", "0.250", "0.000", "2.5e+06", "3")
+    @test PDEStudio._fmt_value.((1e-5, 0.0015, 0.002, 0.0125, 0.013, 0.25, 0.0, 2.5e6, 3, 1.5e-12, 3e100)) ==
+          ("1e-5", "0.0015", "0.002", "0.0125", "0.013", "0.250", "0.000", "2.5e6", "3", "1.5e-12", "3e100")
+    @test PDEStudio._fmt_compare.((1e-5, 1.5e-7, 2.5e6, 0.0001, 0.001, 1.0, 0.123456, -2e-5, 0.0, 4)) ==
+          ("1e-5", "1.5e-7", "2.5e6", "0.0001", "0.001", "1.0", "0.1235", "-2e-5", "0.0", "4")
 
     # --- long method names in the titles of compared methods are broken into lines to fit the plot ---
     long = SimulationConfig(create_param_dict(:N => 32, :cfl => 0.5, :sim_func_name => :advection_solver_1d),

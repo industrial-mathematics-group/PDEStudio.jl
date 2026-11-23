@@ -20,6 +20,9 @@ The standard, classical two-axis line plot. It maps a single independent variabl
 *   **Dashed Lines (`:dashed_lines`):** A boolean toggle to enable or disable the application of `line_styles`.
 *   **Reference Lines (`:reference`):** Allows the injection of analytical slopes (e.g., convergence rates) directly onto the axis bounds.
 
+For lines with markers at the data points (e.g., a convergence plot over a swept parameter), use **Scatter Lines**
+(`:scatter_lines`, in the [Scatter](scatter.md) family): the same options plus markers.
+
 ---
 
 ## 2D Lines (`:lines_2d`)
