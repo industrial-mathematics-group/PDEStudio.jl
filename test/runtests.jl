@@ -1502,7 +1502,7 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     # --- data from outside as External Series (studio_add_series!, UI → External Series) ---
     n_series(ax) = count(p -> haskey(p, :label) && p.label[] == "External Series", ax.scene.plots)
     @test studio_add_series!("paper", [0.1, 0.2, 0.5], [2.0, 2.5, 2.2]) == 1
-    @test manager.ui[:series][:x_axis] === :x && manager.ui[:series][:u_axis] === :Solution
+    @test manager.ui[:series][:x_axis] === :x && manager.ui[:series][:y_axis] === :Solution
     @test n_series(first(PDEStudio._plot_axes())) == 1
     @test last(PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2]) == "paper"
     studio_set!(:u_axis => :l1error, :x_axis => :t)                        # other axes: the series are hidden
@@ -1516,6 +1516,17 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     studio_option!(:series, :visible, true)
     studio_clear_series!()
     @test n_series(first(PDEStudio._plot_axes())) == 0 && isempty(manager.ui[:series][:data])
+    # in a 2D plot the second coordinate is the y variable: a curve over the heatmap
+    studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)
+    @test studio_add_series!("front", [0.0, 3.0, 6.0], [0.0, 1.0, 2.0]) == 1
+    @test manager.ui[:series][:x_axis] === :x && manager.ui[:series][:y_axis] === :t
+    @test n_series(first(PDEStudio._plot_axes())) == 1
+    studio_set!(:plot_style => :lines, :x_axis => :x, :y_axis => :none, :u_axis => :Solution)   # 1D: other vertical variable
+    @test n_series(first(PDEStudio._plot_axes())) == 0
+    studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)                            # back: shown again
+    @test n_series(first(PDEStudio._plot_axes())) == 1
+    studio_clear_series!()
+    studio_set!(:plot_style => :lines, :x_axis => :x, :y_axis => :none, :u_axis => :Solution)
     # --- a zoom inset (studio_inset!), drawn again with every update and by exports ---
     @test studio_inset!((0.1, 0.3), (2.0, 3.0); position = :lt, size = 0.3) == 1
     insets = manager.inset_axes[objectid(PDEStudio._plot_layout())]   # (the window's; exports have their own)
@@ -1748,7 +1759,7 @@ ingroup("agent") && @testset "Studio features: window access, lines with compare
     csv = joinpath(dir, "paper.csv"); write(csv, "cfl,error\n0.25,2e-3\n0.5,5e-4\n1.0,1.2e-4\n")
     PDEStudio._handle_load(csv)
     ui = manager.ui[:series]
-    @test haskey(ui[:data], "paper") && ui[:x_axis] === :cfl && ui[:u_axis] === :l1error
+    @test haskey(ui[:data], "paper") && ui[:x_axis] === :cfl && ui[:y_axis] === :l1error
     @test ui[:data]["paper"] == [(0.25, 2e-3), (0.5, 5e-4), (1.0, 1.2e-4)]
     @test occursin("paper", studio_state().status.text)
     @test count(p -> haskey(p, :label) && p.label[] == "External Series", first(PDEStudio._plot_axes()).scene.plots) == 1

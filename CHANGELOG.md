@@ -9,10 +9,11 @@ What has changed since the last release. Released versions are described in the
 - **Zoom insets:** `studio_inset!(xlims, ylims; plot, position, size)` shows a region of a 1D subplot in a corner
   axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them. In the window one inset is
   set under *UI → Zoom Inset* (`x_lims`, `y_lims`, `visible`, `position`, `size`, `plot`; saved with the look).
-- **External Series:** data from outside (a paper's table) drawn in the 1D plots like the HUD, in the plot's
-  coordinates: the UI scope *External Series* holds the points per label (`data`), the x variable and field they
-  belong to (they are hidden while the plot shows others), line style, width and marker size; colours and markers
-  continue the methods' lists. They get legend entries, count for the limits, are drawn by exports and saved with
+- **External Series:** data from outside (a paper's table, a curve `y(x)` over a heatmap) drawn in the 1D and 2D
+  plots like the HUD, in the plot's coordinates: the UI scope *External Series* holds the points per label (`data`),
+  the x variable and the vertical one they belong to (the dependent field of a 1D plot, the y variable of a 2D plot;
+  they are hidden while the plot shows others), line style, width and marker size; colours and markers continue
+  the methods' lists. They get legend entries, count for the limits, are drawn by exports and saved with
   the look. `studio_add_series!(label, x, y)` adds one for the plotted axes, `studio_clear_series!()` removes them;
   in the window, *Load* (or a drop) of a plain CSV file with two numeric columns adds one named after the file.
 - **Compare: fields:** one subplot per dependent field (`studio_set!(:compare_target => :fields, :compare_values =>

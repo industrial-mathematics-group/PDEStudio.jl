@@ -411,10 +411,9 @@ function _load_series_csv!(path::AbstractString)
     try
         n = studio_add_series!(label, pts[1], pts[2])
         ui = manager.ui[:series]
-        one_d = get(PLOT_DIM_MAP, _base_style(manager.widgets[:plot_style].selection[]), 1) == 1
         _status!("Added $(basename(path)) ($(length(pts[1])) points) as the external series '$label' (UI → External " *
-                 "Series, $n): drawn by the 1D styles while the plot shows x = $(ui[:x_axis]), u = $(ui[:u_axis])" *
-                 (one_d ? "" : " (not with this plot style)") * "; loading it again replaces it.", one_d ? :ok : :warn)
+                 "Series, $n): drawn while the plot shows x = $(ui[:x_axis]) and $(ui[:y_axis]) vertically; loading it " *
+                 "again replaces it.", :ok)
         haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightgreen)
     catch e
         e isa InterruptException && rethrow()

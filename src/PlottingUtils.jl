@@ -1425,16 +1425,29 @@ end
 
 plot_HUD!(ax::Axis3) = nothing
 
-# The External Series (`manager.ui[:series]`, `studio_add_series!`) as `(label, x, u)`, sorted by label, if the plot
-# shows the x variable and dependent field they were added for (else none); `u_field`: the subplot's field
-function _shown_series(u_field = manager.widgets[:u_axis].selection[])
+# The vertical variable of the plot a series' second coordinate lives in: the dependent field of a 1D plot (`u_field`:
+# the subplot's own, else the selected one), the y variable of a 2D plot, `nothing` for 3D plots (no series)
+function _series_vertical(u_field = nothing)
+    w = manager.widgets
+    haskey(w, :plot_style) || return nothing
+    style = _base_style(w[:plot_style].selection[])
+    dim = get(PLOT_DIM_MAP, style, 1)
+    (dim == 3 || is_surface(style)) && return nothing
+    return dim == 1 ? something(u_field, w[:u_axis].selection[]) : w[:y_axis].selection[]
+end
+
+# The External Series (`manager.ui[:series]`, `studio_add_series!`) as `(label, x, y)`, sorted by label, if the plot
+# shows the x variable and the vertical variable they were added for (else none); `u_field`: the subplot's field
+function _shown_series(u_field = nothing)
     ui = get(manager.ui, :series, nothing)
     out = Tuple{String, Vector{Float64}, Vector{Float64}}[]
     (isnothing(ui) && return out)
     (ui[:visible] === true && _valid_series_data(ui[:data]) && !isempty(ui[:data])) || return out
+    vertical = _series_vertical(u_field)
+    isnothing(vertical) && return out
     x_sel = haskey(manager.widgets, :x_axis) ? manager.widgets[:x_axis].selection[] : nothing
     (ui[:x_axis] === :none || ui[:x_axis] === x_sel) || return out
-    (ui[:u_axis] === :none || ui[:u_axis] === u_field) || return out
+    (ui[:y_axis] === :none || ui[:y_axis] === vertical) || return out
     for (label, pts) in sort!(collect(ui[:data]); by = p -> string(first(p)))
         push!(out, (string(label), Float64[p[1] for p in pts], Float64[p[2] for p in pts]))
     end
@@ -1447,8 +1460,9 @@ _series_style_index(j::Int) = (isempty(manager.series) ? length(manager.methods[
 """
     plot_series!(ax::Axis, u_field)
 
-Draws the External Series (*UI → External Series*, `studio_add_series!`) in a 1D subplot, in the plot's coordinates,
-tagged "External Series" (replaced on every UI step); nothing if the plot does not show their x variable and field.
+Draws the External Series (*UI → External Series*, `studio_add_series!`) in a 1D or 2D subplot, in the plot's
+coordinates (above a heatmap: e.g. a curve `y(x)` separating regions), tagged "External Series" (replaced on every
+UI step); nothing if the plot does not show their x and vertical variable.
 """
 function plot_series!(ax::Axis, u_field)
     delete_plots_by_label!(ax, "External Series")
@@ -1459,12 +1473,13 @@ function plot_series!(ax::Axis, u_field)
         color = Makie.to_color(ui_app[:colors][mod1(k, end)])
         mrk, ms = _marker_and_size(ui_app, k)
         lw, ls = Float32(ui[:line_width]), ui[:line_style]
-        if ms > 0 && !_no_marker(mrk)
+        p = if ms > 0 && !_no_marker(mrk)
             scatterlines!(ax, x, u; color, linewidth = lw, linestyle = ls, marker = mrk, markersize = Float32(ui[:marker_size]),
                           label = "External Series")
         else
             lines!(ax, x, u; color, linewidth = lw, linestyle = ls, label = "External Series")
         end
+        translate!(p, 0, 0, 50)   # (above a heatmap or filled contours; CairoMakie draws by z)
     end
     return nothing
 end
@@ -1492,7 +1507,7 @@ function _apply_axis_styles!(ax, T::Symbol; u = nothing)
         def_y = dim == 1 ? u : y
         set_axis_styles!(ax, x, def_y, def_title)
         plot_HUD!(ax)
-        dim == 1 && plot_series!(ax, something(u_field, manager.widgets[:u_axis].selection[]))
+        plot_series!(ax, u_field)   # (1D and 2D plots)
     elseif ax isa Axis3
         def_z = dim == 2 ? u : z
         set_axis_styles!(ax, x, y, def_z, def_title)

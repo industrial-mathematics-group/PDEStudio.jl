@@ -1286,11 +1286,13 @@ end
     studio_add_series!(label, x, y) -> Int
     studio_clear_series!()
 
-Draws data from outside the studio (the errors a paper reports, a measurement) in the 1D plots, like the HUD but
-in the plot's coordinates: the points `(x, y)` in the plotted x variable and dependent field, e.g. a paper's errors
-over `N` next to the study's (`studio_set!(:x_axis => :N, :u_axis => :l1error)` first). The series belong to the
-axes shown when they are added and are drawn (with a legend entry, counting for the limits, also in exports) while
-the plot shows those; they are hidden when the axes change and shown again when they are back. Colours and markers
+Draws data from outside the studio (the errors a paper reports, a measurement, a curve `y(x)` separating regions
+of a heatmap) in the 1D and 2D plots, like the HUD but in the plot's coordinates: the points `(x, y)` in the
+plotted x variable and the vertical one, the dependent field of a 1D plot (`studio_set!(:x_axis => :N, :u_axis =>
+:l1error)` first, then a paper's errors over `N`) or the y variable of a 2D plot (`(:x_axis => :x, :y_axis => :t)`,
+then a front `t(x)` over the heatmap). The series belong to the axes shown when they are added and are drawn (with
+a legend entry where the style has one, counting for the limits of 1D plots, also in exports) while the plot shows
+those; they are hidden when the axes change and shown again when they are back. Colours and markers
 continue the methods' lists (`plot_style`); line style, width and marker size are the options of *UI → External
 Series* (`studio_option!(:series, …)`), where the points can be edited too (`data`: `Dict("label" => [(x, u), …])`),
 and which presets and exports save. The same label again replaces the series; adding a series under other axes
@@ -1306,13 +1308,15 @@ function studio_add_series!(label::AbstractString, x::AbstractVector{<:Real}, y:
     haskey(manager.ui, :series) || (manager.ui[:series] = deepcopy(MASTER_UI_DICT[:series]))
     ui = manager.ui[:series]
     x_sel = haskey(manager.widgets, :x_axis) ? something(_menu_value(:x_axis), :none) : :none
-    u_sel = haskey(manager.widgets, :u_axis) ? something(_menu_value(:u_axis), :none) : :none
-    if !isempty(ui[:data]) && (ui[:x_axis] !== x_sel || ui[:u_axis] !== u_sel)
-        @warn "The External Series were added for $(ui[:x_axis]) / $(ui[:u_axis]); the plot now shows $x_sel / $u_sel: " *
+    vertical = something(_series_vertical(), :none)   # (the dependent field of a 1D plot, the y variable of a 2D one)
+    vertical === :none && haskey(manager.widgets, :plot_style) &&
+        throw(ArgumentError("studio_add_series!: a 3D plot has no plane for the series; choose a 1D or 2D style first"))
+    if !isempty(ui[:data]) && (ui[:x_axis] !== x_sel || ui[:y_axis] !== vertical)
+        @warn "The External Series were added for $(ui[:x_axis]) / $(ui[:y_axis]); the plot now shows $x_sel / $vertical: " *
               "they are replaced."
         empty!(ui[:data])
     end
-    ui[:x_axis], ui[:u_axis] = x_sel, u_sel
+    ui[:x_axis], ui[:y_axis] = x_sel, vertical
     ui[:data][String(strip(label))] = [(Float64(xi), Float64(yi)) for (xi, yi) in zip(x, y)]
     ui[:visible] = true
     _redraw_series!()

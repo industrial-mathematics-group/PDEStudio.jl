@@ -84,10 +84,12 @@ subplot (for an error over `N` the observed order is the negative slope), `descr
 axis is a swept parameter, and [`studio_export_data`](@ref) writes the plotted numbers with them, as Markdown
 (`"convergence.md"`: a table per subplot) or CSV.
 
-**Data from outside:** [`studio_add_series!`](@ref) draws a small table, e.g. a paper's errors next to the study's,
-in the plot's coordinates: `studio_set!(:x_axis => :N, :u_axis => :l1error); studio_add_series!("SL7 (paper)", Ns,
-errors)`. The series belong to the axes shown when they are added and are hidden while the plot shows others; they
-get a legend entry, count for the limits and are drawn by exports. Their options are the UI scope `series`
+**Data from outside:** [`studio_add_series!`](@ref) draws a small table in the plot's coordinates, e.g. a paper's
+errors next to the study's (`studio_set!(:x_axis => :N, :u_axis => :l1error); studio_add_series!("SL7 (paper)", Ns,
+errors)`) or a front `t(x)` over a heatmap (`studio_set!(:plot_style => :heatmap, :x_axis => :x, :y_axis => :t)`
+first). The series belong to the axes shown when they are added (x and the vertical variable: the dependent field
+of a 1D plot, the y variable of a 2D plot) and are hidden while the plot shows others; they get a legend entry
+where the style has one, count for the limits of 1D plots and are drawn by exports. Their options are the UI scope `series`
 (`studio_option!(:series, :line_style, :dot)`, `:data` holds the points), saved with the look;
 `studio_clear_series!()` removes them. In the window the same comes from loading a plain two-column CSV.
 

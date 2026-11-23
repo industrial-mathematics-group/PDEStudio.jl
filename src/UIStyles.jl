@@ -281,15 +281,16 @@ function create_master_ui_dict()
         :dpi                  => 300,
         :mp4_compression      => 15,
     )
-    # Data from outside (a paper's errors, a measurement) drawn in the 1D plots like the HUD, in the plot's coordinates:
-    # `data` maps a label to its points `[(x, u), …]` in the plotted x variable and dependent field named by `x_axis`
-    # and `u_axis` (set when the data is added: the series show while the plot shows those; `:none`: any). Their
-    # colours and markers continue the methods' lists of `plot_style`, after the methods.
+    # Data from outside (a paper's errors, a measurement, a curve y(x) over a heatmap) drawn in the 1D and 2D plots
+    # like the HUD, in the plot's coordinates: `data` maps a label to its points `[(x, y), …]` in the plotted x
+    # variable (`x_axis`) and the vertical one (`y_axis`: the dependent field of a 1D plot, the y variable of a 2D
+    # plot), set when the data is added: the series show while the plot shows those (`:none`: any). Their colours and
+    # markers continue the methods' lists of `plot_style`, after the methods.
     master[:series] = Dict{Symbol, Any}(
         :visible     => true,
         :data        => Dict{String, Any}(),
         :x_axis      => :none,
-        :u_axis      => :none,
+        :y_axis      => :none,
         :line_style  => :dash,
         :line_width  => 2.0,
         :marker_size => 10.0,
