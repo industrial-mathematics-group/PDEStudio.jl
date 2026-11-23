@@ -221,6 +221,10 @@ function shuffled_particle_solver(params::ParamDict)
                            [[SVector(sin(2π * x0[i])) for i in perm] for _ in t], t, params)
 end
 
+# A post-processor adding a field (also evaluated on references), and one that fails on them
+double_post(data) = (add_stat!(data, :double, map(v -> 2 .* v, data.stats[:Solution]), collect(data.domain.dim_keys)); true)
+failing_post(data) = error("needs the solver's fields")
+
 # Three components (for comparisons of components)
 function vector_solver_1d(params::ParamDict)
     x = collect(range(0.0, 1.0, length = params[:N]))
@@ -1291,6 +1295,18 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     set_resolution!(:x, 300; is_ref = true)
     @test PDEStudio.build_res_tuple([:x, :t]; is_ref = true) == (300, 100)
     delete!(manager.resolution_ref, :x)
+    # (statistics of references: the post-processor's fields and registered fields; errors need a reference)
+    base = test_advection_1d()
+    post_config = SimulationConfig(base.shared, base.methods, [:upwind, :exact]; varied = base.varied,
+                                   reference = base.reference, postprocess = :double_post)
+    reset_plotter!()
+    launch_plotter(post_config)
+    studio_set!(:u_axis => :double)
+    @test sort!(collect(keys(studio_data(1).methods))) == [:exact, :upwind]
+    ref = PDEStudio._get_first_valid(manager.plot_data[][:exact])
+    @test haskey(ref.stats, :double) && !haskey(ref.stats, :pointwise_diff)
+    @test PDEStudio._reference_stats!(ref, failing_post, :failing_post) === ref   # (a failure is reported, once)
+    @test_logs PDEStudio._reference_stats!(ref, failing_post, :failing_post)
 
     # --- a slider the comparison held can be set in the same call that ends the comparison ---
     reset_plotter!()

@@ -6,6 +6,9 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- **Statistics on references:** a reference evaluates the registered statistics that need no reference and runs the
+  configuration's post-processor, so derived fields (primitive variables, …) can be drawn against it. A
+  post-processor that fails on reference data is reported once; the reference is then drawn without its fields.
 - **Compare Values** (Plot tab, `studio_set!(:compare_values => …)`): a comparison shows the values listed, e.g.
   `1e-5, 1e-3` (the nearest swept values or times), `1, 4` (components) or method names; `all` as before. It is a
   layout option, so presets and exported CSV files keep it.

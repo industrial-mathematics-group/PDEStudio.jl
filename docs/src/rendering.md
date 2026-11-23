@@ -46,7 +46,10 @@ With a particle style, *Files → Resolution ›* lists only the references (eva
 evaluated for every sweep point on the domain of that point's numerical data (a sweep over the final time or the
 domain size moves it) and at the times of that data, so at every position of the time slider the numerical curve and
 the reference show the same time; *Files → Resolution ›* sets the reference's points in space (by default 1000 for
-data with one space dimension, so shocks stay sharp, and 200 per axis otherwise). Data drawn with a
+data with one space dimension, so shocks stay sharp, and 200 per axis otherwise). Statistics are evaluated on the
+reference too: the registered ones that need no reference (fields such as a pressure; errors are left out) and the
+fields the configuration's post-processor adds, so a derived field can be drawn against the reference (a
+post-processor that fails on reference data is named in the log, once). Data drawn with a
 grid style (grid data, and particle data scattered to the grid) is not interpolated in time: it shows its stored
 snapshots at their own times, all of them up to the time resolution of *Resolution ›* (default 50), otherwise that
 many, evenly spread over the stored ones. A time resolution of 1 shows the last snapshot: curves over time are a
