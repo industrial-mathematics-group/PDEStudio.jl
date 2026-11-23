@@ -1507,7 +1507,15 @@ function _collect_legend_elements(ui_app::Dict)
             end
         end
     end
-    
+    # (data from outside, `studio_add_series!`, after the methods)
+    for s in _series_for(1)
+        c = Makie.to_color(s.color)
+        group = Any[Makie.LineElement(color = c, linewidth = ui_app[:line_width], linestyle = s.linestyle)]
+        _no_marker(s.marker) || push!(group, Makie.MarkerElement(color = c, marker = s.marker, markersize = ui_app[:marker_size]))
+        push!(plotted_objects, group)
+        push!(labels_for_legend, s.label)
+    end
+
     return plotted_objects, labels_for_legend
 end
 

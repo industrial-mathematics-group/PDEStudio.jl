@@ -84,6 +84,10 @@ subplot (for an error over `N` the observed order is the negative slope), `descr
 axis is a swept parameter, and [`studio_export_data`](@ref) writes the plotted numbers with them, as Markdown
 (`"convergence.md"`: a table per subplot) or CSV.
 
+**Data from outside:** [`studio_add_series!`](@ref) draws a small table in the 1D plots, e.g. a paper's errors next
+to the study's: `studio_add_series!("SL7 (paper)", Ns, errors; color = :green, marker = :diamond)`. It appears in the
+legend, counts for the limits and is exported; `studio_clear_series!()` removes the series.
+
 **Expensive data:** with `set_compute!(false)` (or `launch_plotter(config; compute = false)`) the studio computes
 nothing: *Run Simulation*, launching and loading a configuration file only look at what is stored. Missing runs
 stay gaps in the plots and are listed in the status line, in `studio_state().missing_runs` and by

@@ -148,8 +148,8 @@ function _handle_plot_trigger!(
             for i in 1:num_plots
                 !haskey(plot_x_slices, i) && continue
                 
-                use_x = is_linked ? global_x_slices : plot_x_slices[i]
-                use_y = is_linked && manager.compare_state[1] !== :fields ? global_y_slices : plot_y_slices[i]
+                use_x = _with_series(is_linked ? global_x_slices : plot_x_slices[i], i, :x)
+                use_y = _with_series(is_linked && manager.compare_state[1] !== :fields ? global_y_slices : plot_y_slices[i], i, :y)
                 
                 # Check safe log scales instantly
                 min_x = _safe_extrema(use_x)[1]
@@ -384,8 +384,8 @@ function _handle_data_trigger!(
         for i in 1:num_plots
             !haskey(plot_x_slices, i) && continue
             
-            use_x = is_linked ? global_x_slices : plot_x_slices[i]
-            use_y = is_linked && manager.compare_state[1] !== :fields ? global_y_slices : plot_y_slices[i]
+            use_x = _with_series(is_linked ? global_x_slices : plot_x_slices[i], i, :x)
+            use_y = _with_series(is_linked && manager.compare_state[1] !== :fields ? global_y_slices : plot_y_slices[i], i, :y)
             
             min_x = _safe_extrema(use_x)[1]
             min_y = _safe_extrema(use_y)[1]
@@ -456,6 +456,7 @@ function _handle_ui_trigger!(::Val{T}, master_fig, plot_layout, axes, has_colorb
             ref_exp = ui_app[:reference]
             !isempty(ref_exp) && plot_reference_lines!(ax, ref_exp; label = "Reference Lines", curves = _drawn_curves(i))
         end
+        PLOT_DIM_MAP[T] == 1 && !is_3d_axis && _draw_external_series!(ax, i, ui_app)   # (studio_add_series!)
         
         if haskey(manager.caches, i)
             # Calculate Local Colorrange

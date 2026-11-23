@@ -1496,6 +1496,14 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test manager.compare_state[4] == [:l1error, :l2error] && studio_data(2).variables.u === :l1error   # (the menu keeps its field)
     studio_set!(:compare_target => :none, :compare_values => :all)
     studio_set!(:x_axis => :x, :u_axis => :Solution)
+    # --- data from outside as a series (studio_add_series!) ---
+    @test studio_add_series!("paper", [0.1, 0.2], [2.0, 2.5]; color = :green, marker = :none) == 1
+    ax1 = first(PDEStudio._plot_axes())
+    @test count(p -> haskey(p, :label) && p.label[] == "External Series", ax1.scene.plots) == 1
+    @test last(PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2]) == "paper"
+    @test_throws ArgumentError studio_add_series!("bad", [1.0], [1.0, 2.0])
+    studio_clear_series!()
+    @test count(p -> haskey(p, :label) && p.label[] == "External Series", first(PDEStudio._plot_axes()).scene.plots) == 0
     # (every name is checked before anything is set or run)
     active, plot_flag = copy(manager.active_config.defaults), manager.flags[:Plot][]
     @test_throws ArgumentError studio_set!(:methods => [:upwind], :cfll => 1.0)

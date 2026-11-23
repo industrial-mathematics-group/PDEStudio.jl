@@ -1281,5 +1281,59 @@ function studio_export_data(path::AbstractString; plot = :all)
     return String(path)
 end
 
+"""
+    studio_add_series!(label, x, y; color = :gray, marker = :circle, linestyle = :dash, plot = :all) -> Int
+    studio_clear_series!()
+
+Draws data from outside the studio in the 1D plots, e.g. the errors of a paper's method from a small table:
+`studio_add_series!("ALE2 (paper)", [40, 80, 160], [2.1e-3, 5.4e-4, 1.4e-4])`. It has its own colour, marker
+(`:none`: a line only) and line style (`nothing`: solid), appears in the legend after the methods, counts for the
+axis limits and is drawn by exports; `plot` restricts it to one subplot. The series stay until
+`studio_clear_series!()` (they belong to the session, not to the configuration, and aren't written to exports'
+CSV files). Returns the number of series.
+"""
+function studio_add_series!(label::AbstractString, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                            color = :gray, marker = :circle, linestyle = :dash, plot = :all)
+    length(x) == length(y) || throw(ArgumentError("studio_add_series!: x has $(length(x)) values, y $(length(y))"))
+    isempty(x) && throw(ArgumentError("studio_add_series!: no points"))
+    plot === :all || (plot isa Integer && plot >= 1) || throw(ArgumentError("plot = $(repr(plot)): a subplot number or :all"))
+    _valid_color(color) || throw(ArgumentError("color = $(repr(color)): a colour (e.g. :gray, \"#1f77b4\")"))
+    push!(manager.extra_series, (label = String(label), x = Float64.(x), y = Float64.(y), color = color,
+                                 marker = marker, linestyle = linestyle, plot = plot))
+    _redraw_series!()
+    return length(manager.extra_series)
+end
+
+function studio_clear_series!()
+    empty!(manager.extra_series)
+    _redraw_series!()
+    return nothing
+end
+
+_redraw_series!() = (manager.is_open && haskey(manager.triggers, :Plot) && (manager.triggers[:Plot][] += 1); nothing)
+
+# The external series drawn in subplot `i`
+_series_for(i::Int) = [s for s in manager.extra_series if s.plot === :all || s.plot == i]
+
+# Draws the external series of subplot `i` (tagged "External Series", replaced on every UI step)
+function _draw_external_series!(ax, i::Int, ui_app)
+    delete_plots_by_label!(ax, "External Series")
+    for s in _series_for(i)
+        c = Makie.to_color(s.color)
+        lw = ui_app[:line_width]
+        if _no_marker(s.marker)
+            lines!(ax, s.x, s.y; color = c, linewidth = lw, linestyle = s.linestyle, label = "External Series")
+        else
+            scatterlines!(ax, s.x, s.y; color = c, linewidth = lw, linestyle = s.linestyle, marker = s.marker,
+                          markersize = ui_app[:marker_size], label = "External Series")
+        end
+    end
+    return nothing
+end
+
+# The slices of subplot `i` with its external series added (for the axis limits)
+_with_series(slices, i::Int, field::Symbol) = isempty(_series_for(i)) ? slices :
+    Any[collect(slices); [getfield(s, field) for s in _series_for(i)]]
+
 _md_num(v::Real) = isnan(v) ? "–" : isinteger(v) && abs(v) < 1e15 ? string(Int(v)) : _fmt_compare(Float64(v))
 _csv_field(s) = (s = string(s); occursin(r"[,\"\n]", s) ? "\"" * replace(s, "\"" => "\"\"") * "\"" : s)
