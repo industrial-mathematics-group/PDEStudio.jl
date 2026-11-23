@@ -173,8 +173,8 @@ function _load_for_display(params::ParamDict, domain, mode::Val)
     try
         mode === Val(:eulerian) || return load_sim_data(params, mode)
         dim_keys, time_dim = Tuple(domain.dim_keys), domain.time_dim
-        # (a dataset with other axes than the template's, e.g. a static profile (`tabulated_method`) among transient
-        # data, is resampled over its own axes)
+        # (a dataset with other axes than the template's, e.g. static data among transient data, is resampled over
+        # its own axes)
         info = isdefined(PDEStudioCore, :get_sim_data_info) ? (try get_sim_data_info(params) catch; nothing end) : nothing
         own_axes = !isnothing(info) && hasproperty(info, :dim_keys) && Tuple(info.dim_keys) != dim_keys
         own_axes && ((dim_keys, time_dim) = (Tuple(info.dim_keys), info.time_dim))

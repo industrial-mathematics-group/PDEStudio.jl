@@ -389,16 +389,16 @@ function _series_csv_points(path::AbstractString)
     return length(x) >= 2 ? (x, y) : nothing
 end
 
-# Loads a plain two-column CSV as a tabulated method named after the file (`studio_add_series!`: over the plotted x
-# variable, as the plotted field); `true` if `path` was one
+# Loads a plain two-column CSV as an External Series named after the file (`studio_add_series!`: in the plotted x
+# variable and field); `true` if `path` was one
 function _load_series_csv!(path::AbstractString)
     pts = _series_csv_points(path)
     isnothing(pts) && return false
     label = first(splitext(basename(path)))
     try
-        name = studio_add_series!(label, pts[1], pts[2])
-        _status!("Added $(basename(path)) ($(length(pts[1])) points) as the method $name (Methods tab); loading it again " *
-                 "replaces it, studio_clear_series!() removes all tabulated methods.", :ok)
+        n = studio_add_series!(label, pts[1], pts[2])
+        _status!("Added $(basename(path)) ($(length(pts[1])) points) as the external series '$label' (UI → External " *
+                 "Series, $n series): drawn while the plot shows the axes of now; loading it again replaces it.", :ok)
         haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :lightgreen)
     catch e
         e isa InterruptException && rethrow()
@@ -1052,11 +1052,19 @@ function _invalid_ui_reason(key::Symbol, val)
     key === :position && !(val in keys(_INSET_ALIGN)) && return "corner of the inset: :rt, :lt, :rb or :lb"
     key === :size && !(val isa Real && 0.1 <= val <= 0.9) && return "size of the inset: a fraction of the subplot from 0.1 to 0.9"
     key === :plot && !(val isa Integer && val >= 1) && return "subplot number (1, 2, …)"
+    key === :data && !_valid_series_data(val) && return "series: Dict(\"label\" => [(x, u), …]) with numbers"
     key in (:animation_FPS, :animation_time, :dpi) && !(val isa Real && isfinite(val) && val > 0) &&
         return "$(key === :animation_FPS ? "frame rate" : key === :dpi ? "resolution" : "duration") (a positive number)"
     return nothing
 end
 _valid_ui_value(key::Symbol, val) = isnothing(_invalid_ui_reason(key, val))
+
+# `data` of the External Series: labels => points `[(x, u), …]` (tuples or 2-vectors of finite numbers, at least one)
+_valid_series_data(val) = val isa AbstractDict && all(kv -> (first(kv) isa Union{AbstractString, Symbol}) &&
+                                                             _valid_series_points(last(kv)), val)
+_valid_series_points(pts) = pts isa Union{AbstractVector, Tuple} && !isempty(pts) &&
+                            all(p -> p isa Union{Tuple, AbstractVector} && length(p) == 2 &&
+                                     all(v -> v isa Real && isfinite(v), p), pts)
 
 # Value restored by typing `default` into the editor: the built-in default of a UI option, the baseline configuration
 # (see `reset_sim_config!`) of a simulation entry. Returns `missing` if there is none.

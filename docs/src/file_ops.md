@@ -132,8 +132,8 @@ Presets are listed under **Presets ›** in the Files tab, with **Apply** and **
     (`studio_export_data`: the points with the local log-log slopes, a Markdown table per subplot or CSV text) instead
     of a figure; `md` or `txt` among the export formats (*Settings ›*) writes them next to the figure.
 *   **Data from outside:** **Load** (or a drop) of a plain CSV file with two numeric columns (`x, y`; a header line is
-    skipped) adds it as a method of the configuration named after the file (`studio_add_series!`, built on
-    `PDEStudioCore.tabulated_method`): over the plotted swept parameter with the values as the plotted statistic, or
-    as a profile over `x`. It runs, is cached and drawn like the other methods, is listed in the Methods tab and goes
-    into exports with the configuration. Loading the same file again replaces it; `studio_clear_series!()` removes
-    the tabulated methods.
+    skipped) draws it in the 1D plots as an *External Series* named after the file (`studio_add_series!`), in the
+    plotted x variable and field: it is hidden while the plot shows other axes. The series are an option page, *UI →
+    External Series* (points per label, line style, width, marker size; colours and markers continue the methods'
+    lists), get legend entries and are saved with the look (presets, exports). Loading the same file again replaces
+    it; `studio_clear_series!()` removes them.

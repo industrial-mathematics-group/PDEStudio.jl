@@ -1425,8 +1425,61 @@ end
 
 plot_HUD!(ax::Axis3) = nothing
 
+# The External Series (`manager.ui[:series]`, `studio_add_series!`) as `(label, x, u)`, sorted by label, if the plot
+# shows the x variable and dependent field they were added for (else none); `u_field`: the subplot's field
+function _shown_series(u_field = manager.widgets[:u_axis].selection[])
+    ui = get(manager.ui, :series, nothing)
+    out = Tuple{String, Vector{Float64}, Vector{Float64}}[]
+    (isnothing(ui) && return out)
+    (ui[:visible] === true && _valid_series_data(ui[:data]) && !isempty(ui[:data])) || return out
+    x_sel = haskey(manager.widgets, :x_axis) ? manager.widgets[:x_axis].selection[] : nothing
+    (ui[:x_axis] === :none || ui[:x_axis] === x_sel) || return out
+    (ui[:u_axis] === :none || ui[:u_axis] === u_field) || return out
+    for (label, pts) in sort!(collect(ui[:data]); by = p -> string(first(p)))
+        push!(out, (string(label), Float64[p[1] for p in pts], Float64[p[2] for p in pts]))
+    end
+    return out
+end
+
+# The colour / marker index of the `j`-th series: after the methods (or the lines) in the lists of `plot_style`
+_series_style_index(j::Int) = (isempty(manager.series) ? length(manager.methods[]) : length(manager.series)) + j
+
+"""
+    plot_series!(ax::Axis, u_field)
+
+Draws the External Series (*UI → External Series*, `studio_add_series!`) in a 1D subplot, in the plot's coordinates,
+tagged "External Series" (replaced on every UI step); nothing if the plot does not show their x variable and field.
+"""
+function plot_series!(ax::Axis, u_field)
+    delete_plots_by_label!(ax, "External Series")
+    ui_app, ui = manager.ui[:plot_style], get(manager.ui, :series, nothing)
+    isnothing(ui) && return nothing
+    for (j, (label, x, u)) in enumerate(_shown_series(u_field))
+        k = _series_style_index(j)
+        color = Makie.to_color(ui_app[:colors][mod1(k, end)])
+        mrk, ms = _marker_and_size(ui_app, k)
+        lw, ls = Float32(ui[:line_width]), ui[:line_style]
+        if ms > 0 && !_no_marker(mrk)
+            scatterlines!(ax, x, u; color, linewidth = lw, linestyle = ls, marker = mrk, markersize = Float32(ui[:marker_size]),
+                          label = "External Series")
+        else
+            lines!(ax, x, u; color, linewidth = lw, linestyle = ls, label = "External Series")
+        end
+    end
+    return nothing
+end
+plot_series!(ax::Axis3, u_field) = nothing
+
+# The slices of a 1D subplot with the shown External Series added (for the axis limits); `field` is `:x` or `:y`
+function _with_series(slices, field::Symbol)
+    shown = _shown_series()
+    isempty(shown) && return slices
+    return Any[collect(slices); [field === :x ? s[2] : s[3] for s in shown]]
+end
+
 
 function _apply_axis_styles!(ax, T::Symbol; u = nothing)
+    u_field = u
     x = frontend_key(manager.widgets[:x_axis].selection[])
     y = frontend_key(manager.widgets[:y_axis].selection[])
     z = frontend_key(manager.widgets[:z_axis].selection[])
@@ -1439,6 +1492,7 @@ function _apply_axis_styles!(ax, T::Symbol; u = nothing)
         def_y = dim == 1 ? u : y
         set_axis_styles!(ax, x, def_y, def_title)
         plot_HUD!(ax)
+        dim == 1 && plot_series!(ax, something(u_field, manager.widgets[:u_axis].selection[]))
     elseif ax isa Axis3
         def_z = dim == 2 ? u : z
         set_axis_styles!(ax, x, y, def_z, def_title)
@@ -1522,6 +1576,17 @@ function _collect_legend_elements(ui_app::Dict)
                 end
             end
         end
+    end
+    # (the External Series, after the methods, if the plot shows them)
+    ui = get(manager.ui, :series, nothing)
+    for (j, (label, _, _)) in enumerate(_shown_series())
+        k = _series_style_index(j)
+        c = Makie.to_color(get_color(k))
+        group = Any[Makie.LineElement(color = c, linewidth = Float32(ui[:line_width]), linestyle = ui[:line_style])]
+        mrk, ms = _marker_and_size(ui_app, k)
+        (ms > 0 && !_no_marker(mrk)) && push!(group, Makie.MarkerElement(color = c, marker = mrk, markersize = Float32(ui[:marker_size])))
+        push!(plotted_objects, group)
+        push!(labels_for_legend, label)
     end
 
     return plotted_objects, labels_for_legend

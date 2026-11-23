@@ -4,7 +4,7 @@
 
 const LEGEND_SUPPORTED_PLOTS = (:lines_1d, :scatter_colors, :scatter_lines, :contour_colors, :contour_surface)
 const COLORBAR_SUPPORTED_PLOTS = (:heatmap_flat, :scatter_1d, :scatter_2d, :scatter_surface, :contour_f, :contour_3d, :scatter_3d, :heatmap_surface, :volume_3d, :contour_cmap, :lines_2d, :lines_3d)
-const REPLOT_OPTIONS = (:use_color_map, :line_direction, :method_index, :padding, :log_scale, :dashed_lines, :levels, :rasterization_enabled, :rasterization_quality, :legend_label)
+const REPLOT_OPTIONS = (:use_color_map, :line_direction, :method_index, :padding, :log_scale, :dashed_lines, :levels, :rasterization_enabled, :rasterization_quality, :legend_label, :data)
 const LAYOUT_OPTIONS = (:plot_style, :compare_target, :compare_columns, :compare_values, :compare_link, :line_target, :line_values, :legend_base, :legend_add, :plot_width, :plot_height)
 const PLOT_AXIS_OPTIONS = (:x_axis, :y_axis, :z_axis, :u_axis, :component)
 const EXPLORATION_OPTIONS = (:anim_target, :component)
@@ -13,6 +13,7 @@ const EXPLORATION_OPTIONS = (:anim_target, :component)
 const SYMBOL_TO_LABEL_MAP = Dict{Symbol, String}(
     :reference_error => "u − u_ref",
     :inset => "Zoom Inset",
+    :series => "External Series",
     :hud => "HUD",
     :fps => "FPS",
     :x_axis => "X-Axis",
@@ -280,6 +281,19 @@ function create_master_ui_dict()
         :dpi                  => 300,
         :mp4_compression      => 15,
     )
+    # Data from outside (a paper's errors, a measurement) drawn in the 1D plots like the HUD, in the plot's coordinates:
+    # `data` maps a label to its points `[(x, u), …]` in the plotted x variable and dependent field named by `x_axis`
+    # and `u_axis` (set when the data is added: the series show while the plot shows those; `:none`: any). Their
+    # colours and markers continue the methods' lists of `plot_style`, after the methods.
+    master[:series] = Dict{Symbol, Any}(
+        :visible     => true,
+        :data        => Dict{String, Any}(),
+        :x_axis      => :none,
+        :u_axis      => :none,
+        :line_style  => :dash,
+        :line_width  => 2.0,
+        :marker_size => 10.0,
+    )
     # A zoom inset of a 1D subplot (the same as `studio_inset!`, which adds more of them): a corner axis showing the
     # curves in x_lims × y_lims, with a box marking the region
     master[:inset] = Dict{Symbol, Any}(
@@ -345,7 +359,7 @@ const MASTER_UI_DICT = create_master_ui_dict()
 
 # The UI scopes kept in `manager.ui`: the general scopes, one scope per axis variant (the renderer uses the variant of
 # the active plot type, see `_ui_template_scope`) and the plot style options shared by all plot types.
-const UI_GENERAL_SCOPES = (:axis_general, :labels, :hud, :outliers_extrema, :inset)
+const UI_GENERAL_SCOPES = (:axis_general, :labels, :hud, :series, :outliers_extrema, :inset)
 const UI_AXIS_SCOPES = (:x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d)
 const UI_SCOPES = (UI_GENERAL_SCOPES..., :export, UI_AXIS_SCOPES..., :plot_style)
 

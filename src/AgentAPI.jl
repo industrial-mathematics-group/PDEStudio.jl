@@ -1283,73 +1283,44 @@ function studio_export_data(path::AbstractString; plot = :all)
 end
 
 """
-    studio_add_series!(label, x, y; key = nothing, field = nothing) -> Symbol
+    studio_add_series!(label, x, y) -> Int
     studio_clear_series!()
 
-Adds data from outside the studio (the errors a paper reports, a measurement, a reference curve) as a method of
-the bound configuration, built with `PDEStudioCore.tabulated_method`. `key` is the column the data is looked up
-by: by default the plotted x variable, a swept parameter such as `:N` (one dataset per value of the sweep, the row
-of that value) or the coordinate `:x` (a profile `u(x)`). `field` is the name of the values: by default the plotted
-dependent field (a statistic such as `:l1error`; `:Solution` means the profile's `u`). The method ignores the shared
-parameters, is activated and run (its datasets are cached like any other), so it is drawn, coloured and styled like
-the other methods, appears in the legend and in the Methods tab, and is written to exports with the configuration,
-which makes the figure reproducible. The same label again replaces the method; `studio_clear_series!()` removes
-every tabulated method. In the window, a plain CSV file with two numeric columns (`x, y`; a header line is
-skipped) loads the same way, named after the file (*Load*, or drop it). Returns the method's name.
-
-```julia
-studio_set!(:x_axis => :N, :u_axis => :l1error)
-studio_add_series!("ALE2 (paper)", [40, 80, 160], [2.1e-3, 5.4e-4, 1.4e-4])
-```
+Draws data from outside the studio (the errors a paper reports, a measurement) in the 1D plots, like the HUD but
+in the plot's coordinates: the points `(x, y)` in the plotted x variable and dependent field, e.g. a paper's errors
+over `N` next to the study's (`studio_set!(:x_axis => :N, :u_axis => :l1error)` first). The series belong to the
+axes shown when they are added and are drawn (with a legend entry, counting for the limits, also in exports) while
+the plot shows those; they are hidden when the axes change and shown again when they are back. Colours and markers
+continue the methods' lists (`plot_style`); line style, width and marker size are the options of *UI → External
+Series* (`studio_option!(:series, …)`), where the points can be edited too (`data`: `Dict("label" => [(x, u), …])`),
+and which presets and exports save. The same label again replaces the series; adding a series under other axes
+replaces all of them. In the window, a plain CSV file with two numeric columns (`x, y`; a header line is skipped)
+loads the same way, named after the file (*Load*, or drop it). Returns the number of series.
 """
-function studio_add_series!(label::AbstractString, x::AbstractVector, y::AbstractVector{<:Real};
-                            key::Union{Nothing, Symbol} = nothing, field::Union{Nothing, Symbol} = nothing)
-    isdefined(PDEStudioCore, :tabulated_method) ||
-        throw(ArgumentError("studio_add_series! needs a PDEStudioCore with `tabulated_method` (0.7.1 or newer)"))
-    config = manager.active_config
-    isnothing(config) && throw(ArgumentError("studio_add_series!: no configuration is bound"))
+function studio_add_series!(label::AbstractString, x::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     length(x) == length(y) || throw(ArgumentError("studio_add_series!: x has $(length(x)) values, y $(length(y))"))
     isempty(x) && throw(ArgumentError("studio_add_series!: no points"))
+    all(v -> isfinite(v), x) && all(v -> isfinite(v), y) || throw(ArgumentError("studio_add_series!: the points must be finite numbers"))
     isempty(strip(label)) && throw(ArgumentError("studio_add_series!: give a label"))
-    key = something(key, haskey(manager.widgets, :x_axis) ? _menu_value(:x_axis) : nothing, Some(:x))
-    key = key isa Symbol ? Symbol(last(split(string(key), '|'))) : :x   # (a statistic over a parameter: the parameter)
-    key in keys(config.varied) || key in (:x, :y, :z) ||
-        throw(ArgumentError("studio_add_series!: key = $(repr(key)) is neither a swept parameter " *
-                            "($(join(repr.(sort!(collect(keys(config.varied)), by = string)), ", "))) nor the coordinate :x; " *
-                            "plot the data over one of them or pass `key`"))
-    field = something(field, haskey(manager.widgets, :u_axis) ? _menu_value(:u_axis) : nothing, Some(:u))
-    (field isa Symbol && field !== :none) || (field = :u)
-    field === :Solution && (field = :u)
-    name = Symbol(replace(strip(label), r"\s+" => "_"))
-    table = Dict{Symbol, Any}(key => collect(x), field => Float64.(y))
-    config.methods[name] = PDEStudioCore.tabulated_method(table; key = key, ignore = collect(keys(config.shared)))
-    name in config.defaults || (config.defaults = Symbol[config.defaults; name])
-    haskey(manager.labels, name) || set_label!(name, String(strip(label)))
-    _tabulated_changed!("Added the data $(repr(String(label))) as the method $name over $key" *
-                        (key in (:x, :y, :z) ? " (a profile)" : " ($field of the table's rows)") * ".")
-    return name
+    haskey(manager.ui, :series) || (manager.ui[:series] = deepcopy(MASTER_UI_DICT[:series]))
+    ui = manager.ui[:series]
+    x_sel = haskey(manager.widgets, :x_axis) ? something(_menu_value(:x_axis), :none) : :none
+    u_sel = haskey(manager.widgets, :u_axis) ? something(_menu_value(:u_axis), :none) : :none
+    if !isempty(ui[:data]) && (ui[:x_axis] !== x_sel || ui[:u_axis] !== u_sel)
+        @warn "The External Series were added for $(ui[:x_axis]) / $(ui[:u_axis]); the plot now shows $x_sel / $u_sel: " *
+              "they are replaced."
+        empty!(ui[:data])
+    end
+    ui[:x_axis], ui[:u_axis] = x_sel, u_sel
+    ui[:data][String(strip(label))] = [(Float64(xi), Float64(yi)) for (xi, yi) in zip(x, y)]
+    ui[:visible] = true
+    _redraw_series!()
+    return length(ui[:data])
 end
 
 function studio_clear_series!()
-    config = manager.active_config
-    isnothing(config) && return nothing
-    names = Symbol[m for (m, p) in config.methods if get(p, :sim_func_name, nothing) === :tabulated_data]
-    isempty(names) && return nothing
-    for m in names
-        delete!(config.methods, m)
-    end
-    config.defaults = Symbol[m for m in config.defaults if !(m in names)]
-    _tabulated_changed!("Removed the tabulated methods $(join(names, ", ")).")
-    return nothing
-end
-
-# After tabulated methods were added or removed: the configuration changed, so the data is loaded again
-function _tabulated_changed!(message::AbstractString)
-    haskey(manager.flags, :Simulation) && (manager.flags[:Simulation][] = true)
-    manager.is_open || return nothing
-    _render_editor!()
-    force_simulation()
-    _status!(message, :ok)
+    haskey(manager.ui, :series) && empty!(manager.ui[:series][:data])
+    _redraw_series!()
     return nothing
 end
 

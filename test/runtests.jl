@@ -1499,16 +1499,23 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test manager.compare_state[4] == [:l1error, :l2error] && studio_data(2).variables.u === :l1error   # (the menu keeps its field)
     studio_set!(:compare_target => :none, :compare_values => :all)
     studio_set!(:x_axis => :x, :u_axis => :Solution)
-    # --- data from outside as a method of the configuration (studio_add_series!, PDEStudioCore.tabulated_method) ---
-    if isdefined(PDEStudioCore, :tabulated_method)
-        @test studio_add_series!("paper", [0.1, 0.2, 0.5], [2.0, 2.5, 2.2]) === :paper   # a profile over x
-        @test :paper in manager.methods[] && manager.active_config.methods[:paper][:sim_func_name] === :tabulated_data
-        @test haskey(studio_data(1).methods, :paper) && studio_data(1).methods[:paper].u == [2.0, 2.5, 2.2]
-        @test "paper" in PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2]
-        @test_throws ArgumentError studio_add_series!("bad", [1.0], [1.0, 2.0])
-        studio_clear_series!()
-        @test !(:paper in manager.methods[]) && !haskey(manager.active_config.methods, :paper)
-    end
+    # --- data from outside as External Series (studio_add_series!, UI → External Series) ---
+    n_series(ax) = count(p -> haskey(p, :label) && p.label[] == "External Series", ax.scene.plots)
+    @test studio_add_series!("paper", [0.1, 0.2, 0.5], [2.0, 2.5, 2.2]) == 1
+    @test manager.ui[:series][:x_axis] === :x && manager.ui[:series][:u_axis] === :Solution
+    @test n_series(first(PDEStudio._plot_axes())) == 1
+    @test last(PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2]) == "paper"
+    studio_set!(:u_axis => :l1error, :x_axis => :t)                        # other axes: the series are hidden
+    @test n_series(first(PDEStudio._plot_axes())) == 0 && !("paper" in PDEStudio._collect_legend_elements(manager.ui[:plot_style])[2])
+    studio_set!(:x_axis => :x, :u_axis => :Solution)                      # and back
+    @test n_series(first(PDEStudio._plot_axes())) == 1
+    @test_throws ArgumentError studio_add_series!("bad", [1.0], [1.0, 2.0])
+    @test_throws ArgumentError studio_option!(:series, :data, Dict("x" => [(1.0, NaN)]))
+    studio_option!(:series, :visible, false)
+    @test n_series(first(PDEStudio._plot_axes())) == 0
+    studio_option!(:series, :visible, true)
+    studio_clear_series!()
+    @test n_series(first(PDEStudio._plot_axes())) == 0 && isempty(manager.ui[:series][:data])
     # --- a zoom inset (studio_inset!), drawn again with every update and by exports ---
     @test studio_inset!((0.1, 0.3), (2.0, 3.0); position = :lt, size = 0.3) == 1
     insets = manager.inset_axes[objectid(PDEStudio._plot_layout())]   # (the window's; exports have their own)
@@ -1735,26 +1742,25 @@ ingroup("agent") && @testset "Studio features: window access, lines with compare
     studio_option!(:inset, :visible, false)
     @test all(isempty, values(manager.inset_axes))
 
-    # 6. Data from outside is a tabulated method: over a swept parameter, loaded from a two-column CSV, in exports
-    if isdefined(PDEStudioCore, :tabulated_method)
-        studio_set!(:x_axis => :cfl, :u_axis => :l1error, :t => 1.0)
-        dir = mktempdir()
-        csv = joinpath(dir, "paper.csv"); write(csv, "cfl,error\n0.25,2e-3\n0.5,5e-4\n1.0,1.2e-4\n")
-        PDEStudio._handle_load(csv)
-        @test :paper in manager.methods[] && manager.active_config.methods[:paper][:table_key] === :cfl
-        d = studio_data(1).methods[:paper]
-        @test d.x == [0.25, 0.5, 1.0] && d.u ≈ [2e-3, 5e-4, 1.2e-4]            # l1error of the rows over cfl
-        @test occursin("paper", studio_state().status.text)
-        PDEStudio._handle_load(csv)                                             # the same file again replaces it
-        @test count(==(:paper), manager.methods[]) == 1
-        @test isnothing(PDEStudio._series_csv_points(joinpath(dir, "none.csv")))
-        @test PDEStudio.save_params_to_csv("series_export", dir, Dict("Save Type" => "Test"))
-        studio_clear_series!()
-        @test !haskey(manager.active_config.methods, :paper)
-        PDEStudio.load_and_apply_csv!(joinpath(dir, "series_export.csv"))      # the method is part of the configuration
-        @test haskey(manager.active_config.methods, :paper) && :paper in manager.active_config.defaults
-        studio_clear_series!()
-    end
+    # 6. External Series from a two-column CSV, for the plotted axes; exports keep them (UI scope `series`)
+    studio_set!(:x_axis => :cfl, :u_axis => :l1error, :t => 1.0)
+    dir = mktempdir()
+    csv = joinpath(dir, "paper.csv"); write(csv, "cfl,error\n0.25,2e-3\n0.5,5e-4\n1.0,1.2e-4\n")
+    PDEStudio._handle_load(csv)
+    ui = manager.ui[:series]
+    @test haskey(ui[:data], "paper") && ui[:x_axis] === :cfl && ui[:u_axis] === :l1error
+    @test ui[:data]["paper"] == [(0.25, 2e-3), (0.5, 5e-4), (1.0, 1.2e-4)]
+    @test occursin("paper", studio_state().status.text)
+    @test count(p -> haskey(p, :label) && p.label[] == "External Series", first(PDEStudio._plot_axes()).scene.plots) == 1
+    PDEStudio._handle_load(csv)                                             # the same file again replaces it
+    @test length(ui[:data]) == 1
+    @test isnothing(PDEStudio._series_csv_points(joinpath(dir, "none.csv")))
+    @test PDEStudio.save_params_to_csv("series_export", dir, Dict("Save Type" => "Test"))
+    studio_clear_series!()
+    @test isempty(manager.ui[:series][:data])
+    PDEStudio.load_and_apply_csv!(joinpath(dir, "series_export.csv"))      # the look carries the series
+    @test haskey(manager.ui[:series][:data], "paper") && manager.ui[:series][:x_axis] === :cfl
+    studio_clear_series!()
 end
 
 any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" begin
@@ -2865,12 +2871,12 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         # 4d. The UI overview is static: general scopes, every axis variant and every plot type
         show_editor_page!(:ui)
         @test [w[Symbol("editor_section_", k)].text[] for k in 1:4] == ["General", "Labels", "Axes", "Plot styles"]
-        @test manager.editor_page_scopes[1:13] == [:axis_general, :hud, :outliers_extrema, :inset,
+        @test manager.editor_page_scopes[1:14] == [:axis_general, :hud, :series, :outliers_extrema, :inset,
                                                    :labels, :components, :variables, :methods,
                                                    :x_axis_1d, :y_axis_1d, :x_axis_nd, :y_axis_nd, :z_axis_3d]
-        @test w[:editor_page_5].label[] == "Plot"               # the titles and axis labels of the plot
-        @test w[:editor_page_4].label[] == "Zoom Inset"
-        @test Set(manager.editor_page_scopes[14:end]) == union(euler_styles, Set([:scatter_surface]))   # (particles: their scatter pages)
+        @test w[:editor_page_6].label[] == "Plot"               # the titles and axis labels of the plot
+        @test w[:editor_page_3].label[] == "External Series" && w[:editor_page_5].label[] == "Zoom Inset"
+        @test Set(manager.editor_page_scopes[15:end]) == union(euler_styles, Set([:scatter_surface]))   # (particles: their scatter pages)
         @test !(:export in manager.editor_page_scopes)        # the export settings are in the Files tab
         open_scope!(:heatmap_flat)                             # a plot type lists the options it uses
         @test Set(manager.editor_row_keys) == Set(PDEStudio.STYLE_DEPENDENCIES[:heatmap_flat])
