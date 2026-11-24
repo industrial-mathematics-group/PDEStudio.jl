@@ -176,7 +176,6 @@ Base.@kwdef mutable struct PlotManager
     series::Vector{Symbol} = Symbol[]                                  # the series keys in drawing order (colours, legend)
     series_labels::Dict{Symbol, String} = Dict{Symbol, String}()       # series key => legend label
     series_style::Dict{Symbol, Int} = Dict{Symbol, Int}()              # series key => colour / marker index (`_style_index`)
-    insets::Vector{NamedTuple} = NamedTuple[]                          # zoom insets of 1D subplots (`studio_inset!`)
     inset_axes::Dict{UInt, Vector{Any}} = Dict{UInt, Vector{Any}}()    # the inset axes drawn, per plot layout
     plot_titles::Vector{String} = String[]
     launch_run::Any = nothing                                          # (RunSummary, seconds) of the run before a launch

@@ -23,6 +23,27 @@ The studio is built around a central, reactive state manager that links the live
 
 ---
 
+## 🧱 One configuration per studio (design contract)
+
+A studio binds exactly **one** `SimulationConfig`: its methods, shared parameters and sweep are the one setup the
+sliders, caches, comparisons, lines, CSV state and the agent API work on. This is a deliberate design decision that
+will not change (it is part of the 1.0 contract): one bound configuration keeps every feature robust, because nothing
+has to reconcile two sweeps, two method lists or two sets of parameters.
+
+To show results of different configurations together:
+
+*   **Combine them into one configuration:** methods with different parameters are entries of one method
+    dictionary (`create_method_dict`), different setups a swept parameter (`varied`, or a `joint_sweep` for several
+    at once). Compare, *Lines* and the legend then do the rest.
+*   **Bring numbers in as data:** tabulated results (a paper's errors, a reference curve) are drawn with
+    [`studio_add_series!`](@ref) or by loading a two-column CSV, in the plot's coordinates.
+*   **Otherwise plot them separately:** one studio (or one export) per configuration.
+
+Features that would make the studio hold a second configuration (panels or lines from another `SimulationConfig`,
+several bound sweeps) are out of scope by design.
+
+---
+
 ## 💾 Serialization & Presets
 
 **PDEStudio.jl** stores its state in plain CSV files (`Category, Scope, Parameter, Value`, RFC 4180).

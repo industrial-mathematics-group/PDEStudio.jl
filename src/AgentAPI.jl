@@ -1138,6 +1138,7 @@ function studio_option!(scope::Symbol, key::Symbol, value)
     end
     failures = manager.render_failures
     key === :colors && !(value isa AbstractVector) && _valid_color(value) && (value = Any[value])   # (a list of one)
+    key === :more_insets && (value = Any[Tuple(e) for e in value])   # (shown and saved as a plain list of tuples)
     # (a list option takes a tuple as its list; a colour tuple such as (:red, 0.5) stays one colour)
     target[key] = value isa Tuple && default isa AbstractVector && !(key in _COLOR_UI_KEYS) ? collect(Any, value) : value
     _after_editor_change!(:ui, scope, key, target)
@@ -1336,9 +1337,11 @@ end
 A zoom inset in 1D subplot `plot`: a small axis in a corner (`position`: `:rt`, `:lt`, `:rb`, `:lb`) of `size` times
 the subplot's width and height, which shows the subplot's curves in `xlims` × `ylims` (e.g. a contact
 discontinuity), and a box marking that region in the subplot. The inset follows the sliders and is drawn by exports.
-The insets stay until `studio_clear_insets!()`. Returns the number of insets. In the window, one inset is set under
-*UI → Zoom Inset* (`studio_option!(:inset, :x_lims, …)`, `:y_lims`, `:visible`, `:position`, `:size`, `:plot`); that
-one is saved with the look (presets, exports). `studio_inset!` adds more for the session.
+The insets stay until `studio_clear_insets!()`. Returns the number of insets. They are the UI option page
+*UI → Zoom Inset* (`studio_option!(:inset, …)`), saved with the look (presets, exports): the first inset has the
+named options `x_lims`, `y_lims`, `position`, `size`, `plot`; `more_insets` lists further ones as
+`(x_lo, x_hi, y_lo, y_hi)`, optionally followed by the corner, size and subplot. `studio_inset!` appends to that list
+(and shows the page's insets, `visible`); `studio_clear_insets!()` empties it and the first inset's ranges.
 
 ```julia
 studio_inset!((0.45, 0.6), (0.9, 1.6); position = :lt)
@@ -1351,27 +1354,36 @@ function studio_inset!(xlims, ylims; plot::Integer = 1, position::Symbol = :rt, 
     position in keys(_INSET_ALIGN) || throw(ArgumentError("position = $(repr(position)): one of :rt, :lt, :rb, :lb"))
     0.1 <= size <= 0.9 || throw(ArgumentError("size = $size: a fraction of the subplot from 0.1 to 0.9"))
     plot >= 1 || throw(ArgumentError("plot = $plot: a subplot number"))
-    push!(manager.insets, (plot = Int(plot), xlims = Float64.(Tuple(xlims)), ylims = Float64.(Tuple(ylims)),
-                           position = position, size = Float64(size)))
+    ui = get(manager.ui, :inset, nothing)
+    isnothing(ui) && throw(ArgumentError("studio_inset!: no studio is open (launch_plotter or studio_headless!)"))
+    more = ui[:more_insets] = Any[e for e in get(ui, :more_insets, Any[])]   # (the editor may have stored a typed list)
+    push!(more, (Float64(xlims[1]), Float64(xlims[2]), Float64(ylims[1]), Float64(ylims[2]), position, Float64(size), Int(plot)))
+    ui[:visible] = true
     _redraw_series!()
-    return length(manager.insets)
+    return length(_ui_insets())
 end
 
 function studio_clear_insets!()
-    empty!(manager.insets)
+    ui = get(manager.ui, :inset, nothing)
+    if !isnothing(ui)
+        empty!(get!(() -> Any[], ui, :more_insets))
+        ui[:x_lims], ui[:y_lims] = Any[], Any[]
+    end
     _redraw_series!()
     return nothing
 end
 
 const _INSET_ALIGN = Dict(:rt => (:right, :top), :lt => (:left, :top), :rb => (:right, :bottom), :lb => (:left, :bottom))
 
-# Draws the insets (`studio_inset!`) of the 1D subplots `axes` in `plot_layout`, replacing those drawn before
+# Draws the insets (*UI → Zoom Inset*, `studio_inset!`) of the 1D subplots `axes` in `plot_layout`, replacing those
+# drawn before
 function _draw_insets!(plot_layout, axes)
     for ia in get(manager.inset_axes, objectid(plot_layout), Any[])
         try delete!(ia) catch end   # (a rebuilt layout has removed them already)
     end
     delete!(manager.inset_axes, objectid(plot_layout))
-    insets = [manager.insets; _ui_insets()]
+    foreach(ax -> ax isa Axis && delete_plots_by_label!(ax, "Inset Box"), axes)   # (the boxes of the insets drawn before)
+    insets = _ui_insets()
     isempty(insets) && return nothing   # (no entry kept for layouts without insets, e.g. exports)
     drawn = Any[]
     manager.inset_axes[objectid(plot_layout)] = drawn
@@ -1379,7 +1391,6 @@ function _draw_insets!(plot_layout, axes)
     for s in insets
         (s.plot <= length(axes) && axes[s.plot] isa Axis && !isnothing(plots) && s.plot <= length(plots)) || continue
         ax = axes[s.plot]
-        delete_plots_by_label!(ax, "Inset Box")
         (x0, x1), (y0, y1) = s.xlims, s.ylims
         lines!(ax, [x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0]; color = :gray40, linewidth = 1, label = "Inset Box")
         r, c = plots[s.plot]
@@ -1409,14 +1420,24 @@ end
 
 _redraw_series!() = (manager.is_open && haskey(manager.triggers, :Plot) && (manager.triggers[:Plot][] += 1); nothing)
 
-# The inset of the UI options (*UI → Zoom Inset*, `studio_option!(:inset, …)`), as `studio_inset!` stores one, or none
+# The insets of the UI options (*UI → Zoom Inset*, `studio_option!(:inset, …)`, `studio_inset!`) while `visible`: the
+# first (its named options, if it has ranges) and `more_insets`; an entry without corner, size or subplot takes the
+# page's
 function _ui_insets()
     ui = get(manager.ui, :inset, nothing)
-    (isnothing(ui) && return NamedTuple[])
+    (isnothing(ui) || get(ui, :visible, false) !== true) && return NamedTuple[]
     ok(l) = l isa Union{AbstractVector, Tuple} && length(l) == 2 && all(v -> v isa Real && isfinite(v), l) && l[1] < l[2]
-    (get(ui, :visible, false) === true && ok(ui[:x_lims]) && ok(ui[:y_lims])) || return NamedTuple[]
-    return NamedTuple[(plot = Int(get(ui, :plot, 1)), xlims = Float64.(Tuple(ui[:x_lims])), ylims = Float64.(Tuple(ui[:y_lims])),
-                       position = Symbol(get(ui, :position, :rt)), size = Float64(get(ui, :size, 0.4)))]
+    plot, position, size = Int(get(ui, :plot, 1)), Symbol(get(ui, :position, :rt)), Float64(get(ui, :size, 0.4))
+    insets = NamedTuple[]
+    ok(ui[:x_lims]) && ok(ui[:y_lims]) &&
+        push!(insets, (plot = plot, xlims = Float64.(Tuple(ui[:x_lims])), ylims = Float64.(Tuple(ui[:y_lims])), position = position, size = size))
+    for e in get(ui, :more_insets, Any[])
+        _valid_inset_entry(e) || continue
+        push!(insets, (plot = length(e) >= 7 ? Int(e[7]) : plot, xlims = (Float64(e[1]), Float64(e[2])),
+                       ylims = (Float64(e[3]), Float64(e[4])), position = length(e) >= 5 ? Symbol(e[5]) : position,
+                       size = length(e) >= 6 ? Float64(e[6]) : size))
+    end
+    return insets
 end
 
 

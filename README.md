@@ -93,6 +93,10 @@ set_sim_config!("my_run.csv")   # a saved CSV or a Julia config file
 Name the axes as you like (`create_sim_data(...; dims = (:r, :θ), time_dim = :iteration)`): `@launch` adds the axes
 the studio doesn't know yet; with a studio that is already open, *Run Simulation* rebuilds the window with them.
 
+A studio binds exactly one `SimulationConfig` at a time, by design (this will not change): to show results of
+different configurations together, combine them into one (methods with different parameters, a swept parameter),
+bring numbers in as External Series (`studio_add_series!`, a two-column CSV), or plot them separately.
+
 ---
 
 Portions of this codebase and documentation were drafted by Claude Opus 5.5 and Fable 5.1 using Claude Code. All code has been human-reviewed, verified, and tested. If you notice any inaccuracies or unexpected behavior, please open an issue.

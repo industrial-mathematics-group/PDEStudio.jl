@@ -1034,7 +1034,25 @@ function _editor_target(cat, scope)
     elseif cat === :ui
         return get(manager.ui, _ui_template_scope(scope), nothing)   # a plot type's page edits `plot_style`
     elseif cat === :labels
-        return manager.labels
+        return scope === :values ? _value_label_target() : manager.labels
+    end
+    return nothing
+end
+
+# The names of the swept values (`set_value_label!`) as an editor target: `(parameter => value) => name` for the named
+# ones; the page lists every swept value (see `_editor_keys`), unnamed ones show `<empty>`
+_value_label_target() = Dict{Pair{Symbol, Any}, String}((Pair{Symbol, Any}(p, v) => n) for (p, names) in manager.value_labels
+                                                                                        for (v, n) in names)
+
+# Names the swept value `key` (`parameter => value`, a row of Labels → Swept Values) as `set_value_label!` does; an
+# empty `name` removes its name (`default` and `<empty>` in the editor)
+function _set_value_name!(key::Pair, name::AbstractString)
+    p, v = key
+    if isempty(name)
+        names = get(manager.value_labels, p, nothing)
+        isnothing(names) || (delete!(names, v); isempty(names) && delete!(manager.value_labels, p))
+    else
+        set_value_label!(p, v => name)
     end
     return nothing
 end
@@ -1073,12 +1091,24 @@ function _invalid_ui_reason(key::Symbol, val)
     key === :position && !(val in keys(_INSET_ALIGN)) && return "corner of the inset: :rt, :lt, :rb or :lb"
     key === :size && !(val isa Real && 0.1 <= val <= 0.9) && return "size of the inset: a fraction of the subplot from 0.1 to 0.9"
     key === :plot && !(val isa Integer && val >= 1) && return "subplot number (1, 2, …)"
+    key === :more_insets && !_valid_insets(val) &&
+        return "list of insets: (x_lo, x_hi, y_lo, y_hi), optionally followed by the corner, size and subplot, e.g. [(0.1, 0.3, 2.0, 3.0, :lt)]"
     key === :data && !_valid_series_data(val) && return "series: Dict(\"label\" => [(x, u), …]) with numbers"
     key in (:animation_FPS, :animation_time, :dpi) && !(val isa Real && isfinite(val) && val > 0) &&
         return "$(key === :animation_FPS ? "frame rate" : key === :dpi ? "resolution" : "duration") (a positive number)"
     return nothing
 end
 _valid_ui_value(key::Symbol, val) = isnothing(_invalid_ui_reason(key, val))
+
+# `more_insets` of the Zoom Inset page: each `(x_lo, x_hi, y_lo, y_hi)`, optionally followed by the corner, the size and
+# the subplot (the page's `position`, `size` and `plot` otherwise)
+function _valid_inset_entry(e)
+    (e isa Union{Tuple, AbstractVector} && 4 <= length(e) <= 7) || return false
+    (all(v -> v isa Real && isfinite(v), e[1:4]) && e[1] < e[2] && e[3] < e[4]) || return false
+    return (length(e) < 5 || e[5] in keys(_INSET_ALIGN)) && (length(e) < 6 || (e[6] isa Real && 0.1 <= e[6] <= 0.9)) &&
+           (length(e) < 7 || (e[7] isa Integer && e[7] >= 1))
+end
+_valid_insets(val) = val isa AbstractVector && all(_valid_inset_entry, val)
 
 # `data` of the External Series: labels => points `[(x, u), …]` (tuples or 2-vectors of finite numbers, at least one)
 _valid_series_data(val) = val isa AbstractDict && all(kv -> (first(kv) isa Union{AbstractString, Symbol}) &&
@@ -1099,6 +1129,7 @@ function _editor_default(cat, scope, key)
         target = scope === :shared ? base.shared : get(base.methods, scope, nothing)
         (!isnothing(target) && haskey(target, key)) && return deepcopy(target[key])
     elseif cat === :labels
+        key isa Pair && return ""   # a swept value: no name, i.e. `parameter = value`
         # the built-in display name, i.e. the name without the custom label
         custom = pop!(manager.labels, key, nothing)
         default = frontend_key(key)
@@ -1197,7 +1228,12 @@ function _after_editor_change!(cat, scope, key, target)
             manager.triggers[:UI][] += 1
         end
     elseif cat === :labels
-        if scope === :variables
+        if scope === :values
+            # titles, compared subplots and lines show the name (the plot update runs the slider chain, which
+            # redraws the titles); the slider labels are lifted from the slider values
+            manager.triggers[:Plot][] += 1
+            _relabel_menus!(() -> foreach(k -> haskey(manager.widgets, k) && notify(manager.widgets[k].value), keys(manager.param_map)))
+        elseif scope === :variables
             w_key = get(manager.reverse_map, key, key)
             lbl_key = Symbol("$(w_key)_label")
             haskey(manager.widgets, lbl_key) && (manager.widgets[lbl_key][] = manager.labels[key] * ":")
@@ -1231,6 +1267,7 @@ _data_cat(tab) = tab in (:methods, :shared) ? :simulation : tab === :files ? :ui
 # Display names of the fixed scopes; UI scopes and keys use their frontend names, simulation keys their exact names.
 const _SCOPE_LABELS = Dict(:shared => "Shared", :sweep => "Sweep", :config => "Config",
                            :components => "Components", :variables => "Variables", :methods => "Methods",
+                           :values => "Swept Values",
                            :export => "Export settings",
                            :x_axis_1d => "X Axis (1D)", :y_axis_1d => "Y Axis (1D)", :x_axis_nd => "X Axis (2D/3D)",
                            :y_axis_nd => "Y Axis (2D/3D)", :z_axis_3d => "Z Axis (3D)",
@@ -1341,6 +1378,11 @@ The keys of an editor page, in row order (sorted). The page of a plot type lists
 """
 function _editor_keys(cat, scope)
     if cat === :labels
+        if scope === :values   # every value of every swept parameter, `parameter => value` (named or not)
+            data = manager.plot_data[]
+            vals = isempty(data) ? Vector{Any}[] : _primary_sweep(data).active_param_values
+            return Any[Pair{Symbol, Any}(manager.plot_vars[i], v) for i in 1:min(length(vals), length(manager.plot_vars)) for v in vals[i]]
+        end
         raw_keys = Symbol[]
         if scope === :components
             c_max = 1
@@ -1376,8 +1418,10 @@ _scope_label(cat, scope) = cat === :ui && scope === :labels ? "Plot" :   # the t
 
 # The editor category of a page: the UI tab also shows the display names (Labels: components, variables, methods).
 _scope_cat(tab, scope) = tab === :ui && scope in _LABEL_SCOPES ? :labels : _data_cat(tab)
-const _LABEL_SCOPES = (:components, :variables, :methods)
-_key_label(cat, scope, key) = cat === :ui && key isa Symbol ? menu_opt(key)[1] : string(key)
+const _LABEL_SCOPES = (:components, :variables, :methods, :values)
+# (a swept value's row (Labels → Swept Values) is headed by its built-in text, `parameter = value`)
+_key_label(cat, scope, key) = key isa Pair ? _value_text(key.first, key.second) :
+                              cat === :ui && key isa Symbol ? menu_opt(key)[1] : string(key)
 
 # The label of a page button: the scope and (except in the static UI overview) its number of entries.
 function _scope_button_label(cat, scope)
@@ -2148,7 +2192,9 @@ Applies text typed into the value box `tb` of a row to `target[key]`: `default` 
 """
 function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
     try
-        if strip(s) == "default"
+        if cat === :labels && key isa Pair   # a swept value (Labels → Swept Values): its name; none for `default` / `<empty>`
+            _set_value_name!(key, strip(s) in ("default", "<empty>") ? "" : String(s))
+        elseif strip(s) == "default"
             val = _editor_default(cat, scope, key)
             if ismissing(val)
                 _report(:warn, "No default value is known for '$key'.")
@@ -2161,6 +2207,7 @@ function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
             val = _parse_editor_input(s, target[key])
             # one colour for the list of colours: a list of one (a tuple such as (:red, 0.5) is one colour)
             key === :colors && !(val isa AbstractVector) && _valid_color(val) && (val = Any[val])
+            key === :more_insets && _valid_insets(val) && (val = Any[Tuple(e) for e in val])   # (a plain list of tuples)
             if !_valid_editor_value(s, target, key, val)
                 _report(:warn, "'$key' was not changed: '$(_short(String(strip(s)), 30))' is not a valid value. " *
                                "Use numbers, :symbols, [vectors], (tuples) or \"text\" in quotes.")
@@ -2206,6 +2253,11 @@ end
 
 # Status message after an edit.
 function _change_message(cat, scope, key, target)
+    if cat === :labels && key isa Pair
+        name = _value_label(key.first, key.second)
+        return isnothing(name) ? "No name for $(_value_text(key.first, key.second))" :
+                                 "Name of $(_value_text(key.first, key.second)): $(_short(name))"
+    end
     cat === :labels && return "Label of $key: $(_short(get(manager.labels, key, "")))"
     val = haskey(target, key) ? _short(_editor_text(target, key)) : ""
     where = "$(_scope_label(cat, scope)) → $key = $val"
