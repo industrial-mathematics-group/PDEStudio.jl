@@ -518,6 +518,13 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString)
     return config, ran, sources_of
 end
 
+# `sources` with `file` as the last entry (moved there if listed, appended otherwise): the file that builds a configuration
+# is included after the helper files, so it may use and override what they define (PDEStudioCore's sources contract).
+function _with_last(sources::AbstractVector, file::AbstractString)
+    same(src) = normpath(abspath(src)) == normpath(abspath(file)) || (isfile(src) && isfile(file) && samefile(src, file))
+    return String[String[src for src in sources if !same(src)]; String(file)]
+end
+
 # Points the sources of a configuration returned by bundled files at the files that run: the source of a bundled file
 # (see `_run_bundled_sources`), any other file as it is.
 function _relocate_sources(sources::AbstractVector, sources_of::Dict{String, String})
@@ -543,8 +550,9 @@ end
     load_config_file!(path::AbstractString) -> Bool
 
 Runs a Julia configuration file and binds the configuration it returns: its last expression is a `SimulationConfig`,
-or a function without arguments that returns one. The file runs in the target module (`set_target_module!`) and is
-added to the configuration's `sources`, so exports bundle it. Returns `true` if the configuration needs more
+or a function without arguments that returns one. The file runs in the target module (`set_target_module!`) and becomes
+the last of the configuration's `sources` (moved there if the configuration lists it elsewhere), so runs include it
+after the helper files and exports bundle it. Returns `true` if the configuration needs more
 parameter sliders than the open window has (the change is staged until *Run Simulation*), `false` otherwise.
 
 !!! warning
@@ -564,7 +572,7 @@ function load_config_file!(path::AbstractString)
     result isa SimulationConfig ||
         throw(ArgumentError("$(basename(file)) must end with a SimulationConfig (or a function without arguments " *
                             "that returns one); it returned $(result === nothing ? "nothing" : "a $(typeof(result))")."))
-    any(src -> isfile(src) && samefile(src, file), result.sources) || (result.sources = String[result.sources...; file])
+    result.sources = _with_last(result.sources, file)
     # The configuration of this file replaces the loaded one: the copies of an export loaded before (this file too, if
     # it is one) run as themselves now.
     empty!(manager.source_origins)
@@ -619,7 +627,10 @@ function load_and_apply_csv!(filepath::AbstractString)
     _note_missing_run_files!(parsed, filepath)
     # The files that ran are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
     # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
-    sources = isnothing(bundled_config) ? ran : unique([_relocate_sources(bundled_config.sources, sources_of); ran])
+    # The file that returned the configuration (the last one that ran) stays the last source (PDEStudioCore includes the
+    # configuration's own file after the helpers).
+    sources = isnothing(bundled_config) ? ran :
+              _with_last(unique([_relocate_sources(bundled_config.sources, sources_of); ran]), last(ran))
 
     new_dims, new_max = manager.allowed_dims, manager.max_params
     dims = get(get(parsed, "Config", Dict()), "Dimensions", nothing)

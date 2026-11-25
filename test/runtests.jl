@@ -444,6 +444,31 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
                                                        "UI" => Dict("x_axis" => Dict(), "lines_1d" => Dict())))
     end
 
+    @testset "Sources: the configuration's own file is the last source" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        dir = mktempdir()
+        write(joinpath(dir, "helper.jl"), "own_last_N() = 5\n")
+        # the configuration lists itself first: loading it moves it behind the helper (it is included after the helpers)
+        write(joinpath(dir, "cfg.jl"), """
+            include("helper.jl")
+            SimulationConfig(create_param_dict(:N => own_last_N(), :sim_func_name => :advection_solver_1d),
+                             create_method_dict(:m => create_param_dict()), [:m];
+                             sources = [@__FILE__, joinpath(@__DIR__, "helper.jl")])
+            """)
+        PDEStudio.load_config_file!(joinpath(dir, "cfg.jl"))
+        @test realpath.(PDEStudio.manager.active_config.sources) == realpath.(joinpath.(dir, ["helper.jl", "cfg.jl"]))
+        # an export bundles them in that order, and its reload keeps the file that returned the configuration last
+        out = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
+        @test basename(last(PDEStudio.manager.active_config.sources)) == "cfg.jl"
+        @test length(PDEStudio.manager.active_config.sources) == 2
+        @test PDEStudio._with_last(["a.jl", "b.jl", "c.jl"], "a.jl") == ["b.jl", "c.jl", "a.jl"]
+        @test PDEStudio._with_last(["b.jl"], "a.jl") == ["b.jl", "a.jl"]
+    end
+
     @testset "Bundled sources: an export runs as it was exported" begin
         set_save_path!(mktempdir())
         reset_manager!()

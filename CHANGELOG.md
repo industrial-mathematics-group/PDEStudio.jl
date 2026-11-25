@@ -134,6 +134,10 @@ What has changed since the last release. Released versions are described in the
   stay distinct; at most two lines, one line on 3D axes) instead of running into the next plot.
 
 ### Changed
+- **The configuration's own file is the last source:** loading a `.jl` configuration moves the file to the end of
+  `sources` if the configuration lists it elsewhere (before, it stayed in place, and was only appended when missing),
+  and reloading an export keeps the file that returned the configuration last. Runs include it after the helper
+  files, so it may use and override what they define (PDEStudioCore's sources contract).
 - **One configuration per studio is a documented design contract:** the studio binds exactly one `SimulationConfig`
   (sliders, caches, comparisons, lines, CSV state and the agent API assume one sweep and one method list); this will
   not change. Results of other configurations are combined into one, brought in as External Series or plotted
