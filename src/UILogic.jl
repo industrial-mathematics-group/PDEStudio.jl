@@ -1710,6 +1710,10 @@ function _parse_raw(s::AbstractString)
     return (true, v)
 end
 
+# Why the editors don't change a parameter that is an object (see `_csv_object`)
+_object_refusal(key) = "'$key' was not changed: its value is an object (e.g. a struct or a function), which comes " *
+                       "from the source files: change it there and load the file again."
+
 const _RAW_HINT = "Raw values are Julia literals: 20, 0.5, \"text\", :symbol, [1, 2], (1, 2), nothing."
 
 function _after_raw_change!(scope, msg::AbstractString)
@@ -1735,9 +1739,15 @@ end
     _apply_raw_input!(scope, key, s)
 
 Advanced tab: stores the literal `s` in the scope as it is: no text fallback, no sweep conversion, no views. The
-value must be a Julia literal (text in quotes); a sweep must be a vector. Flags *Run Simulation*.
+value must be a Julia literal (text in quotes); a sweep must be a vector. Flags *Run Simulation*. Parameters that
+are objects (structs, functions, `_csv_object`) are not changed: they come from the source files.
 """
 function _apply_raw_input!(scope, key, s::AbstractString)
+    target = _raw_target(scope)
+    if scope !== :config && !isnothing(target) && haskey(target, key) && _csv_object(target[key]; sweep = scope === :sweep)
+        _report(:warn, _object_refusal(key))
+        return _render_editor!()
+    end
     ok, v = _parse_raw(s)
     if !ok
         _report(:warn, "'$key' was not changed: '$(_short(String(strip(s)), 30))' is no literal. $_RAW_HINT")
@@ -2188,9 +2198,15 @@ end
 
 Applies text typed into the value box `tb` of a row to `target[key]`: `default` restores the default (see
 `_editor_default`), labels are set as text, everything else is parsed with the safe literal parser
-(`_parse_editor_input`, see `_valid_editor_value`). Colours are validated. Returns whether something changed; problems are reported as warnings.
+(`_parse_editor_input`, see `_valid_editor_value`). Colours are validated. Simulation parameters that are objects
+(structs, functions, `_csv_object`) are not changed: they come from the source files. Returns whether something
+changed; problems are reported as warnings.
 """
 function _apply_editor_input!(cat, scope, key, target, s::AbstractString, tb)
+    if cat === :simulation && haskey(target, key) && _csv_object(target[key])
+        _report(:warn, _object_refusal(key))
+        return false
+    end
     try
         if cat === :labels && key isa Pair   # a swept value (Labels → Swept Values): its name; none for `default` / `<empty>`
             _set_value_name!(key, strip(s) in ("default", "<empty>") ? "" : String(s))

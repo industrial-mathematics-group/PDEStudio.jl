@@ -141,10 +141,14 @@ What has changed since the last release. Released versions are described in the
 - **Log axes keep their scale:** values of a line or scatter plot that aren't positive are left out (a gap, no
   marker) instead of switching the axis to a linear scale; gridded plots still fall back when their data leaves the
   positive range.
-- **Reloading an export:** the CSV's simulation rows win over a configuration returned by a bundled source (its last
-  file or a function it returns): the sources restore code, the CSV the exported configuration (chosen methods,
-  parameters, an added reference). Values the CSV holds as text (structs, functions) keep the source's objects where
-  they are the same parameter.
+- **Reloading an export builds the configuration from the CSV, objects from the sources:** parameters, methods,
+  active methods, sweep, reference and post-processor come from the CSV's rows (the source's other methods and
+  parameters are not added). Parameters the CSV can only hold as text (*objects*: structs, functions, named tuples,
+  containers holding one) are taken from the configuration that the bundled sources build, the same parameter with
+  that text; a missing or different one is an error naming the parameter. A CSV whose parameters are all data
+  **runs no code at loading**: its bundled sources run at *Run Simulation*. Simulation presets take their objects
+  from the bound configuration in the same way, and the editors (Shared, Methods, Advanced) refuse to overwrite an
+  object: change it in the source file.
 - **The configuration's own file is the last source:** loading a `.jl` configuration moves the file to the end of
   `sources` if the configuration lists it elsewhere (before, it stayed in place, and was only appended when missing),
   and reloading an export keeps the file that returned the configuration last. Runs include it after the helper
@@ -163,6 +167,16 @@ What has changed since the last release. Released versions are described in the
 
 ### Removed
 - The `:convergence` look preset: it was listed in the menu but changed nothing.
+
+### Breaking
+- **CSV format: `Simulation, Objects, entries`** lists the parameters that are objects, as `(scope, parameter)`
+  pairs (`[(:Shared, :bc), (:upwind, :flux), (:Sweep, :ic)]`; `Any[]` if there are none). Exports always write it.
+  Files without it (older exports) still load: they run their bundled sources and take objects found by their
+  text. A method named `Objects` clashes with the new scope (like `Shared`, `Sweep` and `Config`) and isn't saved.
+- **A configuration file ends with a `SimulationConfig` or a function without arguments** that returns one
+  (`load_config_file!`, `set_sim_config!("file.jl")`, the bundled sources of a CSV). A function with arguments,
+  also optional (`get_config(N = 12)`) or keyword ones, is refused with an error instead of being called with its
+  defaults.
 
 ## 0.6.0
 
