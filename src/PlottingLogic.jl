@@ -91,6 +91,7 @@ function _handle_plot_trigger!(
             isempty(valid_methods) && continue
             
             data_tuples = apply_outlier_mask(axes[i], data_tuples, valid_methods, is_3d_axis)
+            data_tuples = apply_log_mask(axes[i], data_tuples)
             plot_extrema_lines_manager!(axes[i], data_tuples, valid_methods, is_3d_axis)
 
             sim_data = _get_first_valid(_primary_sweep(data))
@@ -332,6 +333,7 @@ function _handle_data_trigger!(
         isempty(valid_methods) && continue
         
         data_tuples = apply_outlier_mask(axes[i], data_tuples, valid_methods, is_3d_axis)
+        data_tuples = apply_log_mask(axes[i], data_tuples)
         plot_extrema_lines_manager!(axes[i], data_tuples, valid_methods, is_3d_axis)
 
         if !is_3d_axis

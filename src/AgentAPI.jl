@@ -371,7 +371,8 @@ end
 const _SNAPSHOTS = Ref(0)   # (numbers the default file names: two snapshots in the same millisecond)
 
 """
-    studio_export(name = "plot_export"; formats = nothing, dpi = nothing, fps = nothing, duration = nothing) -> Vector{String}
+    studio_export(name = "plot_export"; formats = nothing, dpi = nothing, fps = nothing, duration = nothing,
+                  rasterize = nothing) -> Vector{String}
 
 Exports the plots as the *Export* button does (Files tab), and returns the paths of the files written: a clean
 figure without the controls, in `<figure path>/figures/` (see [`set_figure_path!`](@ref)), with the state of the
@@ -386,16 +387,20 @@ studio as a CSV file next to it, which reloads the view. `name` is what the pers
 An absolute path or one with folders (`"mixture/profiles"`) places the files there. Unlike
 [`studio_snapshot`](@ref) (a PNG of what the window shows), the export draws the figure anew at the export
 resolution. `dpi` (PNG/JPEG and animations), `fps` and `duration` (animations, in seconds) replace the export
-settings for this export. A failed export throws an `ErrorException` with the status line.
+settings for this export, and so does `rasterize`: `true` draws the plots (heatmaps, lines, contours, …) as images
+inside vector formats (PDF/SVG: much smaller files for fine grids; the text and axes stay vectors), a number sets the
+resolution factor of those images (`rasterize = 3`), `false` draws everything as vectors (Files → Settings →
+Rasterization). A failed export throws an `ErrorException` with the status line.
 
 ```julia
 studio_export("profiles")                          # profiles.png, profiles.pdf, profiles.csv
 studio_export("profiles"; formats = [:svg])
+studio_export("density"; formats = [:pdf], rasterize = true)   # a heatmap of a fine grid: a small PDF
 studio_set!(:anim_target => :t); studio_export("evolution.mp4"; fps = 24, duration = 5)
 ```
 """
 function studio_export(name::AbstractString = "plot_export"; formats = nothing, dpi = nothing, fps = nothing,
-                       duration = nothing)
+                       duration = nothing, rasterize::Union{Nothing, Bool, Integer} = nothing)
     _studio_window()
     isempty(_plot_axes()) && throw(ArgumentError("nothing is plotted yet: run a simulation first (`studio_press!(:run)`)"))
     ext = lowercase(lstrip(splitext(name)[2], '.'))
@@ -414,7 +419,11 @@ function studio_export(name::AbstractString = "plot_export"; formats = nothing, 
                                             join("." .* ANIMATION_EXPORT_FORMATS, ", ") * ")"))
     end
     settings = manager.ui[:export]
-    given = filter(p -> !isnothing(p[2]), [:dpi => dpi, :animation_FPS => fps, :animation_time => duration])
+    raster = rasterize isa Integer && !(rasterize isa Bool) ?
+             (rasterize >= 1 || throw(ArgumentError("studio_export: rasterize = $rasterize: a resolution factor ≥ 1, or true/false"));
+              [:rasterization_enabled => true, :rasterization_quality => Int(rasterize)]) :
+             rasterize isa Bool ? [:rasterization_enabled => rasterize] : Pair{Symbol, Any}[]
+    given = filter(p -> !isnothing(p[2]), [:dpi => dpi, :animation_FPS => fps, :animation_time => duration, raster...])
     saved = [k => get(settings, k, nothing) for (k, _) in given]
     empty!(manager.last_export)
     manager.export_request = (name = String(name), formats = fmts)

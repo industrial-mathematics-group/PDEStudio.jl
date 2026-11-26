@@ -576,6 +576,35 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         delete!(get_stat_registry(), :sourced_stat)
     end
 
+    @testset "Bundled sources: the CSV's simulation rows win over the configuration of a source" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        srcdir = mktempdir()
+        # the configuration's file returns a function that builds the configuration (with all methods)
+        write(joinpath(srcdir, "cfg.jl"), """
+            struct CsvReloadTag; a::Int; end
+            PDEStudioCore.@param_struct CsvReloadTag
+            get_csv_config(N = 12) = SimulationConfig(create_param_dict(:N => N, :tag => CsvReloadTag(1),
+                                                                        :sim_func_name => :advection_solver_1d),
+                                                      create_method_dict(:m1 => create_param_dict(), :m2 => create_param_dict()),
+                                                      [:m1, :m2])
+            get_csv_config
+            """)
+        PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
+        cfg = PDEStudio.manager.active_config
+        cfg.shared[:N] = 16          # (changed in the studio before the export)
+        cfg.defaults = [:m2]
+        PDEStudio.manager.labels[:t] = "t"   # (a label equal to its key)
+        out = mktempdir()
+        @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
+        loaded = PDEStudio.manager.active_config
+        @test loaded.shared[:N] == 16 && loaded.defaults == [:m2]                # (not the source's 12 and both methods)
+        @test nameof(typeof(loaded.shared[:tag])) === :CsvReloadTag              # (the struct, not its text)
+        @test PDEStudio.manager.labels[:t] == "t"
+    end
+
     @testset "Bundled sources: files that aren't bundled, absolute paths, Run, symlinks" begin
         set_save_path!(mktempdir())
         reset_manager!()
@@ -980,6 +1009,9 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     v2 = only(studio_pan!(0, 1))
     @test log10(v2.ylims[1]) ≈ log10(v.ylims[2])
     @test_throws ArgumentError studio_view!(ylims = (-1, 2))              # not on a log scale
+    # … values that aren't positive are left out of a line on a log axis (gaps), the axis stays logarithmic
+    xs, us = PDEStudio.apply_log_mask(PDEStudio._plot_axes()[1], ([[0.1, 0.2, 0.3]], [[1.0, 0.0, -2.0]]))
+    @test isequal(us[1], [1.0, NaN, NaN]) && xs[1] == [0.1, 0.2, 0.3]
     @test_throws ArgumentError studio_option!(:y_axis_1d, :nope, 1)
     @test_throws ArgumentError studio_option!(:plot_style, :color_map, :not_a_colormap)
     @test_throws ArgumentError studio_option!(:nope, :log_scale, true)
@@ -1047,6 +1079,11 @@ ingroup("agent") && @testset "PDEStudio: Scripting and agent API (headless)" beg
     @test_throws ArgumentError studio_export("adv.png"; formats = :pdf)   # (extension or formats)
     @test_throws ArgumentError studio_export("adv"; formats = [:mp4])     # (animations by the name)
     @test_throws ArgumentError studio_export("adv"; formats = String[])
+    # plots drawn as images inside vector formats for this export only (the setting stays)
+    @test basename.(studio_export("adv_r"; formats = :pdf, rasterize = true)) == ["adv_r.pdf", "adv_r.csv"]
+    @test basename.(studio_export("adv_r3"; formats = :pdf, rasterize = 3)) == ["adv_r3.pdf", "adv_r3.csv"]
+    @test manager.ui[:export][:rasterization_enabled] === false && manager.ui[:export][:rasterization_quality] == 2
+    @test_throws ArgumentError studio_export("adv_r0"; formats = :pdf, rasterize = 0)
     studio_set!(:anim_target => :cfl)
     @test basename.(studio_export("anim.gif"; fps = 2, duration = 1)) == ["anim.gif", "anim.csv"]
     @test_throws ErrorException studio_export("anim2.gif"; fps = 0)       # (the status line says why)

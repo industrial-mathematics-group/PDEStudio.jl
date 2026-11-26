@@ -78,6 +78,7 @@ state that reloads the view. It returns the paths of the files:
 ```julia
 studio_export("profiles")                                  # the formats of the export settings (PNG), plus profiles.csv
 studio_export("profiles"; formats = [:pdf, :svg], dpi = 600)
+studio_export("density"; formats = [:pdf], rasterize = true)  # plots as images inside the PDF: small files for fine grids
 studio_set!(:anim_target => :t); studio_export("evolution.mp4"; fps = 24, duration = 5)
 ```
 
@@ -158,6 +159,9 @@ studio_option!(:plot_style, :color_map, :plasma)
 studio_option!(:y_axis_1d, :log_scale, true)
 studio_option!(:labels, :title, "Heat equation")
 ```
+
+On a log-scaled axis, values of a line or scatter plot that aren't positive (an error that is exactly 0 at t = 0) are
+left out of the drawing; the axis stays logarithmic.
 
 ## Moving the camera
 
