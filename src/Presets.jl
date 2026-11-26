@@ -214,8 +214,9 @@ a re-run. Two modes exist:
   default for hand-written files without a `Metadata, Preset, mode` row, e.g. a two-line "high resolution" preset.
 
 `mode` overrides the mode stored in the file. The source files of the bound configuration are always kept, and so
-are its objects: parameters the preset holds as text only (structs, functions, `Simulation, Objects`) take the bound
-configuration's value of that text, and the preset can't be applied (an `ArgumentError`) if there is none.
+are its objects: the preset's `Object` rows (structs etc. it holds as text only) take the bound configuration's object
+at that parameter, which must have that text, and a `Simulation` row can't replace an object of the bound
+configuration (both are an `ArgumentError`).
 Returns the new `SimulationConfig` (or `nothing` if the preset was not found).
 """
 function set_sim_preset!(name; mode::Union{Nothing, Symbol} = nothing)

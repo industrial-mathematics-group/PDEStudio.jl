@@ -75,7 +75,7 @@ function _add_ui_rows!(rows::_CSVRows)
     return rows
 end
 
-const _RESERVED_SIM_SCOPES = ("Shared", "Sweep", "Config", "Objects")
+const _RESERVED_SIM_SCOPES = ("Shared", "Sweep", "Config")
 
 # Text parameters that would read back as something else ("1e3", "Float64", "Nothing") are written quoted, and numbers
 # and static vectors whose type `val2str` doesn't write are written with it (see `_typed_text`), so a simulation
@@ -85,11 +85,11 @@ function _csv_text(v)
     return _needs_type(v) ? _typed_text(v) : v
 end
 
-# Values `val2str` writes without their type: `Float32`/`Float16` numbers (as `1.5`, read back as `Float64`),
-# integers other than `Int` and `Bool` (as `5`, read back as `Int`) and static vectors (as `Float64[…]`, read back
-# as `Vector`), also inside tuples, untyped vectors and dictionaries; and values it writes as something else: pairs
-# (as `Pair(first=…, second=…)`), and `nothing` and `missing` inside a container (as the types `Nothing`, `Missing`).
-_needs_type(v) = v isa Union{Float32, Float16} || (v isa Integer && !(v isa Union{Int, Bool})) || v isa SVector ||
+# Values `val2str` writes without their type: `Float32`/`Float16` numbers (as `1.5`, read back as `Float64`) and static
+# vectors (as `Float64[…]`, read back as `Vector`), also inside tuples, untyped vectors and dictionaries; and values
+# it writes as something else: pairs (as `Pair(first=…, second=…)`), and `nothing` and `missing` inside a container
+# (as the types `Nothing`, `Missing`). (Other number types are no parameter values, see PDEStudioCore.)
+_needs_type(v) = v isa Union{Float32, Float16} || v isa SVector ||
                  v isa Pair || (v isa Tuple && any(_needs_type_inside, v)) ||
                  (v isa AbstractVector && ((!isconcretetype(eltype(v)) && any(_needs_type, v)) || any(_literal_inside, v))) ||
                  (v isa AbstractDict && any(p -> _needs_type_inside(p.first) || _needs_type_inside(p.second), v))
@@ -104,7 +104,6 @@ function _typed_text(v)
     v === missing && return "missing"
     _needs_type(v) || return val2str(v; top_level = false)
     v isa Union{Float32, Float16} && return repr(v)
-    v isa Integer && return "$(typeof(v))($(string(v)))"
     if v isa Pair
         side(x) = x isa Pair ? "($(_typed_text(x)))" : _typed_text(x)
         return "$(side(v.first)) => $(side(v.second))"
@@ -129,10 +128,9 @@ _csv_readback(text) = _parse_csv_value(val2str(to_value(text)))
     _csv_object(v; sweep = false) -> Bool
 
 Whether the parameter value `v` is an *object*: a value the CSV holds as text only, because its text doesn't read back
-as the value (a struct, a function, an enum, a container holding one). Objects come from the source files: an
-export records them (`Simulation, Objects`), a reload takes them from the configuration the bundled sources build
-(see `csv_to_simulation_config`), and the editors don't overwrite them. `sweep = true` for the values of a sweep
-(written as `Simulation, Sweep`).
+as the value (a struct, an enum, a container holding one). Objects come from the source files: an export writes them
+as `Object` rows, a reload takes them from the configuration the bundled sources build (see
+`csv_to_simulation_config`), and the editors don't overwrite them. `sweep = true` for the values of a sweep.
 """
 function _csv_object(v; sweep::Bool = false)
     return try
@@ -142,71 +140,36 @@ function _csv_object(v; sweep::Bool = false)
     end
 end
 
-# The name a function is checked by (`_function_names`): its own name; anonymous functions and closures (named `#…`,
-# not the same in another session) have none.
-function _function_name_of(f)
-    name = try
-        string(nameof(f))
-    catch
-        ""
-    end
-    return startswith(name, '#') ? "" : name
-end
-
-# What identifies a function-valued object, whose text is `"Closure"` for every function: the names of a function or
-# of a vector or tuple of functions (`"ic_sine"`, `"ic_sine, ic_step"`); `""` for anything else and if a function
-# has no name (anonymous functions, closures: these are matched by their parameter alone).
-function _function_names(v)
-    v isa Function && return _function_name_of(v)
-    if (v isa AbstractVector || v isa Tuple) && !isempty(v) && all(x -> x isa Function, v)
-        names = map(_function_name_of, collect(v))
-        return any(isempty, names) ? "" : join(names, ", ")
-    end
-    return ""
-end
-
-# An object entry as the CSV records it: `(scope, key)`, with the function names (`_function_names`) as a third
-# element where there are some.
-function _object_entry(scope::Symbol, k, v)
-    names = _function_names(v)
-    return isempty(names) ? (scope, Symbol(k)) : (scope, Symbol(k), names)
-end
-
-# The object entries of a configuration as the CSV records them: `(:Shared, key)`, `(method, key)` (the methods the
-# export writes) and `(:Sweep, key)` (see `_object_entry`).
+# The parameters of a configuration that are objects, as `(scope, key)`: `(:Shared, key)`, `(method, key)` (of the
+# methods `method_names`) and `(:Sweep, key)`.
 function _object_entries(config::SimulationConfig, method_names = keys(config.methods))
-    entries = Any[]
+    entries = Tuple{Symbol, Symbol}[]
     for (k, v) in _sorted_pairs(config.shared)
-        _csv_object(v) && push!(entries, _object_entry(:Shared, k, v))
+        _csv_object(v) && push!(entries, (:Shared, Symbol(k)))
     end
     for m in sort!(collect(Symbol, method_names), by = string)
         haskey(config.methods, m) || continue
         for (k, v) in _sorted_pairs(config.methods[m])
-            _csv_object(v) && push!(entries, _object_entry(m, k, v))
+            _csv_object(v) && push!(entries, (m, Symbol(k)))
         end
     end
     for (k, v) in _sorted_pairs(config.varied)
-        _csv_object(v; sweep = true) && push!(entries, _object_entry(:Sweep, k, v))
+        _csv_object(v; sweep = true) && push!(entries, (:Sweep, Symbol(k)))
     end
     return entries
 end
 
-# The object entries a parsed CSV records (`Simulation, Objects, entries`) as `(scope, key) => function names` (`""`
-# for none), or `nothing` for a file without the row (exported by an older version, or written by hand).
-function _object_entries(parsed::Dict)
-    objects = get(get(parsed, "Simulation", Dict()), "Objects", nothing)
-    (objects isa AbstractDict && haskey(objects, "entries")) || return nothing
-    entries = objects["entries"]
-    (entries isa AbstractString && isempty(strip(entries))) && return Dict{Tuple{Symbol, Symbol}, String}()
-    is_name(x) = x isa Union{Symbol, AbstractString}
-    ok = entries isa AbstractVector &&
-         all(e -> e isa Tuple && (length(e) == 2 || (length(e) == 3 && e[3] isa AbstractString)) && is_name(e[1]) && is_name(e[2]),
-             entries)
-    ok || throw(ArgumentError("the row Simulation, Objects, entries holds $(repr(entries)), not a list of " *
-                              "(scope, parameter) pairs such as [(:Shared, :bc), (:Sweep, :flux)] (optionally with " *
-                              "the function names as a third element)"))
-    return Dict{Tuple{Symbol, Symbol}, String}((Symbol(e[1]), Symbol(e[2])) => (length(e) == 3 ? String(e[3]) : "")
-                                               for e in entries)
+# The `Object` rows of a parsed CSV: `(scope, key) => value` (the text the CSV holds), scopes `Shared`, `Sweep` and
+# method names.
+function _object_rows(parsed::Dict)
+    rows = Dict{Tuple{Symbol, Symbol}, Any}()
+    for (scope, params) in get(parsed, "Object", Dict())
+        scope == "Config" && throw(ArgumentError("Object rows have the scopes Shared, Sweep and the methods, not Config"))
+        for (k, v) in params
+            rows[(Symbol(scope), Symbol(k))] = v
+        end
+    end
+    return rows
 end
 
 """
@@ -214,13 +177,15 @@ end
 
 Writes the simulation category of a configuration: shared parameters, the parameters of the *active* methods
 (`defaults`; inactive methods are left out, like they are left out of the plots), the method list, the active
-methods, the reference and post-processing function names, the sweep (`Simulation, Sweep`) and the parameters that are objects
-(`Simulation, Objects, entries`, see `_csv_object`; written also when there are none, so a reload knows it runs no
-code for them).
+methods, the reference and post-processing function names, and the sweep (`Simulation, Sweep`). Parameters that are objects
+(see `_csv_object`) are written as `Object` rows with the same scopes (`Object, Shared, bc, Wall(id=1)`) instead of
+`Simulation` rows: a reload takes them from the bundled sources.
 """
 function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
+    # (objects as `Object` rows of the same scope)
+    category(v; sweep = false) = _csv_object(v; sweep = sweep) ? "Object" : "Simulation"
     for (k, v) in _sorted_pairs(config.shared)
-        add_row!(rows, "Simulation", "Shared", k, _csv_text(v))
+        add_row!(rows, category(v), "Shared", k, _csv_text(v))
     end
     method_names = sort!(filter(m -> haskey(config.methods, m), unique(config.defaults)))
     for m in method_names
@@ -229,7 +194,7 @@ function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
             continue
         end
         for (k, v) in _sorted_pairs(config.methods[m])
-            add_row!(rows, "Simulation", m, k, _csv_text(v))
+            add_row!(rows, category(v), m, k, _csv_text(v))
         end
     end
     add_row!(rows, "Simulation", "Config", "methods", method_names)
@@ -237,10 +202,8 @@ function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
     add_row!(rows, "Simulation", "Config", "reference", isnothing(config.reference) ? "none" : string(config.reference))
     add_row!(rows, "Simulation", "Config", "postprocess", isnothing(config.postprocess) ? "none" : string(config.postprocess))
     for (k, v) in _sorted_pairs(config.varied)
-        add_row!(rows, "Simulation", "Sweep", k, _sweep_text(v))
+        add_row!(rows, category(v; sweep = true), "Sweep", k, _sweep_text(v))
     end
-    add_row!(rows, "Simulation", "Objects", "entries",
-             _object_entries(config, filter(m -> !(string(m) in _RESERVED_SIM_SCOPES), method_names)))
     return rows
 end
 
@@ -468,24 +431,16 @@ function _include_sources(sources::AbstractVector{<:AbstractString})
     return nothing
 end
 
-# PDEStudioCore with `run_all_simulations(config; load_sources = false)`: the studio includes the sources itself
-# (`_include_sources`), so a loaded export runs as it loaded. Older versions include them as they are.
-const _CORE_SKIPS_SOURCES = hasmethod(run_all_simulations, Tuple{SimulationConfig}, (:load_sources,))
-
 """
     _run_simulations(config; kwargs...)
 
-`run_all_simulations(config; kwargs...)`, with the sources included by `_include_sources` (if PDEStudioCore allows);
-a dry run that records the missing runs (`manager.missing_runs`) with `set_compute!(false)`.
+`run_all_simulations(config; kwargs...)`, with the sources included by `_include_sources` (so a loaded export runs as
+it loaded); a dry run that records the missing runs (`manager.missing_runs`) with `set_compute!(false)`.
 """
 function _run_simulations(config::SimulationConfig; kwargs...)
     compute = _COMPUTE[]   # (`set_compute!(false)`: a dry run, the missing runs are listed)
-    if _CORE_SKIPS_SOURCES
-        _include_sources(config.sources)
-        summary = run_all_simulations(config; kwargs..., dry_run = !compute, load_sources = false)
-    else
-        summary = run_all_simulations(config; kwargs..., dry_run = !compute)
-    end
+    _include_sources(config.sources)
+    summary = run_all_simulations(config; kwargs..., dry_run = !compute, load_sources = false)
     manager.missing_runs = compute ? ParamDict[] : copy(summary.ran)
     return summary
 end
@@ -515,32 +470,25 @@ const _COMPUTE = Ref(true)
 """
     _run_bundled_sources(parsed, filepath; run = true)
 
-Includes the source files bundled with an exported CSV into the target module (this executes their code). The export
-runs as it was exported: every bundled copy runs, in place of its original (`@__DIR__` and relative `include`s resolve
-next to the original, so files that aren't bundled, such as helpers that aren't listed as sources and data files, are
-found there), and `include`s of the originals of bundled files run their copies. Exports without recorded originals
-run in the bundle folder. A missing copy is replaced by its original if that still exists. If an original was edited
-since the export, or a copy or an original is missing, the status line says so (`manager.source_note`).
+Includes the source files bundled with an exported CSV (`<name>_sources/`) into the target module (this executes their
+code) and returns the configuration the last one returns. The export runs as it was exported: every bundled copy
+runs, in place of its original (`@__DIR__` and relative `include`s resolve next to the original, so files that aren't
+bundled, such as helpers that aren't listed as sources and data files, are found there), and `include`s of the
+originals of bundled files run their copies. If an original was edited since the export, or is gone, the status line
+says so (`manager.source_note`).
 
 The sources of the loaded configuration are the originals that are unchanged, and the copies of the others: *Run
 Simulation* includes them again (as the load ran them, see `_include_sources`) and the next export bundles them,
 recording the originals as their origin.
 
-A source that fails doesn't abort the load: the error is reported (log and status line) and the parameters come
-from the CSV; *Run Simulation* includes the sources again, so what the file needs has to be restored first.
-Returns `(config, ran, sources_of)`: the `SimulationConfig` returned by the last file (or by the function without
-arguments it ends with, see `_config_value`) if every file ran (otherwise `nothing`), the sources of the files that
-ran, and the source of each original (original path => source).
+A bundled copy that is missing, a source that fails, and (with `run`) a last source that returns no configuration (a
+`SimulationConfig`, or a function without arguments that returns one, see `_config_value`) are errors: the file isn't
+loaded. Returns `(config, sources, sources_of)`: the configuration (`nothing` without `run`), the sources, and the source
+of each original (original path => source).
 
-With `run = false` nothing is executed: the sources (and the originals of the copies) are worked out as above and
-returned for *Run Simulation*, which includes them; `config` is `nothing`. A CSV whose parameters are all data loads
-this way (see `load_and_apply_csv!`).
+With `run = false` nothing is executed: the sources are worked out as above and returned for *Run Simulation*, which
+includes them. A CSV without `Object` rows loads this way (see `load_and_apply_csv!`).
 """
-# Where the bundled copy `name` of an export in `dir` may be: bundled as `<export>_sources/<file>`, by earlier
-# versions as `<export>_source_<i>.jl` next to the CSV, or given as a path. (`_load_key` hashes the same files.)
-_bundled_candidates(dir::AbstractString, name::AbstractString) =
-    unique([joinpath(dir, name), joinpath(dir, basename(name)), name])
-
 function _run_bundled_sources(parsed::Dict, filepath::AbstractString; run::Bool = true)
     manager.source_note = ""
     meta = get(get(parsed, "Metadata", Dict()), "General", Dict())
@@ -552,24 +500,21 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString; run::Bool 
     origins = origins isa AbstractVector ? String[string(o) for o in origins] : String[]
 
     dir = dirname(abspath(filepath))
-    function copy_of(name)
-        candidates = _bundled_candidates(dir, string(name))
-        idx = findfirst(isfile, candidates)
-        return isnothing(idx) ? "" : abspath(candidates[idx])
-    end
-    bundled = String[copy_of(name) for name in names]
+    bundled = String[abspath(joinpath(dir, string(name))) for name in names]
+    gone = filter(!isfile, bundled)
+    isempty(gone) ||
+        throw(ArgumentError("$(basename(filepath)): bundled source file(s) missing: $(join(gone, ", ")). Restore them " *
+                            "(the CSV's `<name>_sources/` folder belongs to it), or delete the row Metadata, General, " *
+                            "bundled_sources to load the values without code (a CSV without Object rows)"))
     origin(i) = i <= length(origins) ? origins[i] : ""
-    copies = Dict{String, String}(normpath(origin(i)) => bundled[i] for i in eachindex(bundled)
-                                  if !isempty(bundled[i]) && !isempty(origin(i)))
+    copies = Dict{String, String}(normpath(origin(i)) => bundled[i] for i in eachindex(bundled) if !isempty(origin(i)))
     notes = String[]
     unchanged = falses(length(bundled))
     ran_text = run ? "ran" : "is the source"
     for i in eachindex(bundled)
-        isempty(origin(i)) && continue   # (older exports record no originals)
+        isempty(origin(i)) && continue
         name = basename(origin(i))
-        if isempty(bundled[i])
-            isfile(origin(i)) && push!(notes, "$name is missing from the export: its original $ran_text")
-        elseif !isfile(origin(i))
+        if !isfile(origin(i))
             push!(notes, "the original $name is gone: the exported one $ran_text")
         elseif read(origin(i)) != read(bundled[i])
             push!(notes, "$name changed since the export: the exported version $ran_text")
@@ -580,58 +525,32 @@ function _run_bundled_sources(parsed::Dict, filepath::AbstractString; run::Bool 
     manager.source_note = join(unique(notes), "; ")
     isempty(notes) || @warn "Loading $(basename(filepath)): $(manager.source_note)."
 
-    any_changed = any(i -> !isempty(bundled[i]) && !unchanged[i], eachindex(bundled))
-    ran = String[]
+    sources = String[]
     sources_of = Dict{String, String}()
     last_result = nothing
-    failures = manager.source_failures
-    for (i, name) in enumerate(names)
-        copy = bundled[i]
-        if isempty(copy) && !(!isempty(origin(i)) && isfile(origin(i)))
-            push!(failures, "$(basename(string(name))): missing")
-            continue
-        end
-        file = isempty(copy) ? origin(i) : copy
+    for (i, file) in enumerate(bundled)
         runs_as = isempty(origin(i)) ? file : origin(i)
-        # the source: the original while it is unchanged (or the copy is missing), otherwise the copy, which the next
-        # run includes in place of the original again. PDEStudioCore versions without `load_sources` include the sources
-        # as they are at a run: then all copies are the sources once one differs, so that an original's `include` can't
-        # run an edited original after its copy
-        source = isempty(copy) || (unchanged[i] && (_CORE_SKIPS_SOURCES || !any_changed)) ? abspath(runs_as) : copy
-        if source == copy && !isempty(origin(i))
-            manager.source_origins[copy] = origin(i)
+        # the source: the original while it is unchanged, otherwise the copy, which the next run includes in place of
+        # the original again
+        source = unchanged[i] ? abspath(runs_as) : file
+        if source == file && !isempty(origin(i))
+            manager.source_origins[file] = origin(i)
         end
         isempty(origin(i)) || (sources_of[normpath(origin(i))] = source)
-        push!(ran, source)
+        push!(sources, source)
         run || continue
         @info "Executing bundled source: $(basename(file))" * (runs_as == file ? "" : " (as $runs_as)")
-        try
-            last_result = _include_as(get_target_module(), file, runs_as, copies)
+        last_result = try
+            _include_as(get_target_module(), file, runs_as, copies)
         catch e
-            @error "Running the bundled source $(basename(file)) failed" exception = (e, catch_backtrace())
             msg = e isa LoadError ? sprint(showerror, e.error) : sprint(showerror, e)
-            push!(failures, "$(basename(file)): $(_short(first(split(msg, '\n')), 70))")
-            last_result = nothing
+            throw(ArgumentError("$(basename(filepath)): the bundled source $(basename(file)) failed: " *
+                                first(split(msg, '\n'))))
         end
     end
-    # A file may end with a function without arguments that returns the configuration (as `load_config_file!` accepts)
-    if run && isempty(failures) && last_result isa Function
-        try
-            last_result = _config_value(last_result, basename(string(last(names))))
-        catch e
-            @error "The bundled source $(basename(string(last(names)))) ends with a function that returns no configuration" exception = (e, catch_backtrace())
-            push!(failures, "$(basename(string(last(names)))): $(_short(first(split(sprint(showerror, e), '\n')), 70))")
-            last_result = nothing
-        end
-    end
-    if !isempty(failures)
-        _status!(run ? "Source files of $(basename(filepath)) failed ($(join(failures, "; "))); the parameters come from the CSV. " *
-                       "Restore what they need and load again, or remove them from the sources (Advanced)." :
-                       "Source files of $(basename(filepath)) are missing ($(join(failures, "; "))) and left out of " *
-                       "the sources: Run Simulation fails if the solvers need them; restore them and load the file again.", :warn)
-    end
-    config = isempty(failures) && last_result isa SimulationConfig ? last_result : nothing
-    return config, ran, sources_of
+    # (the configuration its objects come from: the last file ends with it, or with a function without arguments)
+    config = run ? _config_value(last_result, basename(last(bundled))) : nothing
+    return config, sources, sources_of
 end
 
 """
@@ -710,7 +629,6 @@ A file that loads reliably, also from the snapshot bundled with an export, inclu
 """
 function load_config_file!(path::AbstractString)
     file = abspath(path)
-    empty!(manager.source_failures)
     manager.source_note = ""
     @warn "Executing $(basename(file)): loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code)."
     result = _config_value(Base.include(get_target_module(), file), file)
@@ -756,12 +674,11 @@ end
 Reads a configuration CSV from disk and applies it.
 
 The simulation configuration is built from the CSV's rows (`csv_to_simulation_config`): parameters, methods, active
-methods, sweep, reference and post-processing. Parameters that are objects (structs, functions, … that the CSV holds
-as text, `Simulation, Objects`) come from the configuration that the bundled source files build: only then do the
-bundled sources run at loading (which executes their code). A CSV whose parameters are all data runs no code when
-it loads; its bundled sources become the configuration's sources, which *Run Simulation* includes. Files exported
-by older versions (without `Simulation, Objects`) run their bundled sources, and take the objects of the
-configuration they build where the CSV holds their text.
+methods, sweep, reference and post-processing. Parameters that are objects (structs, enums, … that the CSV holds as
+text: the `Object` rows) come from the configuration that the bundled source files build: only then do the bundled
+sources run at loading (which executes their code). A CSV without `Object` rows runs no code when it loads; its
+bundled sources become the configuration's sources, which *Run Simulation* includes. A bundled file that is missing
+or fails is an error (see `_run_bundled_sources`).
 
 It then checks whether the file needs different structural UI limits (allowed dimensions, number of parameter
 sliders) and stages the data until *Run Simulation* if the open window has to be rebuilt. Returns `true` if such a
@@ -769,7 +686,6 @@ structural rebuild is pending.
 """
 function load_and_apply_csv!(filepath::AbstractString)
     @info "Loading configuration from CSV: $filepath"
-    empty!(manager.source_failures)
     parsed, raw = _read_csv(filepath)
     # (a file that can't be loaded leaves the recorded originals of bundled copies, the note and a staged file as they
     # were; code its sources ran can't be undone)
@@ -786,10 +702,15 @@ function load_and_apply_csv!(filepath::AbstractString)
 end
 
 # The configuration of a CSV file and its sources (see `load_and_apply_csv!`): built from the CSV's rows, its objects
-# from the configuration of the bundled sources, which run only if the file holds objects (or is an older export).
+# (`Object` rows) from the configuration of the bundled sources, which run only if there are such rows.
 function _csv_config(parsed::Dict, filepath::AbstractString)
-    entries = _object_entries(parsed)   # (`nothing`: an older export, its sources run)
-    run = isnothing(entries) || !isempty(entries)
+    objects = _object_rows(parsed)
+    run = !isempty(objects)
+    has_sources = !isempty(something(get(get(get(parsed, "Metadata", Dict()), "General", Dict()), "bundled_sources", nothing), ""))
+    run && !has_sources &&
+        throw(ArgumentError("$(basename(filepath)): it bundles no source files, and its parameters " *
+                            "$(join(sort!(map(_entry_name, collect(keys(objects)))), ", ")) are objects (Object rows), " *
+                            "which come from the configuration that the source files build"))
     bundled_config, ran, sources_of = _run_bundled_sources(parsed, filepath; run = run)
     # (after the bundled sources, which may register statistics; sources that didn't run yet register them at a run)
     (run || isempty(ran)) && _note_missing_statistics!(parsed, filepath)
@@ -800,17 +721,7 @@ function _csv_config(parsed::Dict, filepath::AbstractString)
     # configuration's own file after the helpers).
     sources = isnothing(bundled_config) ? ran :
               _with_last(unique([_relocate_sources(bundled_config.sources, sources_of); ran]), last(ran))
-
-    # The configuration: from the CSV's rows, its objects from the configuration of the sources
-    if !isnothing(entries) && !isempty(entries) && isnothing(bundled_config)
-        why = isempty(ran) ? "it bundles no source files" :
-              !isempty(manager.source_failures) ? "its source files failed ($(join(manager.source_failures, "; ")))" :
-              "its last source file returns no SimulationConfig (nor a function without arguments that returns one)"
-        throw(ArgumentError("$(basename(filepath)): $why, and its parameters " *
-                            "$(join(sort!(map(_entry_name, collect(keys(entries)))), ", ")) are objects (e.g. structs or " *
-                            "functions), which come from the configuration that the source files build"))
-    end
-    config = haskey(parsed, "Simulation") ? csv_to_simulation_config(parsed; objects = bundled_config) : bundled_config
+    config = haskey(parsed, "Simulation") || run ? csv_to_simulation_config(parsed; objects = bundled_config) : nothing
     isnothing(config) || isempty(sources) || (config.sources = sources)
     return config, sources
 end
@@ -872,7 +783,7 @@ the plot style, UI overrides, layout, axes and slider positions, camera, labels 
 # Categories and scopes of the studio CSV format (other categories, e.g. of a newer version, are ignored).
 const _CSV_SCOPES = Dict("Metadata" => ("General", "Preset"), "Git" => nothing, "Julia" => nothing,
                          "Scene" => ("Plot", "Layout", "Camera", "Labels", "Exploration", "Value_Labels"), "UI" => nothing,
-                         "Simulation" => nothing, "Config" => ("Dimensions", "Resolution_Base", "Resolution_Ref"))
+                         "Simulation" => nothing, "Object" => nothing, "Config" => ("Dimensions", "Resolution_Base", "Resolution_Ref"))
 
 # Warns about categories and scopes the studio doesn't read (typos in hand-written files, e.g. `Scene, plot`).
 function _warn_unknown_scopes(parsed::Dict)
@@ -1015,13 +926,11 @@ _function_name(v) = Symbol(string(v))
 Converts the simulation category of a parsed CSV into a `PDEStudioCore.SimulationConfig`: shared parameters, methods,
 active methods (`defaults`), the sweep (`Simulation, Sweep`) and the reference / post-processing function names.
 
-Parameters that are *objects* (structs, functions, … that the CSV holds as text only, listed in `Simulation, Objects,
-entries`) are taken from the configuration `objects` (the one the bundled source files build): the same parameter
-(shared, the same method or the sweep), whose value must have the text the CSV holds (and, for named functions, the
-names the list records). Objects only come from source files. If `objects` is missing or has no such value, an
-`ArgumentError` names the parameter. Files without the `Objects` row (older exports) take the object of `objects` at
-the same parameter where it has the CSV's text; other text there is an error, another value (e.g. a number) is the
-CSV's.
+Parameters that are *objects* (structs, enums, … that the CSV holds as text only: the `Object` rows, with the same
+scopes) are taken from the configuration `objects` (the one the bundled source files build) at the same parameter
+(shared, the same method or the sweep), whose value must have the text the CSV holds. Objects only come from source
+files: if `objects` is missing or has no such value, an `ArgumentError` names the parameter. A `Simulation` row for a
+parameter that is an object in `objects` (or in `base`) is an error, too: the CSV can't replace an object.
 
 With a `base` configuration, the CSV is applied as a patch: only the entries present in the file change, everything else
 (including the source files) is taken from `base`.
@@ -1029,8 +938,13 @@ With a `base` configuration, the CSV is applied as a patch: only the entries pre
 function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, SimulationConfig} = nothing,
                                   objects::Union{Nothing, SimulationConfig} = nothing)
     sim = get(parsed_csv, "Simulation", Dict{String, Any}())
+    # (PDEStudio 0.8.0 listed objects in this row and wrote their text as Simulation rows, which would read as text now)
+    haskey(sim, "Objects") &&
+        throw(ArgumentError("the file has a row Simulation, Objects: it was written by PDEStudio 0.8.0, whose CSV files " *
+                            "are no longer read (objects are Object rows now). Load its configuration file (or its " *
+                            "bundled sources) and export it again"))
     cfg = get(sim, "Config", Dict{String, Any}())
-    entries = _object_entries(parsed_csv)
+    object_rows = _object_rows(parsed_csv)
 
     shared      = isnothing(base) ? ParamDict() : copy(base.shared)
     methods     = isnothing(base) ? MethodDict() : MethodDict(k => copy(v) for (k, v) in base.methods)
@@ -1040,7 +954,19 @@ function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, Simulat
     postprocess = isnothing(base) ? nothing : base.postprocess
     sources     = isnothing(base) ? String[] : copy(base.sources)
 
-    value(scope, k, v) = _object_value(scope, Symbol(k), v, entries, objects)
+    # (a data row can't replace an object of the sources' or the base configuration; an object row comes from `objects`)
+    function value(scope, k, v)
+        key = (scope, Symbol(k))
+        haskey(object_rows, key) && throw(ArgumentError("the parameter $(_entry_name(key)) has a Simulation row and an Object row"))
+        for c in (objects, base)
+            isnothing(c) || isnothing(_object_counterpart(c, scope, Symbol(k))) ||
+                throw(ArgumentError("the parameter $(_entry_name(key)) is an object of the configuration (it comes from " *
+                                    "the source files), and the CSV has a Simulation row for it ($(_short(repr(v), 60))): " *
+                                    "a CSV can't replace an object"))
+        end
+        return v
+    end
+    target(scope) = scope === :Shared ? shared : scope === :Sweep ? varied : get!(ParamDict, methods, scope)
 
     # 1. Shared parameters and method overrides
     for (k, v) in get(sim, "Shared", Dict{String, Any}())
@@ -1053,6 +979,10 @@ function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, Simulat
             method[Symbol(k)] = value(Symbol(scope), k, v)
         end
     end
+    # ... and the objects (`Object` rows), from `objects`
+    for ((scope, k), v) in object_rows
+        target(scope)[k] = _object_value(scope, k, v, objects)
+    end
     method_names = get(cfg, "methods", nothing)
     if method_names isa AbstractVector
         for m in method_names
@@ -1060,18 +990,10 @@ function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, Simulat
         end
     end
 
-    # 2. The sweep (a sweep that is an object comes from `objects` as a whole)
+    # 2. The sweep (a sweep that is an object is an `Object, Sweep` row, from `objects` as a whole)
     for (k, v) in get(sim, "Sweep", Dict{String, Any}())
         vals = value(:Sweep, k, v)
         varied[Symbol(k)] = vals isa AbstractVector ? collect(vals) : Any[vals]
-    end
-    if !isnothing(entries)
-        recorded = Set{Tuple{Symbol, Symbol}}((Symbol(scope), Symbol(k)) for (scope, params) in sim
-                                              if !(scope in ("Config", "Objects")) for k in keys(params))
-        for e in keys(entries)
-            e in recorded || throw(ArgumentError("Simulation, Objects lists the parameter $(_entry_name(e)), which the " *
-                                                 "file has no row for"))
-        end
     end
 
     # 3. Active methods and function names
@@ -1094,32 +1016,16 @@ end
 
 _entry_name((scope, k)) = scope === :Shared ? "Shared → $k" : scope === :Sweep ? "Sweep → $k" : "method $scope → $k"
 
-# The value of the CSV entry `scope`, `k` (the CSV holds `v`): `v` for data; for an object (`entries` lists it, or
-# for files without the list, `objects` has an object there) the object of `objects` at the same parameter
-# (`_object_counterpart`), which must have the text the CSV holds (and the function names the list records).
-function _object_value(scope::Symbol, k::Symbol, v, entries, objects)
+# The object of the `Object` row `scope`, `k` (the CSV holds its text `v`): the value of `objects` at the same parameter
+# (`_object_counterpart`), which must have that text.
+function _object_value(scope::Symbol, k::Symbol, v, objects)
     what = _entry_name((scope, k))
-    if isnothing(entries)   # an older export: the objects are where the configuration of the sources has one
-        cand = isnothing(objects) ? nothing : _object_counterpart(objects, scope, k)
-        isnothing(cand) && return v
-        _same_text(something(cand), scope, v) && return something(cand)
-        # (text that isn't the object's: the object was changed since the export; a number etc. is the CSV's value)
-        v isa AbstractString &&
-            throw(ArgumentError("the parameter $what: the configuration of the source files has another object there " *
-                                "($(_short(repr(_object_text(something(cand), scope)), 60)); the CSV holds " *
-                                "$(_short(repr(v), 60))). Objects come from the source files: restore the one the " *
-                                "export used"))
-        return v
-    end
-    haskey(entries, (scope, k)) || return v
     isnothing(objects) &&
         throw(ArgumentError("the parameter $what: there is no configuration of source files to take it from; it is an " *
-                            "object (e.g. a struct or a function) that the CSV holds as text only ($(_short(repr(v), 60)))"))
+                            "object (Object row) that the CSV holds as text only ($(_short(repr(v), 60)))"))
     cand = _object_counterpart(objects, scope, k)
-    found = isnothing(cand) ? "has no parameter $k there" :
-            !_same_text(something(cand), scope, v) ? "has another value there ($(_short(repr(_object_text(something(cand), scope)), 60)))" :
-            (names = entries[(scope, k)]; !isempty(names) && _function_names(something(cand)) != names) ?
-                "has another function there ($(_function_names(something(cand))), the CSV's is $(entries[(scope, k)]))" : ""
+    found = isnothing(cand) ? "has no object $k there" :
+            !_same_text(something(cand), scope, v) ? "has another value there ($(_short(repr(_object_text(something(cand), scope)), 60)))" : ""
     isempty(found) ||
         throw(ArgumentError("the parameter $what: the configuration of the source files $found; it is an object that " *
                             "the CSV holds as text ($(_short(repr(v), 60))). Objects come from the source files: " *
@@ -1132,8 +1038,7 @@ _object_text(x, scope::Symbol) = _csv_readback(scope === :Sweep ? _sweep_text(x)
 _same_text(x, scope::Symbol, v) = isequal(_object_text(x, scope), v)
 
 # `Some(value)` of the parameter `k` of `config` in `scope` (`:Shared`, `:Sweep` or a method) if it is an object,
-# or `nothing`. Objects are only looked up at the same parameter (a function's text, `"Closure"`, would match any
-# function elsewhere).
+# or `nothing`. Objects are only looked up at the same parameter.
 function _object_counterpart(config::SimulationConfig, scope::Symbol, k::Symbol)
     d = scope === :Shared ? config.shared : scope === :Sweep ? config.varied : get(config.methods, scope, nothing)
     (isnothing(d) || !haskey(d, k)) && return nothing
@@ -1274,19 +1179,20 @@ function _export_code_note()
     return note
 end
 
-# The data files the configuration's runs use (those stored now: a dry run), by name; for exports, which record what to
+# The data files the configuration's runs use (those stored now: a dry run), by name, and the message of PDEStudioCore if it
+# refuses the configuration (or `nothing`); for exports, which record what to
 # copy along with them
 function _run_files(config::SimulationConfig)
     try
         s = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            kw = _CORE_SKIPS_SOURCES ? (load_sources = false,) : NamedTuple()
-            run_all_simulations(config; dry_run = true, calculate_stats = false, post_process = false, kw...)
+            run_all_simulations(config; dry_run = true, calculate_stats = false, post_process = false, load_sources = false)
         end
-        return String[basename(f) for f in s.files if !isnothing(f)]
+        return String[basename(f) for f in s.files if !isnothing(f)], nothing
     catch e
         e isa InterruptException && rethrow()
         @debug "Could not list the run files" exception = (e, catch_backtrace())
-        return String[]
+        # (PDEStudioCore refuses the parameters: the message says which)
+        return String[], e isa ArgumentError ? _short(first(split(sprint(showerror, e), '\n')), 160) : nothing
     end
 end
 
@@ -1387,11 +1293,11 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
         end
         if !isnothing(config)
             objects = _object_entries(config, filter(m -> haskey(config.methods, m), unique(config.defaults)))
-            listed = join((_entry_name(e[1:2]) for e in objects), ", ")
+            listed = join(map(_entry_name, objects), ", ")
             if isempty(objects)
             elseif !any(isfile, config.sources)
-                @warn "Exporting $(basename(csv_filename)): the parameters $listed are objects (e.g. structs or " *
-                      "functions) the CSV holds as text only, and the configuration has no source files that build " *
+                @warn "Exporting $(basename(csv_filename)): the parameters $listed are objects (e.g. structs) the " *
+                      "CSV holds as text only, and the configuration has no source files that build " *
                       "them: the CSV can't be loaded again. Build the configuration in a file (load it, or list it " *
                       "in `sources`)."
             else
@@ -1408,7 +1314,11 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
             isempty(outside) || add_row!(rows, "Metadata", "General", "code_outside_sources", outside)
             # (and the data it shows: the run files and where they are, so a load elsewhere says what to copy)
             add_row!(rows, "Metadata", "General", "save_path", get_save_path())
-            run_files = _run_files(config)
+            run_files, refused = _run_files(config)
+            # (a configuration PDEStudioCore refuses, e.g. a function as a parameter, can't run: neither can its export)
+            isnothing(refused) ||
+                @warn "Exporting $(basename(csv_filename)): the configuration can't run ($refused); the CSV can't be " *
+                      "run again either."
             isempty(run_files) || add_row!(rows, "Metadata", "General", "run_files", run_files)
         end
 

@@ -435,9 +435,9 @@ function _load_key(path::AbstractString)
         end
         names = get(meta, "bundled_sources", String[])
         origins = get(meta, "source_origins", String[])
-        # every file `_run_bundled_sources` may run: the bundled copy, wherever it finds it, and the original
+        # every file `_run_bundled_sources` may run: the bundled copy, and the original
         for name in (names isa AbstractVector ? names : [names])
-            append!(files, filter(isfile, _bundled_candidates(dirname(abspath(path)), string(name))))
+            push!(files, joinpath(dirname(abspath(path)), string(name)))
         end
         append!(files, filter(isfile, String[string(o) for o in (origins isa AbstractVector ? origins : [origins])]))
     end
@@ -469,19 +469,18 @@ function _handle_load(path::AbstractString)
         load_btn.buttoncolor[] = :lightcoral
         return nothing
     end
-    # a failing bundled source has its own warning in the status line; keep it visible
     note = manager.source_note
     if structural
         load_btn.buttoncolor[] = :orange
         run_btn.buttoncolor[] = :orange
         # (the note of a loaded export first: it would be cut off after this text)
-        isempty(manager.source_failures) && _status!(isempty(note) ?
+        _status!(isempty(note) ?
             "$(basename(path)) changes the dimensions or slider count: Run Simulation rebuilds the window " *
             "(save a preset first to keep the current settings)." :
             "Loaded $(basename(path)) ($note). Run Simulation rebuilds the window for it.", :warn)
     else
-        isempty(manager.source_failures) && _status!("Loaded $(basename(path))" * (isempty(note) ? "" : " ($note)") *
-                                                     ". Run Simulation to apply it.", isempty(note) ? :ok : :warn)
+        _status!("Loaded $(basename(path))" * (isempty(note) ? "" : " ($note)") * ". Run Simulation to apply it.",
+                 isempty(note) ? :ok : :warn)
         load_btn.buttoncolor[] = :lightgreen
         notify(manager.flags[:Simulation])  # recolours the Run button (it may still be orange from a staged file)
     end
@@ -550,8 +549,8 @@ const MAX_UPLOAD_BYTES = 20 * 1024^2
 Stores files uploaded from a browser (*Browse…* or drag & drop with WGLMakie; `files` are `name => bytes` pairs) on
 the computer running Julia and loads the configuration among them like the *Load* button: the CSV, or without a CSV
 the Julia file that none of the other files mentions by name (the others are the helpers it includes). The files go together into `upload_dir()/<configuration name>/` (files of an earlier upload with
-the same name are replaced), so the source files uploaded with a CSV, or the helpers a Julia file includes relative to
-`@__DIR__`, are found next to it. Returns the stored path of the configuration, or `nothing` (with a status message)
+the same name are replaced): the source files a CSV bundles into its `<name>_sources/` folder there, where the
+loader looks for them, and the helpers a Julia file includes relative to `@__DIR__` next to it. Returns the stored path of the configuration, or `nothing` (with a status message)
 if the files contain no single configuration.
 """
 function receive_upload!(files::AbstractVector)
@@ -578,10 +577,28 @@ function receive_upload!(files::AbstractVector)
     end
     dir = joinpath(upload_dir(), splitext(names[main])[1])
     mkpath(dir)
-    for (name, f) in zip(names, files)
-        write(joinpath(dir, name), last(f))
-    end
     path = joinpath(dir, names[main])
+    write(path, last(files[main]))
+    # the source files a CSV bundles go where it names them (`<name>_sources/<file>`, where the loader looks), the
+    # other files next to the configuration
+    placed = Dict{String, String}()
+    if ext(names[main]) == ".csv"
+        bundled = try
+            get(get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict()), "bundled_sources", String[])
+        catch
+            String[]
+        end
+        for b in (bundled isa AbstractVector ? bundled : [bundled])
+            rel = normpath(string(b))
+            (isabspath(rel) || startswith(rel, "..")) || (placed[basename(rel)] = rel)
+        end
+    end
+    for (i, (name, f)) in enumerate(zip(names, files))
+        i == main && continue
+        target = joinpath(dir, get(placed, name, name))
+        mkpath(dirname(target))
+        write(target, last(f))
+    end
     manager.pending_code_load = ""   # every upload asks for its own confirmation
     @info "Uploaded $(join(names, ", ")) to $dir"
     _show_editor_text!(manager.widgets[:export_text], path)
