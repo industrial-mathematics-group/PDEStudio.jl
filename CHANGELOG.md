@@ -6,6 +6,8 @@ What has changed since the last release. Released versions are described in the
 ## Unreleased
 
 ### New
+- `studio_export(...; rasterize = true)` (or a resolution factor, `rasterize = 3`) draws the plots as images inside
+  PDF/SVG for one export (Files → Settings → Rasterization): a heatmap of a fine grid becomes a small file.
 - **Zoom insets:** `studio_inset!(xlims, ylims; plot, position, size)` shows a region of a 1D subplot in a corner
   axis (with a box marking it), also in exports; `studio_clear_insets!()` removes them. The insets are the UI option
   page *UI → Zoom Inset*, saved with the look: the first has `x_lims`, `y_lims`, `visible`, `position`, `size`,
@@ -64,6 +66,8 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- A label equal to its key (e.g. `set_label!(:t, "t")`) is exported and reloaded (it was dropped and came back as
+  the default "Time (T)").
 - **Labels of reference slopes keep apart**, also for several slopes next to one curve: each goes to the first of a few
   places along its line (and on either side of it) that is clear of the other labels, slopes and curves.
 - **Compare Values goes back to `all`** when a configuration with other swept values is bound or launched (a relaunch
@@ -134,6 +138,13 @@ What has changed since the last release. Released versions are described in the
   stay distinct; at most two lines, one line on 3D axes) instead of running into the next plot.
 
 ### Changed
+- **Log axes keep their scale:** values of a line or scatter plot that aren't positive are left out (a gap, no
+  marker) instead of switching the axis to a linear scale; gridded plots still fall back when their data leaves the
+  positive range.
+- **Reloading an export:** the CSV's simulation rows win over a configuration returned by a bundled source (its last
+  file or a function it returns): the sources restore code, the CSV the exported configuration (chosen methods,
+  parameters, an added reference). Values the CSV holds as text (structs, functions) keep the source's objects where
+  they are the same parameter.
 - **The configuration's own file is the last source:** loading a `.jl` configuration moves the file to the end of
   `sources` if the configuration lists it elsewhere (before, it stayed in place, and was only appended when missing),
   and reloading an export keeps the file that returned the configuration last. Runs include it after the helper

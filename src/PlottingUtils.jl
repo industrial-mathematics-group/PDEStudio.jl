@@ -697,13 +697,15 @@ function set_axis_limits_manager!(ax::Axis, xs, us; precision::Type{<:AbstractFl
     use_log_x = ui_x[:log_scale] 
     use_log_y = ui_y[:log_scale] 
 
+    # (line and scatter plots are drawn without their non-positive values, `apply_log_mask`; gridded plots, or data
+    # without a positive value, fall back to a linear scale)
     if raw_xlims[1] <= 0 && use_log_x
         use_log_x = false
-        @warn "X-Axis data contains non-positive values. log_scale temporarily disabled."
+        @warn "X-Axis data has no positive values to draw on a logarithmic scale (or is a gridded plot): log_scale temporarily disabled."
     end
     if raw_ylims[1] <= 0 && use_log_y
         use_log_y = false
-        @warn "Y-Axis data contains non-positive values. log_scale temporarily disabled."
+        @warn "Y-Axis data has no positive values to draw on a logarithmic scale (or is a gridded plot): log_scale temporarily disabled."
     end
 
     new_xscale = use_log_x ? log10 : identity
@@ -1230,6 +1232,24 @@ end
 
 # Safety fallback for Axis3
 apply_outlier_mask(ax::Axis3, data_tuples, valid_methods, is_3d_axis) = data_tuples
+
+"""
+    apply_log_mask(ax, data_tuples)
+
+On a logarithmic axis, values that aren't positive can't be drawn: for line and scatter plots (positions and values)
+they are left out (`NaN`: a gap in a line, no marker), so the axis stays logarithmic and its limits come from the
+positive values. Gridded plots (heatmaps, contours) aren't masked: their axes fall back to linear scales when the data
+leaves the positive range (see `set_axis_limits_manager!`).
+"""
+function apply_log_mask(ax::Axis, data_tuples)
+    length(data_tuples) == 2 || return data_tuples
+    log_x, log_y = _axis_ui(:x_axis)[:log_scale] === true, _axis_ui(:y_axis)[:log_scale] === true
+    (log_x || log_y) || return data_tuples
+    positive(v) = eltype(v) <: Real ? map(a -> a > 0 ? float(a) : oftype(float(a), NaN), v) : v
+    xs, us = data_tuples
+    return (log_x ? map(positive, xs) : xs, log_y ? map(positive, us) : us)
+end
+apply_log_mask(ax::Axis3, data_tuples) = data_tuples
 
 """
     _find_outlier_indices(y_data::AbstractVector, threshold::Real)

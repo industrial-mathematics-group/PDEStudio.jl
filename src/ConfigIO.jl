@@ -53,8 +53,7 @@ function _add_scene_rows!(rows::_CSVRows)
     for (k, v) in _sorted_pairs(manager.camera_cache)
         add_row!(rows, "Scene", "Camera", k, v)
     end
-    for (k, v) in _sorted_pairs(manager.labels)
-        v == string(k) && continue  # skip redundant default labels
+    for (k, v) in _sorted_pairs(manager.labels)   # (all of them: a label equal to its key isn't the default, e.g. "t")
         add_row!(rows, "Scene", "Labels", k, v)
     end
     exp_opts = merge(copy(manager.exploration_cache), extract_exploration_options())
@@ -726,6 +725,11 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
 
     # --- 1. SIMULATION ---
     if !isnothing(config)
+        # The CSV's simulation rows win over a configuration returned by a bundled source (its last file, or a function
+        # it returns): the sources restore code, the CSV the configuration that was exported (chosen methods, an added
+        # reference, the parameters). Values the CSV holds as text keep the source's objects where they are the same
+        # parameter (e.g. a struct, `csv_to_simulation_config`).
+        haskey(parsed, "Simulation") && (config = csv_to_simulation_config(parsed; base = config))
         isempty(sources) || (config.sources = sources)
         _bind_loaded_config!(config)
     elseif haskey(parsed, "Simulation")
@@ -835,6 +839,18 @@ active methods (`defaults`), the sweep (`Simulation, Sweep`) and the reference /
 With a `base` configuration, the CSV is applied as a patch: only the entries present in the file change, everything else
 (including the source files) is taken from `base`.
 """
+# `base`'s value where the CSV's value `v` is what the CSV holds for it (its text read back: e.g. a struct, or a function,
+# which the CSV holds as text), else `v`
+function _same_or(base, v)
+    (base === nothing || isequal(base, v)) && return v
+    same = try
+        isequal(_parse_csv_value(val2str(to_value(_csv_text(base)))), v)
+    catch
+        false
+    end
+    return same ? base : v
+end
+
 function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, SimulationConfig} = nothing)
     sim = get(parsed_csv, "Simulation", Dict{String, Any}())
     cfg = get(sim, "Config", Dict{String, Any}())
@@ -847,15 +863,16 @@ function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, Simulat
     postprocess = isnothing(base) ? nothing : base.postprocess
     sources     = isnothing(base) ? String[] : copy(base.sources)
 
-    # 1. Shared parameters and method overrides
+    # 1. Shared parameters and method overrides (a value the CSV holds as text, e.g. a struct, keeps the base's object
+    # if that is the same parameter)
     for (k, v) in get(sim, "Shared", Dict{String, Any}())
-        shared[Symbol(k)] = v
+        shared[Symbol(k)] = _same_or(get(shared, Symbol(k), nothing), v)
     end
     for (scope, params) in sim
         scope in _RESERVED_SIM_SCOPES && continue
         method = get!(ParamDict, methods, Symbol(scope))
         for (k, v) in params
-            method[Symbol(k)] = v
+            method[Symbol(k)] = _same_or(get(method, Symbol(k), nothing), v)
         end
     end
     method_names = get(cfg, "methods", nothing)
@@ -867,7 +884,9 @@ function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, Simulat
 
     # 2. The sweep
     for (k, v) in get(sim, "Sweep", Dict{String, Any}())
-        varied[Symbol(k)] = v isa AbstractVector ? collect(v) : Any[v]
+        vals = v isa AbstractVector ? collect(v) : Any[v]
+        old = get(varied, Symbol(k), nothing)
+        varied[Symbol(k)] = old isa AbstractVector && length(old) == length(vals) ? Any[_same_or(o, n) for (o, n) in zip(old, vals)] : vals
     end
 
     # 3. Active methods and function names
