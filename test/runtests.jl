@@ -330,7 +330,9 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         # Float32 / Float16 numbers and static vectors keep their type (and the hash stays the same)
         typed = Dict{Symbol, Any}(:f32 => 1.5f0, :f16 => Float16(0.1), :inf32 => Inf32, :svec => SVector(1.0, 2.0),
                                   :sv32 => SVector(0.1f0, 2.0f0), :tup => (1.5f0, 2), :anyv => Any[1.5f0, "a"],
-                                  :vec_sv => [SVector(1.0, 2.0)], :f64 => 0.1, :text => "SA{Float64}[1.0]")
+                                  :vec_sv => [SVector(1.0, 2.0)], :f64 => 0.1, :text => "SA{Float64}[1.0]",
+                                  # (`val2str` writes a pair as struct text: written as a literal)
+                                  :pair => :a => 1, :d32 => Dict(:a => 1.5f0))
         cfg = SimulationConfig(ParamDict(typed...), create_method_dict(:m => create_param_dict(:dt => 0.5f0)), [:m];
                                varied = create_varied_dict(:cfl => Any[0.2f0, 0.4f0]))
         rows = PDEStudio._CSVRows()
@@ -339,8 +341,15 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         back = PDEStudio.csv_to_simulation_config(PDEStudio.parse_csv_to_dict(path))
         for (k, v) in typed
             @test isequal(back.shared[k], v) && typeof(back.shared[k]) == typeof(v)
+            @test !PDEStudio._csv_object(v)   # (data: the editors change it, a reload needs no sources)
         end
         @test back.methods[:m][:dt] === 0.5f0 && isequal(back.varied[:cfl], Any[0.2f0, 0.4f0])
+        # `nothing` / `missing` inside a container (which PDEStudioCore refuses as parameter values, with an error that
+        # says why) read back as they are: data, not text (and not objects the editors refuse)
+        for v in Any[(nothing, 1.0), Any[nothing, :minmod], Dict(:a => nothing), Any[missing, 1]]
+            back_v = PDEStudio._csv_readback(PDEStudio._csv_text(v))
+            @test isequal(back_v, v) && typeof(back_v) == typeof(v) && !PDEStudio._csv_object(v)
+        end
         @test all(v -> v isa Float32, back.varied[:cfl])
         data_hash(c) = calculate_hash(get_clean_params(assemble_params(c.shared, c.methods, :m)))
         @test data_hash(back) == data_hash(cfg)
@@ -622,8 +631,14 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         bad = joinpath(out, "bad.csv")
         write(bad, join((occursin("Shared,tag,", l) ? replace(l, "a=1" => "a=9") : l for l in readlines(csv)), "\n"))
         @test occursin("CsvReloadTag(a=9)", read(bad, String))
+        staged = (dims = [1], max_params = 1, parsed = Dict{String, Any}(), raw = nothing, config = nothing, sources = String[])
+        PDEStudio.manager.csv_cache = staged
+        origins = copy(PDEStudio.manager.source_origins)
         err = try PDEStudio.load_and_apply_csv!(bad); nothing catch e; e end
         @test err isa ArgumentError && occursin("Shared → tag", err.msg)
+        # (a file that can't be loaded leaves a staged file and the recorded originals as they were)
+        @test PDEStudio.manager.csv_cache === staged && PDEStudio.manager.source_origins == origins
+        PDEStudio.manager.csv_cache = nothing
         # ... and without source files no object can be restored
         nosrc = joinpath(out, "nosrc.csv")
         write(nosrc, join(filter(l -> !occursin("bundled_sources", l), readlines(csv)), "\n"))
@@ -637,6 +652,11 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         PDEStudio.load_and_apply_csv!(old)
         @test runs() == n + 1 && PDEStudio.manager.active_config.shared[:tag].a == 1
         @test PDEStudio.manager.active_config.shared[:N] == 16
+        # ... and other text than the source's object at that parameter is an error there, too
+        old_bad = joinpath(out, "old_bad.csv")
+        write(old_bad, join((occursin("Shared,tag,", l) ? replace(l, "a=1" => "a=9") : l for l in readlines(old)), "\n"))
+        err = try PDEStudio.load_and_apply_csv!(old_bad); nothing catch e; e end
+        @test err isa ArgumentError && occursin("Shared → tag", err.msg)
         # the editors don't overwrite objects (they come from the source files)
         loaded = PDEStudio.manager.active_config
         @test !PDEStudio._apply_editor_input!(:simulation, :shared, :tag, loaded.shared, "5", nothing)
@@ -662,6 +682,34 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test basename(only(PDEStudio.manager.active_config.sources)) == "data_cfg.jl"
         PDEStudio._include_sources(PDEStudio.manager.active_config.sources)   # (as Run Simulation)
         @test @eval(csv_data_runs) == n + 1
+
+        # Functions (whose text is "Closure") are only taken from the same parameter, named ones checked by their name
+        write(joinpath(srcdir, "fn_cfg.jl"), """
+            csv_ic_sine(x) = sin(x)
+            csv_ic_step(x) = x > 0 ? 1.0 : 0.0
+            () -> SimulationConfig(create_param_dict(:N => 12, :ic => csv_ic_sine, :sim_func_name => :advection_solver_1d),
+                                   create_method_dict(:m => create_param_dict(:ic2 => csv_ic_step, :anon => x -> x)), [:m])
+            """)
+        PDEStudio.load_config_file!(joinpath(srcdir, "fn_cfg.jl"))
+        @test PDEStudio.save_params_to_csv("fn", out, Dict("Save Type" => "test"))
+        fn_csv = joinpath(out, "fn.csv")
+        @test PDEStudio._read_csv(fn_csv)[1]["Simulation"]["Objects"]["entries"] ==
+              [(:Shared, :ic, "csv_ic_sine"), (:m, :anon), (:m, :ic2, "csv_ic_step")]
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(fn_csv)
+        loaded = PDEStudio.manager.active_config
+        @test nameof(loaded.shared[:ic]) === :csv_ic_sine && nameof(loaded.methods[:m][:ic2]) === :csv_ic_step
+        swapped = joinpath(out, "fn_swapped.csv")
+        write(swapped, replace(read(fn_csv, String), "(:Shared, :ic, \"\"csv_ic_sine\"\")" => "(:Shared, :ic, \"\"csv_ic_step\"\")"))
+        @test occursin("(:Shared, :ic, \"\"csv_ic_step\"\")", read(swapped, String))
+        err = try PDEStudio.load_and_apply_csv!(swapped); nothing catch e; e end
+        @test err isa ArgumentError && occursin("another function", err.msg) && occursin("Shared → ic", err.msg)
+        # (a function the CSV has under another scope isn't taken from there)
+        moved = joinpath(out, "fn_moved.csv")
+        write(moved, replace(read(fn_csv, String), "Simulation,m,ic2," => "Simulation,Shared,ic2,",
+                             "(:m, :ic2, " => "(:Shared, :ic2, "))
+        err = try PDEStudio.load_and_apply_csv!(moved); nothing catch e; e end
+        @test err isa ArgumentError && occursin("Shared → ic2", err.msg) && occursin("no parameter ic2 there", err.msg)
 
         # Simulation presets take their objects from the bound configuration
         PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
@@ -693,6 +741,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
                 err = try PDEStudio.load_config_file!(joinpath(dir, name)); nothing catch e; e end
                 @test err isa ArgumentError
                 name in ("optional.jl", "keyword.jl", "args.jl") && @test occursin("takes arguments", err.msg)
+                name == "optional.jl" && @test occursin("stay until Julia restarts", err.msg)
             end
         end
         reset_manager!()

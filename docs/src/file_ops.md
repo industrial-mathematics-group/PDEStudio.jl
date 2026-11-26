@@ -42,10 +42,14 @@ under their own file names.
 **The CSV holds the configuration, the sources hold the code and the objects.** Loading the CSV builds the
 configuration from its rows: the parameters, the methods and the active ones, the sweep, the reference and the
 post-processor. Values the CSV can only hold as text, *objects* such as a struct (a boundary condition), a function
-(an initial condition), a named tuple or a container holding one, come from the source files: the export lists them
-(`Simulation, Objects, entries`, e.g. `[(:Shared, :bc), (:upwind, :flux), (:Sweep, :ic)]`), and the loader takes
-each from the configuration that the bundled sources build (the value the last file returns), the same parameter
-with the text the CSV holds. Objects are never changed in the studio (the editors refuse them), so change them in
+(an initial condition), an enum or a container holding one, come from the source files: the export lists them
+(`Simulation, Objects, entries`, e.g. `[(:Shared, :bc), (:upwind, :flux, "ic_sine"), (:Sweep, :ic)]`), and the
+loader takes each from the configuration that the bundled sources build (the value the last file returns), at the
+same parameter (shared, the same method, or the sweep) and with the text the CSV holds. Every function's text is
+`"Closure"`, so a named function is also checked by its name (the third element); anonymous functions and closures
+are matched by their parameter alone. A value whose text is too large or deep for the CSV parser (more than 10⁶
+elements, nesting deeper than 32) counts as an object, too. The list is authoritative: an entry removed from it by
+hand makes the loader read that value as text. Objects are never changed in the studio (the editors refuse them), so change them in
 the source file and load that again. If the configuration of the sources has no such value (the file changed it, or
 it is not there), loading fails with an error naming the parameter.
 

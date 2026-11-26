@@ -66,6 +66,10 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- **CSV files: pairs, and `Dict`s of `Float32`, `SVector`s etc.** (`:a => 1`, `Dict(:a => 1.5f0)`) are written as
+  literals that read back with value and type (before, a pair as `Pair(first=…, second=…)`, which read back as text,
+  and such `Dict`s with other value types). The data hash is unchanged. `nothing` and `missing` inside a container
+  read back as they are, too (PDEStudioCore refuses them as parameter values and says why when they run).
 - A label equal to its key (e.g. `set_label!(:t, "t")`) is exported and reloaded (it was dropped and came back as
   the default "Time (T)").
 - **Labels of reference slopes keep apart**, also for several slopes next to one curve: each goes to the first of a few
@@ -143,9 +147,10 @@ What has changed since the last release. Released versions are described in the
   positive range.
 - **Reloading an export builds the configuration from the CSV, objects from the sources:** parameters, methods,
   active methods, sweep, reference and post-processor come from the CSV's rows (the source's other methods and
-  parameters are not added). Parameters the CSV can only hold as text (*objects*: structs, functions, named tuples,
-  containers holding one) are taken from the configuration that the bundled sources build, the same parameter with
-  that text; a missing or different one is an error naming the parameter. A CSV whose parameters are all data
+  parameters are not added). Parameters the CSV can only hold as text (*objects*: structs, functions, enums,
+  containers holding one) are taken from the configuration that the bundled sources build, at the same parameter and
+  with that text (named functions also by their name); a missing or different one is an error naming the parameter.
+  Older exports fail the same way when the CSV holds another text than the object of the sources at that parameter. A CSV whose parameters are all data
   **runs no code at loading**: its bundled sources run at *Run Simulation*. Simulation presets take their objects
   from the bound configuration in the same way, and the editors (Shared, Methods, Advanced) refuse to overwrite an
   object: change it in the source file.
@@ -170,9 +175,11 @@ What has changed since the last release. Released versions are described in the
 
 ### Breaking
 - **CSV format: `Simulation, Objects, entries`** lists the parameters that are objects, as `(scope, parameter)`
-  pairs (`[(:Shared, :bc), (:upwind, :flux), (:Sweep, :ic)]`; `Any[]` if there are none). Exports always write it.
-  Files without it (older exports) still load: they run their bundled sources and take objects found by their
-  text. A method named `Objects` clashes with the new scope (like `Shared`, `Sweep` and `Config`) and isn't saved.
+  pairs, with the names of named functions as a third element (`[(:Shared, :bc), (:upwind, :flux, "ic_sine"),
+  (:Sweep, :ic)]`; `Any[]` if there are none). Exports always write it. Files without it (older exports) still
+  load: they run their bundled sources and take the objects of the sources' configuration at the same parameters.
+  A method named `Objects` clashes with the new scope (like `Shared`, `Sweep` and `Config`): its parameters are
+  neither saved nor read. Older PDEStudio versions read the row as an inactive method `Objects`.
 - **A configuration file ends with a `SimulationConfig` or a function without arguments** that returns one
   (`load_config_file!`, `set_sim_config!("file.jl")`, the bundled sources of a CSV). A function with arguments,
   also optional (`get_config(N = 12)`) or keyword ones, is refused with an error instead of being called with its

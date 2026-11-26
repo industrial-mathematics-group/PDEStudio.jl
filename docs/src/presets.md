@@ -81,7 +81,7 @@ Text values are written as plain text (`upwind`); text that would read back as s
     `Complex`, `SVector`s, tuples, vectors and matrices with their element type, and `Dict`s. Read back changed
     (the data hash is the same, so cached results still load, but a re-run gets the changed value): other integer
     types (`Int32`, `UInt8`, … become `Int64`), `MVector`/`SMatrix` (plain arrays), ranges (`0:0.5:1` becomes a
-    vector), and `missing` (the type `Missing`). `NamedTuple`s and other structs, enums and functions are *objects*:
+    vector). Pairs keep their value, also inside tuples, vectors and `Dict`s. Structs, enums and functions are *objects*:
     the CSV holds them as text (functions as `"Closure"`), an export lists them (`Simulation, Objects`), and a
     reload takes them from the configuration that its bundled source files build (see *File Operations*); the
     editors don't change them. Keep such parameters in the
