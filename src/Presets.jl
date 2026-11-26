@@ -213,7 +213,9 @@ a re-run. Two modes exist:
 - `:patch`: only the entries in the file change; everything else of the bound configuration is kept. This is the
   default for hand-written files without a `Metadata, Preset, mode` row, e.g. a two-line "high resolution" preset.
 
-`mode` overrides the mode stored in the file. The source files of the bound configuration are always kept.
+`mode` overrides the mode stored in the file. The source files of the bound configuration are always kept, and so
+are its objects: parameters the preset holds as text only (structs, functions, `Simulation, Objects`) take the bound
+configuration's value of that text, and the preset can't be applied (an `ArgumentError`) if there is none.
 Returns the new `SimulationConfig` (or `nothing` if the preset was not found).
 """
 function set_sim_preset!(name; mode::Union{Nothing, Symbol} = nothing)
@@ -234,7 +236,8 @@ function set_sim_preset!(name; mode::Union{Nothing, Symbol} = nothing)
     apply_mode in (:replace, :patch) || (apply_mode = :patch)
 
     current = manager.active_config
-    config = csv_to_simulation_config(parsed; base = (apply_mode === :patch ? current : nothing))
+    # (parameters that are objects, e.g. structs, come from the bound configuration: `csv_to_simulation_config`)
+    config = csv_to_simulation_config(parsed; base = (apply_mode === :patch ? current : nothing), objects = current)
     isnothing(current) || (config.sources = copy(current.sources))  # the code (solvers) stays as it is
     config = set_sim_config!(config; snapshot = false, copy_config = false)   # (built here: nothing else holds it)
 

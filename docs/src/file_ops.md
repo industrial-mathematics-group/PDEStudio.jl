@@ -20,10 +20,10 @@ In the **Files** tab, choose the file with **Browse…** (the system's file dial
 
 Two kinds of files can be loaded:
 
-*   **CSV files** (exports and presets): values only, parsed safely. This is the preferred way: a CSV without bundled source files never runs code.
-*   **Julia files** (`.jl`) whose last expression is the `SimulationConfig`, or a function without arguments that returns it. The file runs in the target module (`set_target_module!`) and becomes the last of the configuration's `sources` (moved there if the configuration lists it elsewhere): runs include it after the helper files, so it may use and override what they define, and exports bundle it.
+*   **CSV files** (exports and presets): values only, parsed safely. This is the preferred way: a CSV without bundled source files never runs code, and one whose parameters are all data doesn't run its bundled sources until *Run Simulation* (see below).
+*   **Julia files** (`.jl`) whose last expression is the `SimulationConfig`, or a function without arguments (no positional, optional or keyword arguments) that returns it; anything else is an error. The file runs in the target module (`set_target_module!`) and becomes the last of the configuration's `sources` (moved there if the configuration lists it elsewhere): runs include it after the helper files, so it may use and override what they define, and exports bundle it.
 
-> **⚠️ Code execution:** loading a Julia file, or a CSV that bundles source files (see below), **runs that code with your rights**. Only load files you trust. In the studio, such a file needs a second click on **Load**: the first one only shows the warning in the status line. The second click confirms that file as it was at the first one: the file itself and, for a CSV, the bundled copies it names; another file under the same name (a new upload) or a change of these files in between asks again. Files the code includes (`include("helper.jl")`) and the originals a CSV runs instead of its copies are **not** covered: a change of those between the two clicks runs without a new warning.
+> **⚠️ Code execution:** loading a Julia file, or a CSV that bundles source files (see below; at loading or at *Run Simulation*), **runs that code with your rights**. Only load files you trust. In the studio, such a file needs a second click on **Load**: the first one only shows the warning in the status line. The second click confirms that file as it was at the first one: the file itself and, for a CSV, the bundled copies it names; another file under the same name (a new upload) or a change of these files in between asks again. Files the code includes (`include("helper.jl")`) and the originals a CSV runs instead of its copies are **not** covered: a change of those between the two clicks runs without a new warning.
 
 The load button turns **green** when the file was read; press *Run Simulation* to compute and show it.
 
@@ -37,7 +37,26 @@ If the file needs more parameter sliders or other physical dimensions than the o
 
 A configuration that comes from a Julia file (listed in its `sources`, which loading a `.jl` file does by itself) is
 **bundled with every export**: the files of `sources` are copied into `<name>_sources/` next to the exported CSV,
-under their own file names. Loading that CSV runs the copies again to restore the solvers:
+under their own file names.
+
+**The CSV holds the configuration, the sources hold the code and the objects.** Loading the CSV builds the
+configuration from its rows: the parameters, the methods and the active ones, the sweep, the reference and the
+post-processor. Values the CSV can only hold as text, *objects* such as a struct (a boundary condition), a function
+(an initial condition), a named tuple or a container holding one, come from the source files: the export lists them
+(`Simulation, Objects, entries`, e.g. `[(:Shared, :bc), (:upwind, :flux), (:Sweep, :ic)]`), and the loader takes
+each from the configuration that the bundled sources build (the value the last file returns), the same parameter
+with the text the CSV holds. Objects are never changed in the studio (the editors refuse them), so change them in
+the source file and load that again. If the configuration of the sources has no such value (the file changed it, or
+it is not there), loading fails with an error naming the parameter.
+
+*   **A CSV whose parameters are all data runs no code at loading** (even with bundled sources): its bundled files
+    become the configuration's sources, which *Run Simulation* includes (as below).
+*   **A CSV with objects** runs its bundled sources at loading, and the last one must return the configuration (a
+    `SimulationConfig`, or a function without arguments that returns one).
+*   **CSV files of older versions** (without the `Objects` row) run their bundled sources at loading and take the
+    objects of their configuration where the CSV holds their text.
+
+The bundled sources run like this:
 
 *   **the export runs as it was exported:** the copies run, also if an original was edited since. The status line
     names originals that were edited or are gone;
@@ -54,23 +73,28 @@ under their own file names. Loading that CSV runs the copies again to restore th
     sources, and they run from `<name>_sources/`, where only bundled files are found. An `include` by absolute path,
     or of the original of a missing copy, then runs the edited original.);
 *   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
-*   if a copy fails, the load does not stop: the **parameters come from the CSV**, and the status line names the file
-    and the error. *Run Simulation* includes the sources again, so restore what the file needs (e.g. a missing helper)
-    and load the export again, or remove the file from the sources (*Advanced* tab) and define the solvers otherwise
-    (e.g. by loading their package).
+*   if a copy fails, a CSV with objects can't be loaded (the error names the file); for older CSV files the load
+    does not stop: the **parameters come from the CSV**, and the status line names the file and the error. *Run
+    Simulation* includes the sources again, so restore what the file needs (e.g. a missing helper) and load the
+    export again, or remove the file from the sources (*Advanced* tab) and define the solvers otherwise (e.g. by
+    loading their package).
 
 Configuration files that reload reliably, from the studio and from any bundled copy:
 
 1.  **End with the configuration:** the last expression is the `SimulationConfig`, or a function without arguments
-    that returns it (`() -> SimulationConfig(...)`); nothing interactive (no `launch_plotter()`, no `display`).
-2.  **No absolute paths:** include helper files relative to the file (`include("solvers.jl")` or
+    that returns it (`() -> SimulationConfig(...)`, `get_config() = SimulationConfig(...)` followed by `get_config`;
+    not `get_config(N = 12)`: a function with arguments is refused); nothing interactive (no `launch_plotter()`, no
+    `display`).
+2.  **Objects in the configuration file:** structs, functions and other objects among the parameters are created by
+    the file that returns the configuration (or its helpers), never by the studio or the CSV.
+3.  **No absolute paths:** include helper files relative to the file (`include("solvers.jl")` or
     `include(joinpath(@__DIR__, "solvers.jl"))`) and list them in `sources` too
     (`sources = [joinpath(@__DIR__, "solvers.jl")]`), so they are bundled with it.
-3.  **Solvers in a package** are the most robust: `using MySolvers` at the top, and the bundled file only holds the
+4.  **Solvers in a package** are the most robust: `using MySolvers` at the top, and the bundled file only holds the
     configuration. Packages must be installed in the environment that loads the file.
-4.  **Data files** (meshes, initial conditions) are read relative to `@__DIR__` and are not bundled; keep them with the
+5.  **Data files** (meshes, initial conditions) are read relative to `@__DIR__` and are not bundled; keep them with the
     configuration (an export finds them there while that folder exists) or in a package.
-5.  **Post-processor, reference and statistics too:** an export records only their names, and the statistics are
+6.  **Post-processor, reference and statistics too:** an export records only their names, and the statistics are
     global (not part of the configuration). Define the post-processor, the reference, custom statistics
     (`register_stat!` + `calc_stat`) and the `set_stat_preset!` call in a file of `sources`, or in a package.
 
@@ -78,7 +102,8 @@ An export checks this: solvers, reference, post-processor and statistics defined
 in a package (e.g. in the REPL, or in a script that isn't a source) are named in the status line and the log, and
 recorded in the CSV (`Metadata, General, code_outside_sources`): the export can't run them elsewhere. The CSV also
 lists the registered statistics (`statistics`); loading it warns about the ones the session doesn't register
-(after its bundled sources ran).
+(after its bundled sources ran; not if they run at *Run Simulation* only). An export whose objects no source file
+builds (a configuration made in the REPL) warns that the CSV can't be loaded again.
 
 ```julia
 # configs/advection.jl
