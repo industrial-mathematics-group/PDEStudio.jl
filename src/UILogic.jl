@@ -359,13 +359,35 @@ function _request_load(path::AbstractString)
     key = _load_key(path)
     if _load_runs_code(path) && manager.pending_code_load != key
         manager.pending_code_load = key
-        what = endswith(lowercase(path), ".jl") ? "is Julia code" : "bundles source files"
-        _status!("$(basename(path)) $what that will be executed. Only load files you trust: click Load again to run it.", :warn)
+        # (a CSV runs its bundled sources at loading if it holds objects, otherwise at Run Simulation)
+        what = endswith(lowercase(path), ".jl") ? "is Julia code that will be executed" :
+               "bundles source files that will be executed (at loading or at Run Simulation)"
+        _status!("$(basename(path)) $what. Only load files you trust: click Load again to load it.", :warn)
         haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :orange)
         return nothing
     end
     manager.pending_code_load = ""
     _handle_load(path)
+end
+
+"""
+    _bundle_changed!() -> Bool
+
+Run Simulation runs the source files of a loaded export (its bundle), which were confirmed as they were when the
+export was loaded. Returns `true` if they changed since (a file edited, added or removed in `<name>_sources/`): the
+status line says so, and the next click runs them (`manager.bundle_key`).
+"""
+function _bundle_changed!()
+    config = isnothing(manager.csv_cache) ? manager.active_config : manager.csv_cache.config   # (also a staged file)
+    dir = isnothing(config) ? nothing : _bundle_dir(config)
+    isnothing(dir) && return false
+    key = _folder_key(dir)
+    key == manager.bundle_key && return false
+    manager.bundle_key = key
+    _status!("The source files in $(basename(dir)) changed since the export was loaded. Only run code you trust: " *
+             "click Run Simulation again to run them.", :warn)
+    haskey(manager.widgets, :run_button) && (manager.widgets[:run_button].buttoncolor[] = :orange)
+    return true
 end
 
 # Whether a CSV file has the studio's header (`Category, Scope, Parameter, Value`)
@@ -427,6 +449,7 @@ end
 # bundles, so another file under the same name (a new upload, a file changed on disk) needs its own confirmation.
 function _load_key(path::AbstractString)
     files = [path]
+    bundle = ""
     if !endswith(lowercase(path), ".jl")
         meta = try
             get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict())
@@ -434,17 +457,16 @@ function _load_key(path::AbstractString)
             Dict{String, Any}()
         end
         names = get(meta, "bundled_sources", String[])
-        origins = get(meta, "source_origins", String[])
-        # every file `_run_bundled_sources` may run: the bundled copy, and the original
-        for name in (names isa AbstractVector ? names : [names])
-            push!(files, joinpath(dirname(abspath(path)), string(name)))
-        end
-        append!(files, filter(isfile, String[string(o) for o in (origins isa AbstractVector ? origins : [origins])]))
+        # every file the export may run: its bundle folder (the first part of the names, see `_bundle`)
+        first_name = names isa AbstractVector ? (isempty(names) ? "" : string(first(names))) : string(names)
+        parts = split(replace(first_name, '\\' => '/'), '/'; keepempty = false)
+        length(parts) >= 2 && (bundle = joinpath(dirname(abspath(path)), String(parts[1])))
     end
     h = hash(abspath(path))
     for f in files
         h = isfile(f) ? hash(read(f), h) : hash(f, h)
     end
+    isempty(bundle) || (h = hash(_folder_key(bundle), h))
     return "$(abspath(path))#$(string(h; base = 16))"
 end
 
@@ -583,14 +605,25 @@ function receive_upload!(files::AbstractVector)
     # other files next to the configuration
     placed = Dict{String, String}()
     if ext(names[main]) == ".csv"
-        bundled = try
-            get(get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict()), "bundled_sources", String[])
+        meta = try
+            get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict())
         catch
-            String[]
+            Dict{String, Any}()
         end
-        for b in (bundled isa AbstractVector ? bundled : [bundled])
-            rel = normpath(string(b))
-            (isabspath(rel) || startswith(rel, "..")) || (placed[basename(rel)] = rel)
+        for key in ("bundled_sources", "bundled_files")
+            bundled = get(meta, key, String[])
+            for b in (bundled isa AbstractVector ? bundled : [bundled])
+                rel = normpath(string(b))
+                (isabspath(rel) || startswith(rel, "..")) && continue
+                if haskey(placed, basename(rel)) && placed[basename(rel)] != rel
+                    # (a browser sends file names without their folders)
+                    _report(:warn, "Not uploaded: the bundle of $(names[main]) has two files named $(basename(rel)) " *
+                                   "(in different folders), which an upload can't tell apart. Copy the export and " *
+                                   "its `_sources` folder to the computer running Julia instead.")
+                    return nothing
+                end
+                placed[basename(rel)] = rel
+            end
         end
     end
     for (i, (name, f)) in enumerate(zip(names, files))
@@ -676,6 +709,7 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
     manager.listeners[:Browse_Click] = on(_ -> (@async _browse_for_config()), manager.widgets[:browse_button].clicks)
 
     manager.listeners[:Run_Click] = on(run_btn.clicks) do _
+        _bundle_changed!() && return   # (the first click only says so)
         if !isnothing(manager.pending_domain)
             # The data needs more dimensions (see `simulation_trigger`): rebuild the window with them and run again.
             domain, config = manager.pending_domain, manager.active_config
@@ -1761,7 +1795,7 @@ are objects (structs, functions, `_csv_object`) are not changed: they come from 
 """
 function _apply_raw_input!(scope, key, s::AbstractString)
     target = _raw_target(scope)
-    if scope !== :config && !isnothing(target) && haskey(target, key) && _csv_object(target[key]; sweep = scope === :sweep)
+    if scope !== :config && !isnothing(target) && haskey(target, key) && _csv_object(target[key])
         _report(:warn, _object_refusal(key))
         return _render_editor!()
     end

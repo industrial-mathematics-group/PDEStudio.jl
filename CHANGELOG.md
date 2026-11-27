@@ -175,6 +175,21 @@ What has changed since the last release. Released versions are described in the
 - The `:convergence` look preset: it was listed in the menu but changed nothing.
 
 ### Breaking
+- **Exports are self-contained bundles.** `<name>_sources/` holds the configuration's sources and the files they
+  include themselves (recorded when a configuration file is loaded and at every *Run Simulation*; `Metadata,
+  General, bundled_files`), each with its path relative to the folder they share (before: the listed sources only,
+  flat, under their file names). A loaded export runs that folder on its own: its sources are the copies, the
+  originals are neither run nor compared (the row `source_origins` and the notes about edited or missing originals
+  are gone), and an `include` of a file outside the folder is refused before it runs. So files included by an
+  absolute path and data files read next to the original no longer work from a loaded export; load the `.jl` file to
+  develop. Exports of earlier versions (flat bundles whose files include unlisted helpers next to the originals)
+  must be exported again from their configuration file.
+- **Run Simulation asks again** (one more click) if the bundle of a loaded export changed since it was loaded.
+- **An export fails if one of the configuration's `sources` is missing** (before: it was skipped with a warning, and
+  the CSV couldn't run).
+- **Needs PDEStudioCore with configuration files and source bundles** (`load_config_file`, `include_sources`,
+  `bundle_sources`, `param_literal`, `is_param_object`): the literal writer, the object test, the configuration-file
+  rule and the bundling moved there.
 - **CSV format: objects are `Object` rows** with the scopes of the `Simulation` rows (`Object, Shared, bc,
   Wall(id=1)`, `Object, upwind, flux, …`, `Object, Sweep, ic, …`) instead of `Simulation` rows. Files of PDEStudio
   0.8.0 (which listed them in a row `Simulation, Objects, entries`) are refused with an error: export them again.
