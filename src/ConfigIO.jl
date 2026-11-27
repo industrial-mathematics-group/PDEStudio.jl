@@ -4,7 +4,7 @@
 #
 # Every file is a table `Category, Scope, Parameter, Value`; values are written with `val2str` and read back
 # with the safe literal parser `str2val` (no code is evaluated). Categories:
-#   Metadata    General (export info, bundled sources) / Preset (description, type, mode)
+#   Metadata    General (export info, blueprint) / Preset (description, type, mode)
 #   Git, Julia  reproducibility information (full exports)
 #   Scene       Plot, Layout, Camera, Labels, Exploration
 #   UI          one scope per `manager.ui` scope
@@ -29,6 +29,16 @@ function add_row!(rows::_CSVRows, cat, scope, param, value)
     push!(rows.scopes, string(scope))
     push!(rows.params, string(param))
     push!(rows.vals, val2str(to_value(value)))
+    return rows
+end
+
+# A row of a simulation parameter: its literal (`_csv_text`) as it is (the empty text as `<empty>`, like `add_row!`)
+function _add_param_row!(rows::_CSVRows, cat, scope, param, value)
+    text = _csv_text(value)
+    push!(rows.cats, string(cat))
+    push!(rows.scopes, string(scope))
+    push!(rows.params, string(param))
+    push!(rows.vals, isempty(text) ? "<empty>" : text)
     return rows
 end
 
@@ -77,68 +87,22 @@ end
 
 const _RESERVED_SIM_SCOPES = ("Shared", "Sweep", "Config")
 
-# Text parameters that would read back as something else ("1e3", "Float64", "Nothing") are written quoted, and numbers
-# and static vectors whose type `val2str` doesn't write are written with it (see `_typed_text`), so a simulation
-# parameter keeps its type (and its data-file hash, which is computed from `val2str`) through a CSV round trip.
-function _csv_text(v)
-    v isa AbstractString && return (!isempty(v) && !isequal(_parse_csv_value(v), v)) ? repr(String(v)) : v
-    return _needs_type(v) ? _typed_text(v) : v
-end
-
-# Values `val2str` writes without their type: `Float32`/`Float16` numbers (as `1.5`, read back as `Float64`) and static
-# vectors (as `Float64[…]`, read back as `Vector`), also inside tuples, untyped vectors and dictionaries; and values
-# it writes as something else: pairs (as `Pair(first=…, second=…)`), and `nothing` and `missing` inside a container
-# (as the types `Nothing`, `Missing`). (Other number types are no parameter values, see PDEStudioCore.)
-_needs_type(v) = v isa Union{Float32, Float16} || v isa SVector ||
-                 v isa Pair || (v isa Tuple && any(_needs_type_inside, v)) ||
-                 (v isa AbstractVector && ((!isconcretetype(eltype(v)) && any(_needs_type, v)) || any(_literal_inside, v))) ||
-                 (v isa AbstractDict && any(p -> _needs_type_inside(p.first) || _needs_type_inside(p.second), v))
-_literal_inside(x) = x === nothing || x === missing || x isa Pair
-_needs_type_inside(x) = _literal_inside(x) || _needs_type(x)
-
-# The literal of `v` with these types (`1.5f0`, `Float16(1.5)`, `SA{Float64}[1.0, 2.0]`, `(nothing, 1.0)`,
-# `:a => 1`, `Dict{Symbol, Any}(:a => nothing)`), which `str2val` reads back; everything else as `val2str` writes it.
-# (What still doesn't read back as the value is an object, see `_csv_object`.)
-function _typed_text(v)
-    v === nothing && return "nothing"
-    v === missing && return "missing"
-    _needs_type(v) || return val2str(v; top_level = false)
-    v isa Union{Float32, Float16} && return repr(v)
-    if v isa Pair
-        side(x) = x isa Pair ? "($(_typed_text(x)))" : _typed_text(x)
-        return "$(side(v.first)) => $(side(v.second))"
-    end
-    if v isa AbstractDict
-        entries = sort!(["$(_typed_text(k)) => $(_typed_text(x))" for (k, x) in v])
-        return "Dict{$(keytype(v)), $(valtype(v))}($(join(entries, ", ")))"
-    end
-    elements = join(map(_typed_text, collect(v)), ", ")
-    v isa SVector && return "SA{$(eltype(v))}[$elements]"
-    v isa Tuple && return length(v) == 1 ? "($elements,)" : "($elements)"
-    return (eltype(v) === Any ? "Any" : string(eltype(v))) * "[$elements]"
-end
-
-# The text a sweep is written as (`Simulation, Sweep`): no quoting of text, the types `_typed_text` adds.
-_sweep_text(v) = _needs_type(v) ? _typed_text(v) : v
+# The text of a simulation parameter in the CSV: PDEStudioCore's literal of the value (`param_literal`), which reads
+# back with the value's type (and so with its data-file hash): quoted text where needed ("1e3"), `1.5f0`, `:a => 1`.
+_csv_text(v) = param_literal(v)
 
 # What the CSV reads back for a value written as `text` (see `add_row!` and `_parse_csv_value`).
-_csv_readback(text) = _parse_csv_value(val2str(to_value(text)))
+_csv_readback(text) = _parse_csv_value(text)
 
 """
-    _csv_object(v; sweep = false) -> Bool
+    _csv_object(v) -> Bool
 
 Whether the parameter value `v` is an *object*: a value the CSV holds as text only, because its text doesn't read back
-as the value (a struct, an enum, a container holding one). Objects come from the source files: an export writes them
-as `Object` rows, a reload takes them from the configuration the bundled sources build (see
-`csv_to_simulation_config`), and the editors don't overwrite them. `sweep = true` for the values of a sweep.
+as the value (a struct, an enum, a container holding one; PDEStudioCore's `is_param_object`). Objects come from the
+source files: an export writes them as `Object` rows, a reload takes them from the configuration the blueprint
+build (see `csv_to_simulation_config`), and the editors don't overwrite them.
 """
-function _csv_object(v; sweep::Bool = false)
-    return try
-        !isequal(_csv_readback(sweep ? _sweep_text(v) : _csv_text(v)), v)
-    catch
-        true
-    end
-end
+_csv_object(v) = v === Nothing || v === Missing || is_param_object(v)   # (a cell `Nothing` reads back as `nothing`)
 
 # The parameters of a configuration that are objects, as `(scope, key)`: `(:Shared, key)`, `(method, key)` (of the
 # methods `method_names`) and `(:Sweep, key)`.
@@ -154,7 +118,7 @@ function _object_entries(config::SimulationConfig, method_names = keys(config.me
         end
     end
     for (k, v) in _sorted_pairs(config.varied)
-        _csv_object(v; sweep = true) && push!(entries, (:Sweep, Symbol(k)))
+        _csv_object(v) && push!(entries, (:Sweep, Symbol(k)))
     end
     return entries
 end
@@ -179,13 +143,13 @@ Writes the simulation category of a configuration: shared parameters, the parame
 (`defaults`; inactive methods are left out, like they are left out of the plots), the method list, the active
 methods, the reference and post-processing function names, and the sweep (`Simulation, Sweep`). Parameters that are objects
 (see `_csv_object`) are written as `Object` rows with the same scopes (`Object, Shared, bc, Wall(id=1)`) instead of
-`Simulation` rows: a reload takes them from the bundled sources.
+`Simulation` rows: a reload takes them from the blueprint's configuration.
 """
 function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
     # (objects as `Object` rows of the same scope)
-    category(v; sweep = false) = _csv_object(v; sweep = sweep) ? "Object" : "Simulation"
+    category(v) = _csv_object(v) ? "Object" : "Simulation"
     for (k, v) in _sorted_pairs(config.shared)
-        add_row!(rows, category(v), "Shared", k, _csv_text(v))
+        _add_param_row!(rows, category(v), "Shared", k, v)
     end
     method_names = sort!(filter(m -> haskey(config.methods, m), unique(config.defaults)))
     for m in method_names
@@ -194,7 +158,7 @@ function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
             continue
         end
         for (k, v) in _sorted_pairs(config.methods[m])
-            add_row!(rows, category(v), m, k, _csv_text(v))
+            _add_param_row!(rows, category(v), m, k, v)
         end
     end
     add_row!(rows, "Simulation", "Config", "methods", method_names)
@@ -202,7 +166,7 @@ function _add_simulation_rows!(rows::_CSVRows, config::SimulationConfig)
     add_row!(rows, "Simulation", "Config", "reference", isnothing(config.reference) ? "none" : string(config.reference))
     add_row!(rows, "Simulation", "Config", "postprocess", isnothing(config.postprocess) ? "none" : string(config.postprocess))
     for (k, v) in _sorted_pairs(config.varied)
-        add_row!(rows, category(v; sweep = true), "Sweep", k, _sweep_text(v))
+        _add_param_row!(rows, category(v), "Sweep", k, v)
     end
     return rows
 end
@@ -323,123 +287,106 @@ _has_visual_data(parsed::Dict) = haskey(parsed, "Scene") || haskey(parsed, "UI")
 _keysyms(d) = Dict{Symbol, Any}(Symbol(k) => v for (k, v) in d)
 
 # ------------------------------------------------------------------------------
-# Bundled source files
+# Blueprints
 # ------------------------------------------------------------------------------
+# The *blueprint* of a configuration is the code that builds it: its source files, copied into a folder that runs on
+# its own (PDEStudioCore's `bundle_sources`: the sources and the files they include, `manager.source_extras`, each with
+# its path relative to the folder they share), or a function of a package. An export is a *realization* of its
+# blueprint: the CSV holds the values (and the active methods), and names the blueprint, which several exports can
+# share: the folder is named after its content (`<name>-<first 8 digits of its digest>`, `bundle_digest`), and its
+# `blueprint.csv` says what it holds. Loading an export checks the folder against its digest, runs it (an `include`
+# of a file outside it is refused) and applies the CSV's rows to the configuration it builds.
 
-"""
-    _include_as(mod, file, as, copies = Dict{String, String}())
+const _BLUEPRINT_FILE = "blueprint.csv"
 
-Runs the code of `file` in `mod` as if it were the file `as`: `@__DIR__` and relative `include`s resolve next to
-`as`. Used to run the snapshot of a source file bundled with an export at the place of its original, so it finds the
-files next to the original that aren't bundled (helpers it includes, data files). `include`s of the files in `copies`
-(original path => bundled copy) run the copy instead, also as the original (see `_redirect_includes`). (Sets the
-task-local source path that `Base.include` uses.)
-"""
-function _include_as(mod::Module, file::AbstractString, as::AbstractString,
-                     copies::Dict{String, String} = Dict{String, String}(), mapexpr = identity)
-    tls = task_local_storage()
-    previous = get(tls, :SOURCE_PATH, nothing)
-    tls[:SOURCE_PATH] = as
-    try
-        return Base.include_string(ex -> _redirect_includes(mapexpr(ex), dirname(as), copies), mod, read(file, String), as)
-    finally
-        isnothing(previous) ? delete!(tls, :SOURCE_PATH) : (tls[:SOURCE_PATH] = previous)
+# The files the sources of `config` include themselves: as recorded when they ran last (for these sources). Sources
+# that haven't run as these sources yet (a configuration bound as a value, or with a function) run now, as *Run
+# Simulation* would run them, so an export copies every file they need. (An `include` that a file does only in some
+# runs can't be seen: include unconditionally what the code needs.)
+function _source_extras(config::SimulationConfig)
+    manager.extras_of == config.sources || _record_extras!(config, include_sources(config.sources; within = _blueprint_within(config)))
+    return filter(isfile, manager.source_extras)
+end
+
+function _record_extras!(config::SimulationConfig, files::AbstractVector{<:AbstractString})
+    sources = String[abspath(src) for src in config.sources]
+    manager.extras_of = copy(config.sources)
+    manager.source_extras = String[f for f in files if !(f in sources)]
+    return nothing
+end
+
+# The folder the sources of `config` run in on their own: the blueprint folder of the export it was loaded from;
+# `nothing` for any other configuration. The sources of a loaded export are its blueprint's (to change the code, load
+# the configuration file): other sources (e.g. edited in the Advanced tab) are an error, so code that the digest
+# doesn't pin can't run as part of the blueprint.
+function _blueprint_dir(config::SimulationConfig)
+    bp = manager.blueprint
+    (isnothing(bp) || isempty(bp.dir)) && return nothing
+    normpath.(abspath.(config.sources)) == normpath.(bp.sources) ||
+        throw(ArgumentError("the sources of a loaded export are the files of its blueprint $(basename(bp.dir)), and " *
+                            "the configuration lists others now: load the configuration's file to change its code"))
+    return bp.dir
+end
+
+# What the sources of `config` may include (`include_sources(...; within)`): for a loaded export exactly the files its
+# blueprint lists (a file added to the folder later doesn't run), otherwise anything
+function _blueprint_within(config::SimulationConfig)
+    isnothing(_blueprint_dir(config)) && return nothing
+    return String[manager.blueprint.sources; manager.blueprint.extras]
+end
+
+# What identifies a blueprint: the digest of its files together with what builds the configuration (`bundle_digest`
+# with that as its label), so a `blueprint.csv` that says another thing than the one an export was made with (or a
+# configuration of the same code built in another way) is another blueprint: another folder, another digest, another
+# confirmation.
+_blueprint_id(sources, extras, builds::Symbol, func::Symbol) =
+    bundle_digest(sources; extra = extras, label = "pdestudio blueprint, builds: $builds, function: $func")
+
+# What a session remembers of a blueprint it ran (`_CONFIRMED_CODE`): its identity, or its function
+_code_key(bp::_Blueprint) = isempty(bp.dir) ? "function:$(bp.func)" : bp.digest
+# The blueprint of a configuration that a configuration file built (its last source), before an export copies its code
+const _FILE_BLUEPRINT = _Blueprint("", "", String[], String[], :file, Symbol(""))
+
+# The blueprint of a configuration that `builder` builds: the function, if the target module finds it by its name (as
+# a loaded export will); `nothing` otherwise (an anonymous or local function: the configuration has no blueprint).
+function _function_blueprint(builder::Function)
+    name = nameof(builder)
+    found = Base.CoreLogging.with_logger(() -> PDEStudioCore.resolve_dynamic_function(name), Base.CoreLogging.NullLogger())
+    found === builder && return _Blueprint("", "", String[], String[], :function, name)
+    @info "The function $name isn't one the target module $(get_target_module()) defines: the configuration is bound " *
+          "without a blueprint (exports can't get its objects back)."
+    return nothing
+end
+
+# The folder of a blueprint must hold what it held when the export was loaded: it runs as it was exported, or not at all.
+function _check_blueprint(bp::_Blueprint)
+    isempty(bp.dir) && return nothing
+    digest = try
+        _blueprint_id(bp.sources, bp.extras, bp.builds, bp.func)
+    catch e
+        e isa ArgumentError || rethrow()
+        ""
     end
-end
-
-# `include` and `Base.include` for code that runs in `dir`: a file in `copies` (original path => bundled copy) runs
-# its copy as the original, any other file runs as usual, its `include`s redirected in the same way.
-struct _BundledInclude
-    mod::Module
-    dir::String
-    copies::Dict{String, String}
-end
-(inc::_BundledInclude)(path::AbstractString) = _bundled_include(inc.mod, inc.dir, path, inc.copies, identity)
-(inc::_BundledInclude)(mapexpr::Function, path::AbstractString) =
-    _bundled_include(inc.mod, inc.dir, path, inc.copies, mapexpr)
-struct _BundledBaseInclude
-    dir::String
-    copies::Dict{String, String}
-end
-(inc::_BundledBaseInclude)(mod::Module, path::AbstractString) = _bundled_include(mod, inc.dir, path, inc.copies, identity)
-(inc::_BundledBaseInclude)(mapexpr::Function, mod::Module, path::AbstractString) =
-    _bundled_include(mod, inc.dir, path, inc.copies, mapexpr)
-
-function _bundled_include(mod::Module, dir::AbstractString, path::AbstractString, copies::Dict{String, String},
-                          mapexpr)
-    file = normpath(isabspath(path) ? path : joinpath(dir, path))
-    copy = get(copies, file, nothing)
-    isnothing(copy) || return _include_as(mod, copy, file, copies, mapexpr)
-    return Base.include(ex -> _redirect_includes(mapexpr(ex), dirname(file), copies), mod, file)
-end
-
-# Replaces `include` (calls such as `include("h.jl")` and `include(f, "h.jl")`, and `include` as a value, as in
-# `foreach(include, files)` or `include.(files)`) and `Base.include` in code that runs in `dir` by `_BundledInclude`
-# / `_BundledBaseInclude`. `include` is replaced only where its value is the module's `include` (`_redirected`), so a
-# variable or keyword of that name keeps its value; names are kept: of definitions (`include(p) = …` of a baremodule),
-# assigned variables (also in tuples and `for`), declarations, keyword shorthands (`(; include)`) and macro arguments.
-const _NO_VALUE_HEADS = (:import, :using, :export, :public, :struct, :abstract, :primitive, :quote, :inert, :braces)
-const _NAME_HEADS = (:global, :local, :const, :parameters, :macrocall)   # (their bare Symbol arguments are names)
-function _redirect_includes(ex, dir::AbstractString, copies::Dict{String, String})
-    isempty(copies) && return ex
-    ex === :include && return Expr(:call, _redirected, :include, _MODULE_EXPR, dir, copies)
-    ex isa Expr || return ex
-    ex == _BASE_INCLUDE && return Expr(:call, _BundledBaseInclude, dir, copies)
-    ex.head in _NO_VALUE_HEADS && return ex
-    redirect(a) = _redirect_includes(a, dir, copies)
-    # (kept: the signature of a definition, the name of an assigned variable or keyword, the name of a module)
-    kept = ex.head in (:function, :macro, :->, :kw) ||
-           (ex.head === :(=) && (ex.args[1] isa Symbol || _is_signature(ex.args[1]) || Meta.isexpr(ex.args[1], :tuple))) ? 1 :
-           ex.head === :module ? 2 : 0
-    names = ex.head in _NAME_HEADS
-    return Expr(ex.head, (i <= kept || (names && a isa Symbol) ? a : redirect(a) for (i, a) in enumerate(ex.args))...)
-end
-_is_signature(ex) = ex isa Expr && ex.head in (:call, :where, :(::))
-_redirected(value, mod::Module, dir, copies) =
-    isdefined(mod, :include) && value === getglobal(mod, :include) ? _BundledInclude(mod, dir, copies) : value
-const _MODULE_EXPR = Expr(:macrocall, GlobalRef(Base, Symbol("@__MODULE__")), LineNumberNode(0))
-const _BASE_INCLUDE = Expr(:., :Base, QuoteNode(:include))
-
-# The original a bundled copy runs in place of (`manager.source_origins`, recorded when its export is loaded; also after
-# the copy was edited), or `nothing`. The entries are dropped when a `.jl` file is loaded (its configuration replaces
-# the loaded one), and an entry when an export writes another file over the copy (see `save_params_to_csv`).
-_origin_of(copy::AbstractString) = isfile(copy) ? get(manager.source_origins, abspath(copy), nothing) : nothing
-
-"""
-    _include_sources(sources)
-
-Includes the source files of a configuration before a run, as loading its export ran them: a bundled copy runs in place
-of its original (see `_run_bundled_sources`), and `include`s of the originals of the bundled copies run the copies.
-The rest is included as PDEStudioCore's `run_all_simulations` does.
-"""
-function _include_sources(sources::AbstractVector{<:AbstractString})
-    copies = Dict{String, String}()
-    for src in sources
-        origin = _origin_of(src)
-        isnothing(origin) || (copies[normpath(origin)] = abspath(src))
-    end
-    for src in sources
-        path = abspath(src)
-        isfile(path) || throw(ArgumentError("source file not found: $path"))
-        origin = _origin_of(path)
-        if isnothing(origin)
-            Base.include(ex -> _redirect_includes(ex, dirname(path), copies), get_target_module(), path)
-        else
-            _include_as(get_target_module(), path, origin, copies)
-        end
-    end
+    digest == bp.digest ||
+        throw(ArgumentError("the blueprint $(basename(bp.dir)) changed since the export was loaded (a file edited or " *
+                            "removed): it runs as it was exported, or not at all. Restore it, or load its " *
+                            "configuration file to develop the code"))
     return nothing
 end
 
 """
     _run_simulations(config; kwargs...)
 
-`run_all_simulations(config; kwargs...)`, with the sources included by `_include_sources` (so a loaded export runs as
-it loaded); a dry run that records the missing runs (`manager.missing_runs`) with `set_compute!(false)`.
+`run_all_simulations(config; kwargs...)`, with the sources included here: a loaded export runs its blueprint on its
+own (`_blueprint_dir`, unchanged: `_check_blueprint`), and the files the sources include are recorded for the next
+export (`_record_extras!`). A dry run that records the missing runs (`manager.missing_runs`) with
+`set_compute!(false)`.
 """
 function _run_simulations(config::SimulationConfig; kwargs...)
     compute = _COMPUTE[]   # (`set_compute!(false)`: a dry run, the missing runs are listed)
-    _include_sources(config.sources)
+    within = _blueprint_within(config)
+    isnothing(within) || _check_blueprint(manager.blueprint)
+    _record_extras!(config, include_sources(config.sources; within = within))
     summary = run_all_simulations(config; kwargs..., dry_run = !compute, load_sources = false)
     manager.missing_runs = compute ? ParamDict[] : copy(summary.ran)
     return summary
@@ -467,145 +414,132 @@ function set_compute!(on::Bool = true)
 end
 const _COMPUTE = Ref(true)
 
+# Writes what a blueprint folder holds into its `blueprint.csv`: the sources in their order, the other files, what
+# builds the configuration (`file`: the last source; `function` and its name; `nothing`) and the digest of the files.
+function _write_blueprint_file(dir::AbstractString, names, digest::AbstractString, builds::Symbol, func::Symbol)
+    rows = _CSVRows()
+    add_row!(rows, "Blueprint", "General", "sources", String[names.sources...])
+    isempty(names.extra) || add_row!(rows, "Blueprint", "General", "files", String[names.extra...])
+    add_row!(rows, "Blueprint", "General", "builds", builds === :none ? "nothing" : string(builds))
+    builds === :function && add_row!(rows, "Blueprint", "General", "function", string(func))
+    add_row!(rows, "Blueprint", "General", "digest", digest)
+    _write_rows(joinpath(dir, _BLUEPRINT_FILE), rows)
+    return nothing
+end
+
+# A text cell of `raw` (names and digests are kept as text: a digest of digits would be read as a number), or `nothing`
+function _text_cell(raw, cat, scope, key)
+    text = _raw_value(raw, cat, scope, key)
+    return (isnothing(text) || isempty(strip(text))) ? nothing : String(strip(text))
+end
+
 """
-    _run_bundled_sources(parsed, filepath; run = true)
+    _read_blueprint(dir, what) -> _Blueprint
 
-Includes the source files bundled with an exported CSV (`<name>_sources/`) into the target module (this executes their
-code) and returns the configuration the last one returns. The export runs as it was exported: every bundled copy
-runs, in place of its original (`@__DIR__` and relative `include`s resolve next to the original, so files that aren't
-bundled, such as helpers that aren't listed as sources and data files, are found there), and `include`s of the
-originals of bundled files run their copies. If an original was edited since the export, or is gone, the status line
-says so (`manager.source_note`).
-
-The sources of the loaded configuration are the originals that are unchanged, and the copies of the others: *Run
-Simulation* includes them again (as the load ran them, see `_include_sources`) and the next export bundles them,
-recording the originals as their origin.
-
-A bundled copy that is missing, a source that fails, and (with `run`) a last source that returns no configuration (a
-`SimulationConfig`, or a function without arguments that returns one, see `_config_value`) are errors: the file isn't
-loaded. Returns `(config, sources, sources_of)`: the configuration (`nothing` without `run`), the sources, and the source
-of each original (original path => source).
-
-With `run = false` nothing is executed: the sources are worked out as above and returned for *Run Simulation*, which
-includes them. A CSV without `Object` rows loads this way (see `load_and_apply_csv!`).
+The blueprint in the folder `dir` (`what` names the file that links it, for the errors), as its `blueprint.csv`
+describes it, checked: every file is there, named inside the folder, and the files are the ones the blueprint was
+made with (their digest, `bundle_digest`, is the recorded one, and the one the folder is named after). Nothing runs.
 """
-function _run_bundled_sources(parsed::Dict, filepath::AbstractString; run::Bool = true)
-    manager.source_note = ""
+function _read_blueprint(dir::AbstractString, what::AbstractString)
+    name = basename(dir)
+    isdir(dir) || throw(ArgumentError("$what: its blueprint folder $name is not next to it ($dir). The folder belongs " *
+                                      "to the file: copy it along"))
+    file = joinpath(dir, _BLUEPRINT_FILE)
+    isfile(file) || throw(ArgumentError("$what: the folder $name is no blueprint (it has no $(_BLUEPRINT_FILE))"))
+    parsed, raw = _read_csv(file)
+    general = get(get(parsed, "Blueprint", Dict()), "General", Dict())
+    function names_of(key)
+        names = get(general, key, String[])
+        names isa AbstractString && (names = isempty(strip(names)) ? String[] : String[names])
+        (names isa AbstractVector && all(n -> n isa AbstractString, names)) ||
+            throw(ArgumentError("$what: $(_BLUEPRINT_FILE) of $name holds no list of file names as its $key"))
+        return String[String(n) for n in names]
+    end
+    sources, extras = names_of("sources"), names_of("files")
+    func = Symbol(lstrip(something(_text_cell(raw, "Blueprint", "General", "function"), ""), ':'))
+    builds = Symbol(lowercase(something(_text_cell(raw, "Blueprint", "General", "builds"), "file")))
+    builds === :nothing && (builds = :none)
+    (builds in (:file, :none) || (builds === :function && func !== Symbol(""))) ||
+        throw(ArgumentError("$what: $(_BLUEPRINT_FILE) of $name must say what builds the configuration: file, " *
+                            "function (with its name) or nothing"))
+    recorded = _text_cell(raw, "Blueprint", "General", "digest")
+    (isempty(sources) || isnothing(recorded)) &&
+        throw(ArgumentError("$what: $(_BLUEPRINT_FILE) of $name names no sources or no digest"))
+    parts = map(n -> split(replace(n, '\\' => '/'), '/'; keepempty = false), [sources; extras])
+    all(p -> !isempty(p) && !isabspath(join(p, '/')) && !any(in(("..", ".")), p) && !any(x -> occursin(':', x), p), parts) ||
+        throw(ArgumentError("$what: the files of the blueprint $name are named inside its folder; got " *
+                            join([sources; extras], ", ")))
+    files = String[joinpath(dir, p...) for p in parts]
+    gone = filter(!isfile, files)
+    isempty(gone) || throw(ArgumentError("$what: file(s) of its blueprint $name are missing: $(join(gone, ", ")). " *
+                                         "Restore the folder as it was exported"))
+    source_files, extra_files = files[1:length(sources)], files[length(sources)+1:end]
+    digest = _blueprint_id(source_files, extra_files, builds, func)
+    suffix = match(r"-([0-9a-f]{8})$", name)
+    (digest == recorded && (isnothing(suffix) || startswith(digest, suffix[1]))) ||
+        throw(ArgumentError("$what: the blueprint $name is not the one it was made with (a file was edited, " *
+                            "$(_BLUEPRINT_FILE) changed, or the folder was renamed). A blueprint runs as it was " *
+                            "exported: restore it, or load its configuration file to develop the code"))
+    return _Blueprint(String(dir), digest, source_files, extra_files, builds, func)
+end
+
+"""
+    _blueprint(parsed, raw, filepath) -> Union{Nothing, _Blueprint}
+
+The blueprint a CSV names (nothing runs): a folder next to it (`Metadata, General, blueprint`, a path relative to the
+file; see `_read_blueprint`), which must be the one the file was exported with if the file pins it (`blueprint_digest`),
+or a function of the target module (`blueprint_function`); `nothing` for a file without one, which holds values for
+solvers of packages. Files of earlier versions (`bundled_sources`) are refused.
+"""
+function _blueprint(parsed::Dict, raw, filepath::AbstractString)
+    what = basename(filepath)
     meta = get(get(parsed, "Metadata", Dict()), "General", Dict())
-    names = get(meta, "bundled_sources", nothing)
-    names isa AbstractString && (names = isempty(names) ? String[] : [names])
-    (names isa AbstractVector && !isempty(names)) || return nothing, String[], Dict{String, String}()
-    origins = get(meta, "source_origins", String[])
-    origins = origins isa AbstractString ? [origins] : origins
-    origins = origins isa AbstractVector ? String[string(o) for o in origins] : String[]
-
-    dir = dirname(abspath(filepath))
-    bundled = String[abspath(joinpath(dir, string(name))) for name in names]
-    gone = filter(!isfile, bundled)
-    isempty(gone) ||
-        throw(ArgumentError("$(basename(filepath)): bundled source file(s) missing: $(join(gone, ", ")). Restore them " *
-                            "(the CSV's `<name>_sources/` folder belongs to it), or delete the row Metadata, General, " *
-                            "bundled_sources to load the values without code (a CSV without Object rows)"))
-    origin(i) = i <= length(origins) ? origins[i] : ""
-    copies = Dict{String, String}(normpath(origin(i)) => bundled[i] for i in eachindex(bundled) if !isempty(origin(i)))
-    notes = String[]
-    unchanged = falses(length(bundled))
-    ran_text = run ? "ran" : "is the source"
-    for i in eachindex(bundled)
-        isempty(origin(i)) && continue
-        name = basename(origin(i))
-        if !isfile(origin(i))
-            push!(notes, "the original $name is gone: the exported one $ran_text")
-        elseif read(origin(i)) != read(bundled[i])
-            push!(notes, "$name changed since the export: the exported version $ran_text")
-        else
-            unchanged[i] = true
-        end
+    haskey(meta, "bundled_sources") &&
+        throw(ArgumentError("$what was exported by an earlier version of PDEStudio (it has a row bundled_sources), " *
+                            "whose exports are no longer read: load its configuration file and export it again"))
+    folder = _text_cell(raw, "Metadata", "General", "blueprint")
+    func = _text_cell(raw, "Metadata", "General", "blueprint_function")
+    pinned = _text_cell(raw, "Metadata", "General", "blueprint_digest")
+    if isnothing(folder)
+        isnothing(func) && return nothing
+        return _Blueprint("", "", String[], String[], :function, Symbol(lstrip(func, ':')))
     end
-    manager.source_note = join(unique(notes), "; ")
-    isempty(notes) || @warn "Loading $(basename(filepath)): $(manager.source_note)."
-
-    sources = String[]
-    sources_of = Dict{String, String}()
-    last_result = nothing
-    for (i, file) in enumerate(bundled)
-        runs_as = isempty(origin(i)) ? file : origin(i)
-        # the source: the original while it is unchanged, otherwise the copy, which the next run includes in place of
-        # the original again
-        source = unchanged[i] ? abspath(runs_as) : file
-        if source == file && !isempty(origin(i))
-            manager.source_origins[file] = origin(i)
-        end
-        isempty(origin(i)) || (sources_of[normpath(origin(i))] = source)
-        push!(sources, source)
-        run || continue
-        @info "Executing bundled source: $(basename(file))" * (runs_as == file ? "" : " (as $runs_as)")
-        last_result = try
-            _include_as(get_target_module(), file, runs_as, copies)
-        catch e
-            msg = e isa LoadError ? sprint(showerror, e.error) : sprint(showerror, e)
-            throw(ArgumentError("$(basename(filepath)): the bundled source $(basename(file)) failed: " *
-                                first(split(msg, '\n'))))
-        end
-    end
-    # (the configuration its objects come from: the last file ends with it, or with a function without arguments)
-    config = run ? _config_value(last_result, basename(last(bundled))) : nothing
-    return config, sources, sources_of
+    isnothing(func) || throw(ArgumentError("$what names a blueprint folder and a blueprint_function: the function " *
+                                           "of a blueprint with source files is named in its $(_BLUEPRINT_FILE)"))
+    isabspath(folder) && throw(ArgumentError("$what: the blueprint is named relative to the file, not as $folder"))
+    bp = _read_blueprint(normpath(joinpath(dirname(abspath(filepath)), folder)), what)
+    (isnothing(pinned) || pinned == bp.digest) ||
+        throw(ArgumentError("$what was exported with another blueprint than $(basename(bp.dir)) (its " *
+                            "blueprint_digest starts with $(first(pinned, 8)))"))
+    return bp
 end
 
-"""
-    _config_value(result, file) -> SimulationConfig
-
-The configuration a configuration file ends with (`result`, its last value; `file` names it in errors): a
-`SimulationConfig`, or a function without arguments (no positional arguments, also no optional or keyword ones) that
-returns one, which is called. Anything else is an `ArgumentError`.
-"""
-function _config_value(result, file::AbstractString)
-    if result isa Function
-        ms = methods(result)
-        isempty(ms) && throw(ArgumentError("$(basename(file)) ends with the function $(nameof(result)), which has no " *
-                                           "methods: a configuration file ends with a SimulationConfig, or a function " *
-                                           "without arguments that returns one"))
-        if any(m -> m.nargs != 1 || m.isva || !isempty(Base.kwarg_decl(m)), ms)
-            throw(ArgumentError("$(basename(file)) ends with the function $(nameof(result)), which takes arguments: a " *
-                                "configuration file ends with a SimulationConfig, or a function without arguments " *
-                                "that returns one. (Methods defined before, e.g. by an earlier version of the file, " *
-                                "stay until Julia restarts: rename the function, or end with `() -> …`.)"))
+# Runs a blueprint and returns the configuration it builds and the files that ran: the sources of its folder on their
+# own (an `include` of a file outside it is refused), then the last one returns the configuration, or its function
+# does; `nothing` for a blueprint of code only.
+function _build_blueprint(bp::_Blueprint, what::AbstractString)
+    included = String[]
+    try
+        if isempty(bp.dir)
+            return load_config_function(bp.func), included
         end
-        f, result = result, Base.invokelatest(result)
-        result isa SimulationConfig ||
-            throw(ArgumentError("the function $(nameof(f)) that $(basename(file)) ends with returned " *
-                                "$(result === nothing ? "nothing" : "a $(typeof(result))"), not a SimulationConfig"))
-    end
-    result isa SimulationConfig ||
-        throw(ArgumentError("$(basename(file)) must end with a SimulationConfig (or a function without arguments " *
-                            "that returns one); it returned $(result === nothing ? "nothing" : "a $(typeof(result))")."))
-    return result
-end
-
-# `sources` with `file` as the last entry (moved there if listed, appended otherwise): the file that builds a configuration
-# is included after the helper files, so it may use and override what they define (PDEStudioCore's sources contract).
-function _with_last(sources::AbstractVector, file::AbstractString)
-    same(src) = normpath(abspath(src)) == normpath(abspath(file)) || (isfile(src) && isfile(file) && samefile(src, file))
-    return String[String[src for src in sources if !same(src)]; String(file)]
-end
-
-# Points the sources of a configuration returned by bundled files at the files that run: the source of a bundled file
-# (see `_run_bundled_sources`), any other file as it is.
-function _relocate_sources(sources::AbstractVector, sources_of::Dict{String, String})
-    out = String[]
-    for src in sources
-        source = get(sources_of, normpath(abspath(src)), nothing)
-        if !isnothing(source)
-            push!(out, source)
-        elseif isfile(src)
-            push!(out, abspath(src))
-        else
-            @warn "Source file $src not found; it is removed from the configuration."
+        @info "Executing the blueprint $(basename(bp.dir)) of $what: $(join(basename.(bp.sources), ", "))"
+        within = String[bp.sources; bp.extras]   # (exactly the files it lists: a file added to the folder doesn't run)
+        if bp.builds === :file
+            helpers = include_sources(bp.sources[1:end-1]; within = within)
+            config = load_config_file(last(bp.sources); within = within, included = included)
+            return config, prepend!(included, helpers)
         end
+        append!(included, include_sources(bp.sources; within = within))
+        return (bp.builds === :function ? load_config_function(bp.func) : nothing), included
+    catch e
+        e isa InterruptException && rethrow()
+        throw(ArgumentError("$what: its blueprint failed: " * first(split(sprint(showerror, _load_error(e)), '\n'))))
     end
-    return out
 end
+
+# The innermost error of a file that failed while it was included (`LoadError`s wrap it per file)
+_load_error(e) = e isa LoadError ? _load_error(e.error) : e
 
 # ------------------------------------------------------------------------------
 # Loading
@@ -614,28 +548,29 @@ end
 """
     load_config_file!(path::AbstractString) -> Bool
 
-Runs a Julia configuration file and binds the configuration it returns: its last expression is a `SimulationConfig`,
-or a function without arguments that returns one. The file runs in the target module (`set_target_module!`) and becomes
-the last of the configuration's `sources` (moved there if the configuration lists it elsewhere), so runs include it
-after the helper files and exports bundle it. Returns `true` if the configuration needs more
-parameter sliders than the open window has (the change is staged until *Run Simulation*), `false` otherwise.
+Runs a Julia configuration file and binds the configuration it returns (PDEStudioCore's `load_config_file`): its last
+expression is a `SimulationConfig`, or a function without arguments that returns one. The file runs in the target
+module (`set_target_module!`) and becomes the last of the configuration's `sources` (moved there if the configuration
+lists it elsewhere), so runs include it after the helper files. The files it includes are recorded: exports bundle
+them with the sources. Returns `true` if the configuration needs more parameter sliders than the open window has
+(the change is staged until *Run Simulation*), `false` otherwise.
 
 !!! warning
-    This **executes the file's code**: only load files you trust. A CSV without bundled sources only holds values
+    This **executes the file's code**: only load files you trust. A CSV without a blueprint only holds values
     and never runs code.
 
-A file that loads reliably, also from the snapshot bundled with an export, includes its helpers relative to
-`@__DIR__` (or loads them as packages) and uses no absolute paths; see the documentation (*File Operations*).
+A file that loads reliably, also from the copy bundled with an export, includes its helpers relative to itself
+(or loads them as packages) and uses no absolute paths; see the documentation (*File Operations*).
 """
 function load_config_file!(path::AbstractString)
     file = abspath(path)
     manager.source_note = ""
-    @warn "Executing $(basename(file)): loading a .jl file runs its code. Only load files you trust (CSV files without bundled sources never run code)."
-    result = _config_value(Base.include(get_target_module(), file), file)
-    result.sources = _with_last(result.sources, file)
-    # The configuration of this file replaces the loaded one: the copies of an export loaded before (this file too, if
-    # it is one) run as themselves now.
-    empty!(manager.source_origins)
+    @warn "Executing $(basename(file)): loading a .jl file runs its code. Only load files you trust (CSV files without a blueprint never run code)."
+    included = String[]
+    result = load_config_file(file; included = included)   # (PDEStudioCore: the file is the last source)
+    # The files it included are copied with its exports. (The file builds the configuration and runs as it is, also a
+    # file of a blueprint folder; an export copies the code into a blueprint folder.)
+    _record_extras!(result, included)
 
     new_max = max(manager.max_params, length(result.varied))
     if new_max != manager.max_params
@@ -643,29 +578,30 @@ function load_config_file!(path::AbstractString)
             manager.max_params = new_max
         else
             manager.csv_cache = (dims = manager.allowed_dims, max_params = new_max, parsed = Dict{String, Any}(),
-                                 raw = nothing, config = result, sources = result.sources)
+                                 raw = nothing, config = result, sources = result.sources, blueprint = _FILE_BLUEPRINT)
             @info "More parameter sliders needed! Configuration staged; press 'Run Simulation' to rebuild the studio."
             return true
         end
     end
     manager.csv_cache = nothing
-    _bind_loaded_config!(result)
+    _bind_loaded_config!(result, _FILE_BLUEPRINT)
     return false
 end
 
 """
     _load_runs_code(path) -> Bool
 
-Whether loading the file executes code: a Julia file, or a CSV with bundled source files.
+Whether loading the file executes code: a Julia file, or a CSV that names a blueprint (a folder of source files, or a
+function).
 """
 function _load_runs_code(path::AbstractString)
     endswith(lowercase(path), ".jl") && return true
-    names = try
-        get(get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict()), "bundled_sources", nothing)
+    meta = try
+        get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict())
     catch
-        nothing
+        return false
     end
-    return !(isnothing(names) || isempty(names))
+    return any(key -> haskey(meta, key), ("blueprint", "blueprint_function", "bundled_sources"))
 end
 
 """
@@ -673,12 +609,15 @@ end
 
 Reads a configuration CSV from disk and applies it.
 
-The simulation configuration is built from the CSV's rows (`csv_to_simulation_config`): parameters, methods, active
-methods, sweep, reference and post-processing. Parameters that are objects (structs, enums, … that the CSV holds as
-text: the `Object` rows) come from the configuration that the bundled source files build: only then do the bundled
-sources run at loading (which executes their code). A CSV without `Object` rows runs no code when it loads; its
-bundled sources become the configuration's sources, which *Run Simulation* includes. A bundled file that is missing
-or fails is an error (see `_run_bundled_sources`).
+If the file names a *blueprint* (the code that builds its configuration: a folder of source files next to it,
+`Metadata, General, blueprint`, or a function, `blueprint_function`), the blueprint is checked (a folder against its
+digest: it runs as it was exported, or not at all) and run (which executes its code; the folder on its own: an
+`include` of a file outside it is refused), and the CSV's rows are applied to the configuration it builds
+(`csv_to_simulation_config`): an export is the whole realization (`mode` `replace`; the blueprint's other methods stay
+as the pool), a file written by hand a patch. Parameters that are objects (structs, enums, … that the CSV holds as
+text: the `Object` rows) come from the blueprint's configuration. A blueprint that is missing, changed or fails is an
+error (see `_blueprint` and `_csv_config`). A file without a blueprint holds values for solvers of packages, and
+runs no code.
 
 It then checks whether the file needs different structural UI limits (allowed dimensions, number of parameter
 sliders) and stages the data until *Run Simulation* if the open window has to be rebuilt. Returns `true` if such a
@@ -687,46 +626,48 @@ structural rebuild is pending.
 function load_and_apply_csv!(filepath::AbstractString)
     @info "Loading configuration from CSV: $filepath"
     parsed, raw = _read_csv(filepath)
-    # (a file that can't be loaded leaves the recorded originals of bundled copies, the note and a staged file as they
-    # were; code its sources ran can't be undone)
-    origins, note = copy(manager.source_origins), manager.source_note
-    config, sources = try
-        _csv_config(parsed, filepath)
+    # (a file that can't be loaded leaves the note, the bound configuration and a staged file as they were; code its
+    # blueprint ran can't be undone)
+    note = manager.source_note
+    config, blueprint, included = try
+        _csv_config(parsed, raw, filepath)
     catch
-        manager.source_origins = origins
         manager.source_note = note
         rethrow()
     end
     manager.csv_cache = nothing  # a newer file replaces a staged one
-    return _apply_csv_file!(parsed, raw, config, sources)
+    if !isnothing(blueprint)
+        push!(_CONFIRMED_CODE, _code_key(blueprint))   # (this code ran: another file with it loads without a question)
+        # the files of the blueprint that aren't sources (bundled again by the next export)
+        isnothing(config) || _record_extras!(config, String[blueprint.extras; included])
+    end
+    return _apply_csv_file!(parsed, raw, config, blueprint)
 end
 
-# The configuration of a CSV file and its sources (see `load_and_apply_csv!`): built from the CSV's rows, its objects
-# (`Object` rows) from the configuration of the bundled sources, which run only if there are such rows.
-function _csv_config(parsed::Dict, filepath::AbstractString)
-    objects = _object_rows(parsed)
-    run = !isempty(objects)
-    has_sources = !isempty(something(get(get(get(parsed, "Metadata", Dict()), "General", Dict()), "bundled_sources", nothing), ""))
-    run && !has_sources &&
-        throw(ArgumentError("$(basename(filepath)): it bundles no source files, and its parameters " *
-                            "$(join(sort!(map(_entry_name, collect(keys(objects)))), ", ")) are objects (Object rows), " *
-                            "which come from the configuration that the source files build"))
-    bundled_config, ran, sources_of = _run_bundled_sources(parsed, filepath; run = run)
-    # (after the bundled sources, which may register statistics; sources that didn't run yet register them at a run)
-    (run || isempty(ran)) && _note_missing_statistics!(parsed, filepath)
+# What the rows of a file are for its blueprint's configuration (or, for a simulation preset, the bound one): `:replace`
+# (the whole realization: exports, saved presets) or `:patch` (only what the file lists changes: files written by hand).
+function _realization_mode(raw)
+    text = something(_text_cell(raw, "Metadata", "Preset", "mode"), _text_cell(raw, "Metadata", "General", "mode"), "patch")
+    mode = Symbol(lowercase(text))
+    return mode in (:replace, :patch) ? mode : :patch
+end
+
+# The configuration of a CSV file, its blueprint (`_blueprint`) and the files that ran (see `load_and_apply_csv!`): the
+# blueprint is checked and run (if the file names one), and the file's rows are applied to the configuration it builds
+# (`csv_to_simulation_config`); a file without simulation rows is the blueprint's configuration as it is.
+function _csv_config(parsed::Dict, raw, filepath::AbstractString)
+    blueprint = _blueprint(parsed, raw, filepath)
+    base, included = isnothing(blueprint) ? (nothing, String[]) : _build_blueprint(blueprint, basename(filepath))
+    _note_missing_statistics!(parsed, filepath)   # (after the blueprint, which may register them)
     _note_missing_run_files!(parsed, filepath)
-    # The files that ran are sources of the loaded configuration too (as `load_config_file!` adds the file it runs):
-    # a configuration returned by a bundled file doesn't list that file, and the next export must bundle it again.
-    # The file that returned the configuration (the last one that ran) stays the last source (PDEStudioCore includes the
-    # configuration's own file after the helpers).
-    sources = isnothing(bundled_config) ? ran :
-              _with_last(unique([_relocate_sources(bundled_config.sources, sources_of); ran]), last(ran))
-    config = haskey(parsed, "Simulation") || run ? csv_to_simulation_config(parsed; objects = bundled_config) : nothing
-    isnothing(config) || isempty(sources) || (config.sources = sources)
-    return config, sources
+    has_rows = haskey(parsed, "Simulation") || haskey(parsed, "Object")
+    config = has_rows ? csv_to_simulation_config(parsed; base = base, mode = _realization_mode(raw)) : base
+    # the sources of the loaded configuration are the blueprint's files (the next export shares the folder)
+    isnothing(config) || isnothing(blueprint) || isempty(blueprint.dir) || (config.sources = copy(blueprint.sources))
+    return config, blueprint, included
 end
 
-function _apply_csv_file!(parsed::Dict, raw, config, sources)
+function _apply_csv_file!(parsed::Dict, raw, config, blueprint)
     new_dims, new_max = manager.allowed_dims, manager.max_params
     dims = get(get(parsed, "Config", Dict()), "Dimensions", nothing)
     if !isnothing(dims)
@@ -752,31 +693,33 @@ function _apply_csv_file!(parsed::Dict, raw, config, sources)
             _sync_resolution_dims!()
         else
             manager.csv_cache = (dims = new_dims, max_params = new_max, parsed = parsed, raw = raw,
-                                 config = config, sources = sources)
+                                 config = config, sources = String[], blueprint = blueprint)
             @info "Structural limits changed! Configuration staged; press 'Run Simulation' to rebuild the studio."
             return true
         end
     end
 
-    load_and_apply_csv!(parsed, raw; config = config, sources = sources)
+    load_and_apply_csv!(parsed, raw; config = config, blueprint = blueprint)
     return false
 end
 
-function _bind_loaded_config!(config::SimulationConfig)
+# Binds a loaded configuration, with the blueprint it is a realization of (`nothing`: none)
+function _bind_loaded_config!(config::SimulationConfig, blueprint::Union{Nothing, _Blueprint} = nothing)
     for (_, cache_dict) in manager.caches
         empty!(cache_dict)
     end
-    set_sim_config!(config)
+    set_sim_config!(config; keep_blueprint = true)
+    manager.blueprint = blueprint
     @info "Project configuration buffered! Press 'Run Simulation' to compute and apply."
     return config
 end
 
 """
-    load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sources = String[])
+    load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sources = String[], blueprint = nothing)
 
 Applies a parsed (and structurally verified) configuration to the studio: display resolutions, the simulation
-configuration (`config` if given, as built by `load_and_apply_csv!(filepath)`, otherwise built from the `Simulation`
-category, which then can't hold objects: see `csv_to_simulation_config`),
+configuration (`config` if given, as built by `load_and_apply_csv!(filepath)` with its `blueprint`, otherwise built
+from the `Simulation` category alone, which then can't hold objects: see `csv_to_simulation_config`),
 the plot style, UI overrides, layout, axes and slider positions, camera, labels and exploration options.
 `raw` holds the raw cell texts (see `_read_csv`); `sources` replaces the configuration's source files.
 """
@@ -803,7 +746,7 @@ function _warn_unknown_scopes(parsed::Dict)
     return nothing
 end
 
-function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sources = String[])
+function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sources = String[], blueprint = nothing)
     @info "Applying parsed CSV configuration..."
     _warn_unknown_scopes(parsed)
     cfg = get(parsed, "Config", Dict())
@@ -821,8 +764,8 @@ function load_and_apply_csv!(parsed::Dict, raw = nothing; config = nothing, sour
     # --- 1. SIMULATION ---
     if !isnothing(config)
         isempty(sources) || (config.sources = sources)
-        _bind_loaded_config!(config)
-    elseif haskey(parsed, "Simulation")
+        _bind_loaded_config!(config, blueprint)
+    elseif haskey(parsed, "Simulation") || haskey(parsed, "Object")
         new_config = csv_to_simulation_config(parsed)
         isempty(sources) || (new_config.sources = sources)
         _bind_loaded_config!(new_config)
@@ -921,52 +864,68 @@ end
 _function_name(v) = Symbol(string(v))
 
 """
-    csv_to_simulation_config(parsed_csv::Dict; base = nothing, objects = nothing)
+    csv_to_simulation_config(parsed_csv::Dict; base = nothing, mode = :patch)
 
-Converts the simulation category of a parsed CSV into a `PDEStudioCore.SimulationConfig`: shared parameters, methods,
-active methods (`defaults`), the sweep (`Simulation, Sweep`) and the reference / post-processing function names.
+The configuration that the simulation rows of a parsed CSV describe, as a *realization* of the configuration `base`
+(the one its blueprint builds, or for a simulation preset the bound one; `nothing`: none, the file holds everything):
+shared parameters, methods, active methods (`defaults`), the sweep (`Simulation, Sweep`) and the reference /
+post-processing function names.
+
+- `mode = :patch` (files written by hand): only what the file lists changes. Everything else is `base`'s: its other
+  parameters, sweeps, methods and active methods.
+- `mode = :replace` (exports, saved presets): the file is the whole realization. The shared parameters, the sweep,
+  the active methods and the parameters of the methods it lists are the file's (what `base` has and the file
+  doesn't is not part of it); `base`'s other methods stay as the pool of methods to choose from.
 
 Parameters that are *objects* (structs, enums, … that the CSV holds as text only: the `Object` rows, with the same
-scopes) are taken from the configuration `objects` (the one the bundled source files build) at the same parameter
-(shared, the same method or the sweep), whose value must have the text the CSV holds. Objects only come from source
-files: if `objects` is missing or has no such value, an `ArgumentError` names the parameter. A `Simulation` row for a
-parameter that is an object in `objects` (or in `base`) is an error, too: the CSV can't replace an object.
-
-With a `base` configuration, the CSV is applied as a patch: only the entries present in the file change, everything else
-(including the source files) is taken from `base`.
+scopes) are taken from `base` at the same parameter (shared, the same method or the sweep), whose value must have the
+text the CSV holds. Objects only come from code: without `base`, or if it has no such value, an `ArgumentError` names
+the parameter. A `Simulation` row for a parameter that is an object in `base` is an error, too: a CSV can't replace an
+object. The source files are `base`'s.
 """
-function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, SimulationConfig} = nothing,
-                                  objects::Union{Nothing, SimulationConfig} = nothing)
+function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, SimulationConfig} = nothing, mode::Symbol = :patch)
+    mode in (:patch, :replace) || throw(ArgumentError("mode = :$mode: :patch or :replace"))
     sim = get(parsed_csv, "Simulation", Dict{String, Any}())
     # (PDEStudio 0.8.0 listed objects in this row and wrote their text as Simulation rows, which would read as text now)
     haskey(sim, "Objects") &&
         throw(ArgumentError("the file has a row Simulation, Objects: it was written by PDEStudio 0.8.0, whose CSV files " *
-                            "are no longer read (objects are Object rows now). Load its configuration file (or its " *
-                            "bundled sources) and export it again"))
+                            "are no longer read (objects are Object rows now). Load its configuration file and " *
+                            "export it again"))
     cfg = get(sim, "Config", Dict{String, Any}())
     object_rows = _object_rows(parsed_csv)
+    whole = mode === :replace   # (the file is the whole realization)
 
-    shared      = isnothing(base) ? ParamDict() : copy(base.shared)
-    methods     = isnothing(base) ? MethodDict() : MethodDict(k => copy(v) for (k, v) in base.methods)
-    varied      = isnothing(base) ? VariedDict() : copy(base.varied)
+    shared      = (isnothing(base) || whole) ? ParamDict() : copy(base.shared)
+    methods     = isnothing(base) ? MethodDict() : MethodDict(k => copy(v) for (k, v) in base.methods)   # (the pool)
+    varied      = (isnothing(base) || whole) ? VariedDict() : copy(base.varied)
     defaults    = isnothing(base) ? Symbol[] : copy(base.defaults)
-    reference   = isnothing(base) ? nothing : base.reference
-    postprocess = isnothing(base) ? nothing : base.postprocess
+    reference   = (isnothing(base) || whole) ? nothing : base.reference
+    postprocess = (isnothing(base) || whole) ? nothing : base.postprocess
     sources     = isnothing(base) ? String[] : copy(base.sources)
 
-    # (a data row can't replace an object of the sources' or the base configuration; an object row comes from `objects`)
+    # the methods the file lists: their own scopes, the methods of object rows, and `Config, methods`
+    listed = Symbol[Symbol(scope) for scope in keys(sim) if !(scope in _RESERVED_SIM_SCOPES)]
+    append!(listed, (scope for (scope, _) in keys(object_rows) if !(scope in (:Shared, :Sweep))))
+    method_names = get(cfg, "methods", nothing)
+    method_names isa AbstractVector && append!(listed, Symbol.(method_names))
+    for m in unique!(listed)
+        whole ? (methods[m] = ParamDict()) : get!(ParamDict, methods, m)   # (methods without parameters have no rows)
+    end
+
+    # (a data row can't replace an object of the base configuration; an object row is taken from it)
     function value(scope, k, v)
         key = (scope, Symbol(k))
         haskey(object_rows, key) && throw(ArgumentError("the parameter $(_entry_name(key)) has a Simulation row and an Object row"))
-        for c in (objects, base)
-            isnothing(c) || isnothing(_object_counterpart(c, scope, Symbol(k))) ||
-                throw(ArgumentError("the parameter $(_entry_name(key)) is an object of the configuration (it comes from " *
-                                    "the source files), and the CSV has a Simulation row for it ($(_short(repr(v), 60))): " *
-                                    "a CSV can't replace an object"))
-        end
+        # (in any scope: a method's or the sweep's value of a key overrides the shared one, and a struct and its text
+        # have the same identity, so text in another scope would replace the struct for the runs just as well)
+        where_ = isnothing(base) ? nothing : _object_scope(base, Symbol(k))
+        isnothing(where_) ||
+            throw(ArgumentError("the parameter $(_entry_name(key)): $k is an object of the configuration (" *
+                                "$(_entry_name((where_, Symbol(k)))), it comes from the code), and the CSV has a " *
+                                "Simulation row for it ($(_short(repr(v), 60))): a CSV can't replace an object"))
         return v
     end
-    target(scope) = scope === :Shared ? shared : scope === :Sweep ? varied : get!(ParamDict, methods, scope)
+    target(scope) = scope === :Shared ? shared : scope === :Sweep ? varied : methods[scope]
 
     # 1. Shared parameters and method overrides
     for (k, v) in get(sim, "Shared", Dict{String, Any}())
@@ -974,29 +933,24 @@ function csv_to_simulation_config(parsed_csv::Dict; base::Union{Nothing, Simulat
     end
     for (scope, params) in sim
         scope in _RESERVED_SIM_SCOPES && continue
-        method = get!(ParamDict, methods, Symbol(scope))
+        method = methods[Symbol(scope)]
         for (k, v) in params
             method[Symbol(k)] = value(Symbol(scope), k, v)
         end
     end
-    # ... and the objects (`Object` rows), from `objects`
-    for ((scope, k), v) in object_rows
-        target(scope)[k] = _object_value(scope, k, v, objects)
-    end
-    method_names = get(cfg, "methods", nothing)
-    if method_names isa AbstractVector
-        for m in method_names
-            get!(ParamDict, methods, Symbol(m))  # methods without parameters have no rows of their own
-        end
-    end
 
-    # 2. The sweep (a sweep that is an object is an `Object, Sweep` row, from `objects` as a whole)
+    # 2. The sweep
     for (k, v) in get(sim, "Sweep", Dict{String, Any}())
         vals = value(:Sweep, k, v)
         varied[Symbol(k)] = vals isa AbstractVector ? collect(vals) : Any[vals]
     end
 
-    # 3. Active methods and function names
+    # 3. The objects (`Object` rows; a sweep that is an object as a whole), from `base`
+    for ((scope, k), v) in object_rows
+        target(scope)[k] = _object_value(scope, k, v, base)
+    end
+
+    # 4. Active methods and function names
     raw_defaults = get(cfg, "defaults", nothing)
     if raw_defaults isa AbstractVector
         defaults = Symbol[Symbol(m) for m in raw_defaults]
@@ -1016,33 +970,44 @@ end
 
 _entry_name((scope, k)) = scope === :Shared ? "Shared → $k" : scope === :Sweep ? "Sweep → $k" : "method $scope → $k"
 
-# The object of the `Object` row `scope`, `k` (the CSV holds its text `v`): the value of `objects` at the same parameter
-# (`_object_counterpart`), which must have that text.
+# The object of the `Object` row `scope`, `k` (the CSV holds its text `v`): the value of `objects` (the configuration the
+# blueprint builds) at the same parameter (`_object_counterpart`), which must have that text.
 function _object_value(scope::Symbol, k::Symbol, v, objects)
     what = _entry_name((scope, k))
     isnothing(objects) &&
-        throw(ArgumentError("the parameter $what: there is no configuration of source files to take it from; it is an " *
-                            "object (Object row) that the CSV holds as text only ($(_short(repr(v), 60)))"))
+        throw(ArgumentError("the parameter $what is an object (Object row) that the CSV holds as text only " *
+                            "($(_short(repr(v), 60))), and the file has no blueprint that builds the configuration " *
+                            "to take it from: objects come from the code"))
     cand = _object_counterpart(objects, scope, k)
     found = isnothing(cand) ? "has no object $k there" :
             !_same_text(something(cand), scope, v) ? "has another value there ($(_short(repr(_object_text(something(cand), scope)), 60)))" : ""
     isempty(found) ||
-        throw(ArgumentError("the parameter $what: the configuration of the source files $found; it is an object that " *
-                            "the CSV holds as text ($(_short(repr(v), 60))). Objects come from the source files: " *
-                            "restore the one the export used"))
+        throw(ArgumentError("the parameter $what: the blueprint's configuration $found; it is an object that " *
+                            "the CSV holds as text ($(_short(repr(v), 60))). Objects come from the code: " *
+                            "restore the blueprint the export used"))
     return something(cand)
 end
 
 # The CSV text of an object (as the row of `scope` writes it), read back
-_object_text(x, scope::Symbol) = _csv_readback(scope === :Sweep ? _sweep_text(x) : _csv_text(x))
+_object_text(x, scope::Symbol) = _csv_readback(_csv_text(x))
 _same_text(x, scope::Symbol, v) = isequal(_object_text(x, scope), v)
+
+# The scope (`:Shared`, a method, `:Sweep`) in which the key `k` is an object in `config`, or `nothing`
+function _object_scope(config::SimulationConfig, k::Symbol)
+    isnothing(_object_counterpart(config, :Shared, k)) || return :Shared
+    isnothing(_object_counterpart(config, :Sweep, k)) || return :Sweep
+    for m in sort!(collect(keys(config.methods)), by = string)
+        isnothing(_object_counterpart(config, m, k)) || return m
+    end
+    return nothing
+end
 
 # `Some(value)` of the parameter `k` of `config` in `scope` (`:Shared`, `:Sweep` or a method) if it is an object,
 # or `nothing`. Objects are only looked up at the same parameter.
 function _object_counterpart(config::SimulationConfig, scope::Symbol, k::Symbol)
     d = scope === :Shared ? config.shared : scope === :Sweep ? config.varied : get(config.methods, scope, nothing)
     (isnothing(d) || !haskey(d, k)) && return nothing
-    return _csv_object(d[k]; sweep = scope === :Sweep) ? Some(d[k]) : nothing
+    return _csv_object(d[k]) ? Some(d[k]) : nothing
 end
 
 # ------------------------------------------------------------------------------
@@ -1139,7 +1104,8 @@ end
 # script that isn't a source). Returns descriptions such as "post-processor my_post"; names that don't resolve are
 # left out (running the configuration reports them).
 function _code_outside_sources(config::SimulationConfig)
-    sources = Set(normpath(abspath(s)) for s in config.sources)
+    # (the files the sources include themselves are bundled with them)
+    sources = Set(normpath(abspath(s)) for s in Iterators.flatten((config.sources, _source_extras(config))))
     in_package(m::Method) = !isnothing(pkgdir(Base.moduleroot(m.module)))
     in_sources(m::Method) = (file = string(m.file); isabspath(file) && normpath(file) in sources)
     covered(ms) = all(m -> in_package(m) || in_sources(m), ms)
@@ -1238,8 +1204,10 @@ end
 
 The primary serialization engine. It writes the full state of the studio—the `SimulationConfig`, scene (axes,
 sliders, layout, camera, labels, exploration), UI styles, structural limits and display resolutions—plus Git and
-Julia environment information to `<save_dir>/<base_filename>.csv`. The configuration's source files are copied next
-to the CSV (`<name>_sources/<file>`, with their originals recorded) so the export can be reloaded elsewhere. The
+Julia environment information to `<save_dir>/<base_filename>.csv`. The configuration's code is copied next to the CSV
+as its blueprint, a folder that runs on its own and is shared by the exports with the same code (`<config>-<digest>/`:
+the sources and the files they include, with their folders, and `blueprint.csv`), so the export can be reloaded
+elsewhere; a source that is missing fails the export. A function that builds the configuration is named instead. The
 registered statistics are recorded (`Metadata, General, statistics`), and so is code the export can't run again
 (`code_outside_sources`: solvers, reference, post-processor or statistics defined outside the sources and packages),
 the save path and the data files of the runs (`save_path`, `run_files`: loading the export elsewhere names those
@@ -1260,50 +1228,45 @@ function save_params_to_csv(base_filename::AbstractString, save_dir::AbstractStr
         end
 
         config = manager.active_config
-        if !isnothing(config) && !isempty(config.sources)
-            # The sources are copied into `<name>_sources/` under their own file names, so a bundled file that
-            # includes another bundled one (`include("solvers.jl")`) still finds it when the originals are gone.
-            bundled_names, origins = String[], String[]
-            bundle_dir = "$(basename(base_filename))_sources"
-            for src_path in config.sources
-                if isfile(src_path)
-                    name = basename(src_path)
-                    while joinpath(bundle_dir, name) in bundled_names   # two sources with the same file name
-                        name = "$(length(bundled_names) + 1)_$name"
-                    end
-                    bundled_name = joinpath(bundle_dir, name)
-                    dst_path = joinpath(csv_dir, bundled_name)
-                    mkpath(dirname(dst_path))
-                    # (a symlinked source is copied as a file: the snapshot must not follow later edits)
-                    # the copy of a loaded export ran in place of its original, which stays the origin
-                    push!(origins, something(_origin_of(src_path), abspath(src_path)))
-                    if abspath(src_path) != abspath(dst_path)
-                        cp(src_path, dst_path; force = true, follow_symlinks = true)
-                        delete!(manager.source_origins, abspath(dst_path))   # (another file now: no copy of a loaded one)
-                    end
-                    push!(bundled_names, bundled_name)
-                else
-                    @warn "Source file not found and skipped: $src_path"
-                end
-            end
-            if !isempty(bundled_names)
-                add_row!(rows, "Metadata", "General", "bundled_sources", bundled_names)
-                add_row!(rows, "Metadata", "General", "source_origins", origins)
-            end
-        end
         if !isnothing(config)
+            # The blueprint: what builds the configuration (its file, a function, or nothing: the code only), and the
+            # code, copied into a folder that runs on its own and is named after its content, so exports with the same
+            # code share it (PDEStudioCore's `bundle_sources`, `bundle_digest`; a source that is missing fails the
+            # export: it couldn't be loaded again)
+            bp = manager.blueprint
+            builds = isnothing(bp) ? :none : bp.builds
+            func = builds === :function ? bp.func : Symbol("")
+            if !isempty(config.sources)
+                extras = _source_extras(config)
+                digest = _blueprint_id(config.sources, extras, builds, func)
+                stem = builds === :function ? string(func) : first(splitext(basename(last(config.sources))))
+                folder = replace(stem, r"[^A-Za-z0-9_.]" => "_") * "-" * first(digest, 8)
+                target = joinpath(csv_dir, folder)
+                # (a folder of that name holds this blueprint, or another one whose digest starts alike: never overwritten)
+                if isfile(joinpath(target, _BLUEPRINT_FILE))
+                    existing = try
+                        _read_blueprint(target, basename(csv_filename))
+                    catch
+                        nothing
+                    end
+                    (!isnothing(existing) && existing.digest == digest) ||
+                        throw(ArgumentError("the folder $folder next to the export holds another blueprint (or a changed " *
+                                            "one): move it away, it is never overwritten"))
+                end
+                names = bundle_sources(config.sources, target; extra = extras)
+                _write_blueprint_file(target, names, digest, builds, func)
+                add_row!(rows, "Metadata", "General", "blueprint", folder)
+                add_row!(rows, "Metadata", "General", "blueprint_digest", digest)
+            elseif builds === :function
+                add_row!(rows, "Metadata", "General", "blueprint_function", string(func))
+            end
+            add_row!(rows, "Metadata", "General", "mode", "replace")   # (the rows are the whole realization)
             objects = _object_entries(config, filter(m -> haskey(config.methods, m), unique(config.defaults)))
-            listed = join(map(_entry_name, objects), ", ")
-            if isempty(objects)
-            elseif !any(isfile, config.sources)
-                @warn "Exporting $(basename(csv_filename)): the parameters $listed are objects (e.g. structs) the " *
-                      "CSV holds as text only, and the configuration has no source files that build " *
-                      "them: the CSV can't be loaded again. Build the configuration in a file (load it, or list it " *
-                      "in `sources`)."
-            else
-                @info "Exporting $(basename(csv_filename)): the parameters $listed are objects; loading the CSV takes " *
-                      "them from the configuration that the last of its bundled source files returns (a " *
-                      "SimulationConfig, or a function without arguments that returns one)."
+            if !isempty(objects) && (builds === :none || (builds === :file && isempty(config.sources)))
+                @warn "Exporting $(basename(csv_filename)): the parameters $(join(map(_entry_name, objects), ", ")) " *
+                      "are objects (e.g. structs) the CSV holds as text only, and nothing builds the configuration " *
+                      "again (no configuration file, no function): the CSV can't be loaded. Load the configuration " *
+                      "from a file, or bind the function that builds it (`set_sim_config!(my_config)`)."
             end
         end
         if !isnothing(config)

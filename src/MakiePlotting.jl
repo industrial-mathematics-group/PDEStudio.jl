@@ -94,8 +94,11 @@ The studio binds exactly one configuration at a time, by design: binding another
 several configurations are shown by combining them into one (methods, a swept parameter), as External Series
 ([`studio_add_series!`](@ref)) or in separate studios.
 """
-function set_sim_config!(config::SimulationConfig; snapshot::Bool = true, copy_config::Bool = true)
+function set_sim_config!(config::SimulationConfig; snapshot::Bool = true, copy_config::Bool = true,
+                         keep_blueprint::Bool = false)
     copy_config && (config = deepcopy(config))   # the studio edits its own copy: the caller's configuration stays as it was
+    # (a configuration from outside isn't a realization of the loaded blueprint; the loaders and presets keep it)
+    keep_blueprint || (manager.blueprint = nothing)
     # another setup (swept parameters, solvers) in an open window: the view of the old one doesn't fit (a CSV file
     # applies its own view after this)
     setup = _view_setup(config)
@@ -262,6 +265,25 @@ function find_config_csv(name::AbstractString)
 end
 
 """
+    set_sim_config!(builder::Function)
+
+Binds the configuration that the function `builder` builds (a function without arguments that returns a
+`SimulationConfig`, e.g. `set_sim_config!(test_advection_1d)`, without calling it yourself) and remembers the
+function as the configuration's *blueprint*: exports name it (`Metadata, General, blueprint_function`), and loading
+such an export calls it again, so the export gets its objects (structs such as boundary conditions) back although
+the configuration has no source file. The function must be one the target module defines (`set_target_module!`; or
+one of PDEStudioCore's examples), found by its name; any other function (an anonymous one, a local one) is bound
+like the configuration it returns. Returns the bound configuration.
+"""
+function set_sim_config!(builder::Function)
+    config = to_simulation_config(builder, string(nameof(builder)))
+    blueprint = _function_blueprint(builder)
+    bound = set_sim_config!(config)
+    manager.blueprint = blueprint
+    return bound
+end
+
+"""
     set_sim_config!(file::AbstractString)
 
 Loads a configuration from a file: a CSV (exports, presets; applied with `load_and_apply_csv!`) or a Julia file
@@ -340,6 +362,13 @@ function reset_plotter!()
     @info "Plotter state completely cleared!"
 end
 
+function launch_plotter(builder::Function; kwargs...)
+    # (a function that builds the configuration: bound as `set_sim_config!(builder)` binds it, with its blueprint)
+    fig = launch_plotter(to_simulation_config(builder, string(nameof(builder))); kwargs...)
+    manager.blueprint = _function_blueprint(builder)
+    return fig
+end
+
 """
     launch_plotter(config = nothing; style = nothing, compute = nothing) -> Figure
 
@@ -351,7 +380,9 @@ Builds the studio window and returns its `Figure` (show it with `display`, or us
   `:particles`: its first style) or a style (e.g. `:heatmap_surface`, `:contour_3d`, `:particles_2d`). The axes
   follow from the data: a 2D style shows `x` and `y`, or `x` and `t` for 1D data. The particle styles draw the data
   as particles (Lagrangian), all others on a grid (Eulerian); data of the other kind is converted.
-- `config`: a `SimulationConfig` to bind and run. It is run first (the results are cached), so the window starts
+- `config`: a `SimulationConfig` to bind and run, or a function without arguments that builds one
+  (`launch_plotter(test_heat_2d)`: the function is remembered as the configuration's blueprint, see
+  [`set_sim_config!`](@ref)). It is run first (the results are cached), so the window starts
   with the right setup: without a `style`, particle data opens in a particle style; axes the window doesn't know
   yet (such as a time axis `:iteration`) are added (see [`set_allowed_dims!`](@ref)). A configuration with other
   swept parameters or solvers than the bound one starts with its default view (plotted axes, sliders, animation

@@ -145,14 +145,13 @@ What has changed since the last release. Released versions are described in the
 - **Log axes keep their scale:** values of a line or scatter plot that aren't positive are left out (a gap, no
   marker) instead of switching the axis to a linear scale; gridded plots still fall back when their data leaves the
   positive range.
-- **Reloading an export builds the configuration from the CSV, objects from the sources:** parameters, methods,
-  active methods, sweep, reference and post-processor come from the CSV's rows (the source's other methods and
-  parameters are not added). Parameters the CSV can only hold as text (*objects*: structs, enums, containers holding
-  one; `Object` rows) are taken from the configuration that the bundled sources build, at the same parameter and with
-  that text; a missing or different one is an error naming the parameter. A CSV without `Object` rows **runs no code
-  at loading**: its bundled sources run at *Run Simulation*. Simulation presets take their objects from the bound
-  configuration in the same way, and the editors (Shared, Methods, Advanced) refuse to overwrite an object: change it
-  in the source file.
+- **Reloading an export applies the CSV to the blueprint's configuration, objects from the blueprint:** the shared
+  parameters, the sweep, the active methods, their parameters, the reference and the post-processor are the CSV's
+  (see *Blueprints and realizations* under Breaking). Parameters the CSV can only hold as text (*objects*: structs,
+  enums, containers holding one; `Object` rows) are taken from the blueprint's configuration, at the same parameter
+  and with that text; a missing or different one is an error naming the parameter. Simulation presets take their
+  objects from the bound configuration in the same way, and the editors (Shared, Methods, Advanced) refuse to
+  overwrite an object: change it in the configuration file.
 - **Exports of configurations PDEStudioCore can't run** (e.g. a function as a parameter) warn that the CSV can't run
   either.
 - **The configuration's own file is the last source:** loading a `.jl` configuration moves the file to the end of
@@ -175,13 +174,43 @@ What has changed since the last release. Released versions are described in the
 - The `:convergence` look preset: it was listed in the menu but changed nothing.
 
 ### Breaking
+- **Blueprints and realizations.** An export is a *realization* (the CSV: values, sweep, active methods) of a
+  *blueprint* (the code that builds the configuration), which several CSV files can share:
+  - the code is copied into a folder named after the configuration file and its content, `<config>-<8 digits of
+    its SHA-256 digest>/`, next to the CSV (before: `<name>_sources/` per export). It holds the configuration's
+    sources and the files they include themselves (recorded when a configuration file is loaded and at every *Run
+    Simulation*), with their folders, and a `blueprint.csv` that says what it holds. Exports with the same code
+    share the folder. The CSV names it (`Metadata, General, blueprint`, `blueprint_digest`; the rows
+    `bundled_sources` and `source_origins` are gone, and files that have them are refused: export them again);
+  - loading a CSV that names a blueprint checks the folder against its digest (it covers the files with their paths
+    and what builds the configuration; a file edited, missing or renamed, or a changed `blueprint.csv` is an error:
+    it runs as it was exported, or not at all), runs it on its own (its sources are the copies, the originals are
+    neither run nor compared, an `include` of any file the blueprint doesn't list is refused before it runs, and the
+    sources of a loaded export can't be changed) and applies the CSV to the configuration it builds. The blueprint **always runs when the file loads**
+    (before: only for files with objects, otherwise at *Run Simulation*), and *Run Simulation* checks the folder
+    again. So files included by an absolute path and data files read next to the original no longer work from a
+    loaded export; load the `.jl` file to develop;
+  - an export (`Metadata, General, mode, replace`) is the whole realization, and the blueprint's other methods stay
+    available as inactive methods (before: only the exported methods existed after a reload). A CSV written by
+    hand (no `mode`) is a patch of the blueprint's configuration: it names the blueprint and lists what differs.
+    Simulation presets in `replace` mode keep the bound configuration's other methods in the same way;
+  - a configuration that a function builds: `launch_plotter(f)` / `set_sim_config!(f)` (the function, not its
+    result) remember the function as the blueprint (`Metadata, General, blueprint_function`), and loading such an
+    export calls it again, so configurations of packages get their objects back;
+  - a CSV without a blueprint holds values for solvers of packages and runs no code (as before); it can't hold
+    objects;
+  - in the window, the question before code runs is asked once per blueprint and session.
+- **An export fails if one of the configuration's `sources` is missing** (before: it was skipped with a warning, and
+  the CSV couldn't run).
+- **Needs PDEStudioCore with configuration files and source bundles** (`load_config_file`, `load_config_function`,
+  `include_sources`, `bundle_sources`, `bundle_digest`, `param_literal`, `is_param_object`): the literal writer,
+  the object test, the configuration-file rule and the bundling moved there.
 - **CSV format: objects are `Object` rows** with the scopes of the `Simulation` rows (`Object, Shared, bc,
   Wall(id=1)`, `Object, upwind, flux, …`, `Object, Sweep, ic, …`) instead of `Simulation` rows. Files of PDEStudio
   0.8.0 (which listed them in a row `Simulation, Objects, entries`) are refused with an error: export them again.
   Files of earlier versions read struct text as text.
-- **Loading a CSV with bundled sources is all or nothing:** a missing bundled copy (also if its original exists) or
-  a bundled source that fails is an error, instead of running the original or loading the values with a warning.
-  Deleting the row `Metadata, General, bundled_sources` loads a CSV without `Object` rows without its sources.
+- **Loading a CSV is all or nothing:** a blueprint that is missing, incomplete or fails is an error, instead of
+  loading the values with a warning.
 - **A CSV can't replace an object:** a `Simulation` row for a parameter that is an object of the sources'
   configuration (or, for simulation presets, of the bound configuration) is an error. A struct and its text have
   the same identity, so the text would silently replace the struct.

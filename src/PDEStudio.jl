@@ -9,9 +9,11 @@ using PrecompileTools: @setup_workload, @compile_workload
 @reexport using PDEStudioCore
 
 # PDEStudio needs the refactored backend (cleaned SimulationConfig fields, StatsView, safe str2val).
-if !(isdefined(PDEStudioCore, :StatsView) && hasfield(SimulationConfig, :varied))
-    error("PDEStudio requires the new PDEStudioCore (SimulationConfig with `varied`, `defaults`, …), but an older " *
-          "version is loaded from $(pathof(PDEStudioCore)). Use the new version, e.g. `pkg> dev /path/to/PDEStudioCore.jl`.")
+# ... and its configuration files and source bundles (`load_config_file`, `bundle_sources`, `bundle_digest`, `param_literal`, …).
+if !(isdefined(PDEStudioCore, :StatsView) && hasfield(SimulationConfig, :varied) && isdefined(PDEStudioCore, :bundle_digest))
+    error("PDEStudio requires a newer PDEStudioCore (configuration files and source bundles: `load_config_file`, " *
+          "`bundle_sources`, …), but an older version is loaded from $(pathof(PDEStudioCore)). Use the new version, " *
+          "e.g. `pkg> dev /path/to/PDEStudioCore.jl`.")
 end
 
 export launch_plotter, @launch, set_sim_config!, reset_plotter!, reset_manager!, set_mode!, set_allowed_dims!, set_max_params!, set_plot_preset!, force_simulation, set_resolution!
@@ -95,6 +97,24 @@ A single instance exists (`PDEStudio.manager`); [`reset_manager!`](@ref) returns
 state and [`reset_plotter!`](@ref) closes the window. The `locks` are re-entrancy guards for the
 synchronous observable cascades (see [`@with_lock`](@ref)), not thread locks.
 """
+# The blueprint of the bound configuration: the code that builds it, which a loaded export (a realization of it) runs.
+# A folder of source files that runs on its own (`dir`, with its `digest`, `sources` and the `extras` they include; ""
+# and empty for a configuration that isn't loaded from one), and what builds the configuration (`builds`): `:file`
+# (the last source returns it), `:function` (the function `func` of the target module) or `:none` (nothing: the
+# sources are code only, and a file of values holds the whole configuration).
+struct _Blueprint
+    dir::String
+    digest::String
+    sources::Vector{String}
+    extras::Vector{String}
+    builds::Symbol
+    func::Symbol
+end
+
+# The code that was confirmed in this session (blueprint digests, `function:<name>`): loading another file with the
+# same code doesn't ask again (`_request_load`).
+const _CONFIRMED_CODE = Set{String}()
+
 Base.@kwdef mutable struct PlotManager
     # --- UI dictionaries, widgets and the trigger hierarchy ---
     ui::Dict{Symbol, Dict{Symbol, Any}} = Dict{Symbol, Dict{Symbol, Any}}()     # active UI style scopes
@@ -146,8 +166,10 @@ Base.@kwdef mutable struct PlotManager
     method_filter::Symbol = :all                                              # methods listed by the Methods tab
     allowed_styles::Vector{Symbol} = Symbol[]                                 # plot styles the data allows (empty: all)
     pending_code_load::String = ""                                            # file that runs code (path#content hash), waiting for a second Load
-    source_note::String = ""                                                  # e.g. "cfg.jl changed since the export: …"
-    source_origins::Dict{String, String} = Dict{String, String}()             # bundled copy => original (`_origin_of`)
+    source_note::String = ""                                                  # what a loaded export misses here (run files, statistics)
+    blueprint::Union{Nothing, _Blueprint} = nothing                           # the code that builds the bound configuration (a loaded export, a function)
+    source_extras::Vector{String} = String[]                                  # files the sources include themselves (bundled with exports) ...
+    extras_of::Vector{String} = String[]                                      # ... of these sources
     preset_kind::Symbol = :simulation                                         # presets listed in the Files tab
     preset_name::Symbol = Symbol("")                                          # preset file open in the Files tab
     preset_file_rows::Vector{Vector{String}} = Vector{String}[]               # its rows [Category, Scope, Parameter, Value]
