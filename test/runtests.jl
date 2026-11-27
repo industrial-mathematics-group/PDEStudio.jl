@@ -512,8 +512,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
         @test N() == 24 && occursin("helper.jl changed since the export", PDEStudio.manager.source_note)
         @test realpath(joinpath(out1, "exp_sources", "helper.jl")) in sources()
-        # (the unchanged configuration stays a source; with older PDEStudioCore versions all copies are the sources)
-        @test (realpath(joinpath(srcdir, "cfg.jl")) in sources()) == PDEStudio._CORE_SKIPS_SOURCES
+        @test realpath(joinpath(srcdir, "cfg.jl")) in sources()   # (the unchanged configuration stays a source)
         PDEStudio._run_simulations(PDEStudio.manager.active_config; force_overwrite = false)   # as Run Simulation
         @test @eval(helper_N()) == 24
         out2 = mktempdir()
@@ -527,20 +526,21 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         rm(srcdir; recursive = true)                       # without the originals the second export still reproduces
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out2, "exp.csv"))
-        @test N() == 24 && isempty(PDEStudio.manager.source_failures)
+        @test N() == 24
         @test occursin("the original cfg.jl is gone", PDEStudio.manager.source_note)
-        # a missing copy whose original exists: the original runs (its includes of bundled files run the copies) and
-        # is a source, so the next export bundles it
+        # a missing copy is an error (also if its original exists: the export runs as it was exported, or not at all);
+        # without the row of bundled sources the values load without code
         mkpath(srcdir)
         write_sources(25)
         rm(joinpath(out1, "exp_sources", "cfg.jl"))
         reset_manager!()
-        PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
-        @test N() == 24 && realpath(joinpath(srcdir, "cfg.jl")) in sources()
-        @test occursin("cfg.jl is missing from the export", PDEStudio.manager.source_note)
-        out3 = mktempdir()
-        @test PDEStudio.save_params_to_csv("exp", out3, Dict("Save Type" => "test"))
-        @test isfile(joinpath(out3, "exp_sources", "cfg.jl")) && bundled_N(out3) == 24
+        err = try PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv")); nothing catch e; e end
+        @test err isa ArgumentError && occursin("missing", err.msg) && occursin("cfg.jl", err.msg)
+        @test isnothing(PDEStudio.manager.active_config)
+        csv1 = joinpath(out1, "exp.csv")
+        write(csv1, join(filter(l -> !occursin("bundled_sources", l), readlines(csv1)), "\n"))
+        PDEStudio.load_and_apply_csv!(csv1)
+        @test N() == 24 && isempty(PDEStudio.manager.active_config.sources)
         reset_manager!()
     end
 
@@ -615,7 +615,10 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         out = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
         csv = joinpath(out, "exp.csv")
-        @test PDEStudio._read_csv(csv)[1]["Simulation"]["Objects"]["entries"] == [(:Shared, :tag), (:m1, :flux), (:Sweep, :bc)]
+        parsed = PDEStudio._read_csv(csv)[1]
+        # (objects are Object rows, of the same scopes, instead of Simulation rows)
+        @test Set(keys(PDEStudio._object_rows(parsed))) == Set([(:Shared, :tag), (:m1, :flux), (:Sweep, :bc)])
+        @test !haskey(parsed["Simulation"]["Shared"], "tag") && !haskey(get(parsed["Simulation"], "Sweep", Dict()), "bc")
         # the reload runs the sources (the CSV holds objects) and builds the rest from the CSV: N, the active methods
         # and the method list are the exported ones (not the source's 12 and both methods), the objects the source's
         reset_manager!()
@@ -644,19 +647,33 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         write(nosrc, join(filter(l -> !occursin("bundled_sources", l), readlines(csv)), "\n"))
         err = try PDEStudio.load_and_apply_csv!(nosrc); nothing catch e; e end
         @test err isa ArgumentError && occursin("bundles no source files", err.msg) && occursin("Sweep → bc", err.msg)
-        # an export without the Objects row (older versions) runs its sources and finds the objects by their text
-        old = joinpath(out, "old.csv")
-        write(old, join(filter(l -> !occursin("Objects", l), readlines(csv)), "\n"))
+        # a Simulation row can't replace an object (the struct and its text have the same identity, so a CSV that holds
+        # the text as data would swap the struct for a string)
+        asdata = joinpath(out, "asdata.csv")
+        write(asdata, replace(read(csv, String), "Object,Shared,tag," => "Simulation,Shared,tag,"))
+        err = try PDEStudio.load_and_apply_csv!(asdata); nothing catch e; e end
+        @test err isa ArgumentError && occursin("Shared → tag", err.msg) && occursin("can't replace an object", err.msg)
+        # ... and so are a parameter with both rows, and a file of PDEStudio 0.8.0 (its objects are text in Simulation rows)
+        both = joinpath(out, "both.csv")
+        write(both, read(csv, String) * "\nSimulation,Shared,tag,1\n")
+        err = try PDEStudio.load_and_apply_csv!(both); nothing catch e; e end
+        @test err isa ArgumentError && occursin("Simulation row and an Object row", err.msg)
+        v080 = joinpath(out, "v080.csv")
+        write(v080, "Category,Scope,Parameter,Value\nSimulation,Shared,N,16\nSimulation,Objects,entries,Any[]\n")
+        err = try PDEStudio.load_and_apply_csv!(v080); nothing catch e; e end
+        @test err isa ArgumentError && occursin("PDEStudio 0.8.0", err.msg)
+        # a bundled source that fails, or a last one that returns no configuration, is an error: nothing is loaded
+        copy_file = joinpath(out, "exp_sources", "cfg.jl")
+        good = read(copy_file, String)
+        for (code, msg) in (("error(\"boom\")\n", "boom"), ("nothing\n", "SimulationConfig"))
+            write(copy_file, good * code)
+            reset_manager!()
+            err = try PDEStudio.load_and_apply_csv!(csv); nothing catch e; e end
+            @test err isa ArgumentError && occursin(msg, err.msg) && isnothing(PDEStudio.manager.active_config)
+        end
+        write(copy_file, good)
         reset_manager!()
-        n = runs()
-        PDEStudio.load_and_apply_csv!(old)
-        @test runs() == n + 1 && PDEStudio.manager.active_config.shared[:tag].a == 1
-        @test PDEStudio.manager.active_config.shared[:N] == 16
-        # ... and other text than the source's object at that parameter is an error there, too
-        old_bad = joinpath(out, "old_bad.csv")
-        write(old_bad, join((occursin("Shared,tag,", l) ? replace(l, "a=1" => "a=9") : l for l in readlines(old)), "\n"))
-        err = try PDEStudio.load_and_apply_csv!(old_bad); nothing catch e; e end
-        @test err isa ArgumentError && occursin("Shared → tag", err.msg)
+        PDEStudio.load_and_apply_csv!(csv)
         # the editors don't overwrite objects (they come from the source files)
         loaded = PDEStudio.manager.active_config
         @test !PDEStudio._apply_editor_input!(:simulation, :shared, :tag, loaded.shared, "5", nothing)
@@ -674,7 +691,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         PDEStudio.load_config_file!(joinpath(srcdir, "data_cfg.jl"))
         PDEStudio.manager.active_config.shared[:N] = 18
         @test PDEStudio.save_params_to_csv("data", out, Dict("Save Type" => "test"))
-        @test PDEStudio._read_csv(joinpath(out, "data.csv"))[1]["Simulation"]["Objects"]["entries"] == Any[]
+        @test !haskey(PDEStudio._read_csv(joinpath(out, "data.csv"))[1], "Object")
         reset_manager!()
         n = @eval(csv_data_runs)
         PDEStudio.load_and_apply_csv!(joinpath(out, "data.csv"))
@@ -683,33 +700,11 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         PDEStudio._include_sources(PDEStudio.manager.active_config.sources)   # (as Run Simulation)
         @test @eval(csv_data_runs) == n + 1
 
-        # Functions (whose text is "Closure") are only taken from the same parameter, named ones checked by their name
-        write(joinpath(srcdir, "fn_cfg.jl"), """
-            csv_ic_sine(x) = sin(x)
-            csv_ic_step(x) = x > 0 ? 1.0 : 0.0
-            () -> SimulationConfig(create_param_dict(:N => 12, :ic => csv_ic_sine, :sim_func_name => :advection_solver_1d),
-                                   create_method_dict(:m => create_param_dict(:ic2 => csv_ic_step, :anon => x -> x)), [:m])
-            """)
-        PDEStudio.load_config_file!(joinpath(srcdir, "fn_cfg.jl"))
-        @test PDEStudio.save_params_to_csv("fn", out, Dict("Save Type" => "test"))
-        fn_csv = joinpath(out, "fn.csv")
-        @test PDEStudio._read_csv(fn_csv)[1]["Simulation"]["Objects"]["entries"] ==
-              [(:Shared, :ic, "csv_ic_sine"), (:m, :anon), (:m, :ic2, "csv_ic_step")]
-        reset_manager!()
-        PDEStudio.load_and_apply_csv!(fn_csv)
-        loaded = PDEStudio.manager.active_config
-        @test nameof(loaded.shared[:ic]) === :csv_ic_sine && nameof(loaded.methods[:m][:ic2]) === :csv_ic_step
-        swapped = joinpath(out, "fn_swapped.csv")
-        write(swapped, replace(read(fn_csv, String), "(:Shared, :ic, \"\"csv_ic_sine\"\")" => "(:Shared, :ic, \"\"csv_ic_step\"\")"))
-        @test occursin("(:Shared, :ic, \"\"csv_ic_step\"\")", read(swapped, String))
-        err = try PDEStudio.load_and_apply_csv!(swapped); nothing catch e; e end
-        @test err isa ArgumentError && occursin("another function", err.msg) && occursin("Shared → ic", err.msg)
-        # (a function the CSV has under another scope isn't taken from there)
-        moved = joinpath(out, "fn_moved.csv")
-        write(moved, replace(read(fn_csv, String), "Simulation,m,ic2," => "Simulation,Shared,ic2,",
-                             "(:m, :ic2, " => "(:Shared, :ic2, "))
-        err = try PDEStudio.load_and_apply_csv!(moved); nothing catch e; e end
-        @test err isa ArgumentError && occursin("Shared → ic2", err.msg) && occursin("no parameter ic2 there", err.msg)
+        # A configuration PDEStudioCore refuses (a function as a parameter) can't run: the export says so
+        fn = SimulationConfig(create_param_dict(:N => 12, :ic => sin, :sim_func_name => :advection_solver_1d),
+                              create_method_dict(:m => create_param_dict()), [:m]; sources = [joinpath(srcdir, "data_cfg.jl")])
+        set_sim_config!(fn)
+        @test_logs (:warn, r"can't run \(.*function") match_mode = :any PDEStudio.save_params_to_csv("fn", out, Dict("Save Type" => "test"))
 
         # Simulation presets take their objects from the bound configuration
         PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
@@ -718,6 +713,12 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test set_sim_preset!("objects_preset").shared[:tag].a == 1
         PDEStudio.load_config_file!(joinpath(srcdir, "data_cfg.jl"))
         @test_throws ArgumentError set_sim_preset!("objects_preset")
+        # a hand-written patch preset can't replace an object of the bound configuration by text
+        PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
+        write(joinpath(sim_preset_dir(), "tag_text.csv"), "Category,Scope,Parameter,Value\nSimulation,Shared,tag,CsvReloadTag(a=2)\n")
+        err = try set_sim_preset!("tag_text"); nothing catch e; e end
+        @test err isa ArgumentError && occursin("can't replace an object", err.msg)
+        @test PDEStudio.manager.active_config.shared[:tag].a == 1
         reset_manager!()
     end
 
@@ -776,7 +777,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         # unchanged originals: Run includes them (the unlisted helper and the data file are found)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
-        @test isempty(PDEStudio.manager.source_failures) && N() == 16
+        @test N() == 16
         run!()
         @test does_sim_data_exist(only(generate_tasks(PDEStudio.manager.active_config)))
         # both listed files edited: the exported ones run, the unlisted helper and the data file are found next to
@@ -784,18 +785,16 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         write_sources(20, 4)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
-        @test isempty(PDEStudio.manager.source_failures) && N() == 16
+        @test N() == 16
         @test !(abspath(abs_helper) in PDEStudio.manager.active_config.sources)   # the copy is the source
-        if PDEStudio._CORE_SKIPS_SOURCES
-            run!()
-            @test @eval(abs_N()) == 1
-        end
+        run!()
+        @test @eval(abs_N()) == 1
         out2 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out2, Dict("Save Type" => "test"))
         rm(abs_helper)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out2, "exp.csv"))
-        @test isempty(PDEStudio.manager.source_failures) && N() == 16
+        @test N() == 16
         # a bundle overwritten by another export: the origin recorded for its old content doesn't apply to the new one
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out2, "exp.csv"))
@@ -837,10 +836,14 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
                  # a baremodule with its own `include` (the definition stays as it is)
                  "baremodule BundledBM; using Base; include(p) = Base.include(BundledBM, p); include(\"h.jl\"); end; " *
                  "form_N() = BundledBM.form_N()"]
+        # (`:f`, a struct, is an object: the reload runs the sources)
+        @eval Main begin
+            struct CsvFormTag; a::Int; end
+            PDEStudioCore.@param_struct CsvFormTag
+        end
         for form in forms
             write(joinpath(srcdir, "h.jl"), "form_N() = 1\n")
-            # (`:f`, a function, is an object: the reload runs the sources)
-            write(joinpath(srcdir, "cfg.jl"), form * "\nSimulationConfig(create_param_dict(:N => form_N() + 10, :f => form_N, " *
+            write(joinpath(srcdir, "cfg.jl"), form * "\nSimulationConfig(create_param_dict(:N => form_N() + 10, :f => CsvFormTag(1), " *
                   ":sim_func_name => :advection_solver_1d), create_method_dict(:m => create_param_dict()), [:m]; " *
                   "sources = [joinpath(@__DIR__, \"h.jl\")])\n")
             reset_manager!()
@@ -850,9 +853,9 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             write(joinpath(srcdir, "h.jl"), "form_N() = 2\n")
             reset_manager!()
             PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
-            ok = isempty(PDEStudio.manager.source_failures) && PDEStudio.manager.active_config.shared[:N] == 11 &&
+            ok = PDEStudio.manager.active_config.shared[:N] == 11 &&
                  @eval(form_N()) == 1
-            ok || @info "Include form failed" form PDEStudio.manager.source_failures
+            ok || @info "Include form failed" form
             @test ok
         end
         # code that names a variable, keyword or field `include` keeps its value (nothing edited), and includes in
@@ -875,7 +878,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
-        @test isempty(PDEStudio.manager.source_failures) && PDEStudio.manager.active_config.shared[:N] == 9
+        @test PDEStudio.manager.active_config.shared[:N] == 9
         # a copy edited after the load still runs in place of its original (at Run and in the next export); loaded as a
         # `.jl` file it runs as itself
         big = joinpath(srcdir, "big.jl")
@@ -900,22 +903,25 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
     @testset "Bundled config file ending with a function" begin
         set_save_path!(mktempdir())
         dir = mktempdir()
+        @eval Main begin
+            struct CsvIC; a::Float64; end
+            PDEStudioCore.@param_struct CsvIC
+        end
+        is_ic() = nameof(typeof(PDEStudio.manager.active_config.shared[:ic])) === :CsvIC
         write(joinpath(dir, "fn_cfg.jl"), """
-            initial_condition(x) = sin(x) + 2.0
-            fn_cfg() = SimulationConfig(create_param_dict(:N => 16, :ic => initial_condition, :sim_func_name => :advection_solver_1d),
+            fn_cfg() = SimulationConfig(create_param_dict(:N => 16, :ic => CsvIC(2.0), :sim_func_name => :advection_solver_1d),
                                         create_method_dict(:m => create_param_dict()), [:m])
             fn_cfg
             """)
         PDEStudio.load_config_file!(joinpath(dir, "fn_cfg.jl"))
-        @test PDEStudio.manager.active_config.shared[:ic] isa Function
+        @test is_ic()
         @test PDEStudio.save_params_to_csv("exp", dir, Dict("Save Type" => "test"))
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(dir, "exp.csv"))
-        @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
+        @test is_ic()
         # an export of the reloaded export bundles the file again (for a file ending with a configuration too)
         write(joinpath(dir, "plain_cfg.jl"), """
-            ic2(x) = x
-            SimulationConfig(create_param_dict(:N => 16, :ic => ic2, :sim_func_name => :advection_solver_1d),
+            SimulationConfig(create_param_dict(:N => 16, :ic => CsvIC(1.0), :sim_func_name => :advection_solver_1d),
                              create_method_dict(:m => create_param_dict()), [:m])
             """)
         for (i, first_export) in enumerate((joinpath(dir, "exp.csv"), nothing))
@@ -932,7 +938,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             @test haskey(PDEStudio.parse_csv_to_dict(joinpath(out2, "exp2.csv"))["Metadata"]["General"], "bundled_sources")
             reset_manager!()
             PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv"))
-            @test PDEStudio.manager.active_config.shared[:ic] isa Function && isempty(PDEStudio.manager.source_failures)
+            @test is_ic()
         end
         reset_manager!()
     end
@@ -1870,8 +1876,9 @@ ingroup("agent") && @testset "Review fixes 2026-11-12 (headless)" begin
         @test !isnothing(PDEStudio._invalid_ui_reason(:color_range, bad))
     end
 
-    # 8. CSV values keep their types: small integers, missing, empty strings inside containers
-    for v in (Int32(5), UInt8(7), Int128(3), big(9), Int8(-2), missing, ["", "x"], 1.5f0, (Int16(1), "a"))
+    # 8. CSV values keep their types: missing, empty strings inside containers, Float32 (other integer types than `Int`
+    #    are no parameter values of PDEStudioCore)
+    for v in (missing, ["", "x"], 1.5f0, (1.5f0, "a"), Float16(2))
         back = PDEStudio._parse_csv_value(val2str(PDEStudio._csv_text(v)))
         @test isequal(back, v) && typeof(back) == typeof(v)
     end
@@ -2763,7 +2770,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test PDEStudio._load_runs_code(csv)
         set_sim_config!(fn_file)
         set_sim_config!(csv)
-        @test manager.active_config.shared[:N] == 24 && isempty(manager.source_failures)
+        @test manager.active_config.shared[:N] == 24
         # ... and Run Simulation includes the sources again as the load ran them: the helper that isn't bundled is
         # found next to the original, also after the configuration was edited (the exported one runs)
         write(cfg_file, replace(read(cfg_file, String), "helper_N()" => "helper_N() + 1"))
@@ -2771,15 +2778,14 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         set_sim_config!(csv)
         @test manager.active_config.shared[:N] == 24 && occursin("config.jl changed", manager.source_note)
         click_button!(:run_button)
-        # (PDEStudioCore before `load_sources` includes them as they are: the copy in the bundle misses the helper)
-        @test wait_status(s -> occursin(PDEStudio._CORE_SKIPS_SOURCES ? "Simulation finished" : "Running failed", s); timeout = 60)
+        @test wait_status(s -> occursin("Simulation finished", s); timeout = 60)
 
         # ... without the original folder the bundled config can't find its helper: the CSV holds data only, so the
         # load runs no code and works, and Run Simulation, which includes the sources, says why it can't run
         rm(orig; recursive = true)
         set_sim_config!(fn_file)
         set_sim_config!(csv)
-        @test isempty(manager.source_failures) && manager.active_config.shared[:N] == 24
+        @test manager.active_config.shared[:N] == 24
         click_button!(:run_button)
         @test wait_status(s -> occursin("Running failed", s) && occursin("helper.jl", s); timeout = 60)
 
@@ -2791,7 +2797,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         rm(orig; recursive = true)
         set_sim_config!(fn_file)
         set_sim_config!(joinpath(root, "exp2.csv"))
-        @test isempty(manager.source_failures) && manager.active_config.shared[:N] == 24
+        @test manager.active_config.shared[:N] == 24
 
         # 4. Dropping a CSV without sources loads it right away; other files are refused
         plain_csv = joinpath(root, "plain.csv")
@@ -2842,7 +2848,7 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         up_exp2 = PDEStudio.receive_upload!(exp2_files)
         @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 30
         click_button!(:load_config_button)
-        @test isempty(manager.source_failures) && manager.active_config.shared[:N] == 24
+        @test manager.active_config.shared[:N] == 24
         # a Julia file with the helper it includes: the file nobody mentions is the configuration
         cfg_file = write_config(orig)
         @test PDEStudio.receive_upload!(["helper.jl" => bytes(joinpath(orig, "helper.jl")),

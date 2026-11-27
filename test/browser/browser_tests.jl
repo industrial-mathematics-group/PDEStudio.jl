@@ -65,7 +65,6 @@ end
                       "N" => isnothing(cfg) ? -1 : cfg.shared[:N],
                       "sessions" => length(ext.UPLOADS),
                       "path_box" => PDEStudio._box_text(w[:export_text]),
-                      "source_failures" => manager.source_failures,
                       "fig_height" => fig.scene.viewport[].widths[2],
                       "tab_files" => bbox(:tab_files), "browse" => bbox(:browse_button), "load" => bbox(:load_config_button)]
             write(joinpath(dir, "state.tmp"), "{" * join(["\"$k\": " * json(v) for (k, v) in fields], ", ") * "}")

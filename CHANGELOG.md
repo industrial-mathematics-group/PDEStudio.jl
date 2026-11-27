@@ -147,13 +147,14 @@ What has changed since the last release. Released versions are described in the
   positive range.
 - **Reloading an export builds the configuration from the CSV, objects from the sources:** parameters, methods,
   active methods, sweep, reference and post-processor come from the CSV's rows (the source's other methods and
-  parameters are not added). Parameters the CSV can only hold as text (*objects*: structs, functions, enums,
-  containers holding one) are taken from the configuration that the bundled sources build, at the same parameter and
-  with that text (named functions also by their name); a missing or different one is an error naming the parameter.
-  Older exports fail the same way when the CSV holds another text than the object of the sources at that parameter. A CSV whose parameters are all data
-  **runs no code at loading**: its bundled sources run at *Run Simulation*. Simulation presets take their objects
-  from the bound configuration in the same way, and the editors (Shared, Methods, Advanced) refuse to overwrite an
-  object: change it in the source file.
+  parameters are not added). Parameters the CSV can only hold as text (*objects*: structs, enums, containers holding
+  one; `Object` rows) are taken from the configuration that the bundled sources build, at the same parameter and with
+  that text; a missing or different one is an error naming the parameter. A CSV without `Object` rows **runs no code
+  at loading**: its bundled sources run at *Run Simulation*. Simulation presets take their objects from the bound
+  configuration in the same way, and the editors (Shared, Methods, Advanced) refuse to overwrite an object: change it
+  in the source file.
+- **Exports of configurations PDEStudioCore can't run** (e.g. a function as a parameter) warn that the CSV can't run
+  either.
 - **The configuration's own file is the last source:** loading a `.jl` configuration moves the file to the end of
   `sources` if the configuration lists it elsewhere (before, it stayed in place, and was only appended when missing),
   and reloading an export keeps the file that returned the configuration last. Runs include it after the helper
@@ -174,12 +175,18 @@ What has changed since the last release. Released versions are described in the
 - The `:convergence` look preset: it was listed in the menu but changed nothing.
 
 ### Breaking
-- **CSV format: `Simulation, Objects, entries`** lists the parameters that are objects, as `(scope, parameter)`
-  pairs, with the names of named functions as a third element (`[(:Shared, :bc), (:upwind, :flux, "ic_sine"),
-  (:Sweep, :ic)]`; `Any[]` if there are none). Exports always write it. Files without it (older exports) still
-  load: they run their bundled sources and take the objects of the sources' configuration at the same parameters.
-  A method named `Objects` clashes with the new scope (like `Shared`, `Sweep` and `Config`): its parameters are
-  neither saved nor read. Older PDEStudio versions read the row as an inactive method `Objects`.
+- **CSV format: objects are `Object` rows** with the scopes of the `Simulation` rows (`Object, Shared, bc,
+  Wall(id=1)`, `Object, upwind, flux, …`, `Object, Sweep, ic, …`) instead of `Simulation` rows. Files of PDEStudio
+  0.8.0 (which listed them in a row `Simulation, Objects, entries`) are refused with an error: export them again.
+  Files of earlier versions read struct text as text.
+- **Loading a CSV with bundled sources is all or nothing:** a missing bundled copy (also if its original exists) or
+  a bundled source that fails is an error, instead of running the original or loading the values with a warning.
+  Deleting the row `Metadata, General, bundled_sources` loads a CSV without `Object` rows without its sources.
+- **A CSV can't replace an object:** a `Simulation` row for a parameter that is an object of the sources'
+  configuration (or, for simulation presets, of the bound configuration) is an error. A struct and its text have
+  the same identity, so the text would silently replace the struct.
+- **No more support for PDEStudioCore without `load_sources`** (the compat is 0.11) and for exports that bundled
+  their sources as `<export>_source_<i>.jl`.
 - **A configuration file ends with a `SimulationConfig` or a function without arguments** that returns one
   (`load_config_file!`, `set_sim_config!("file.jl")`, the bundled sources of a CSV). A function with arguments,
   also optional (`get_config(N = 12)`) or keyword ones, is refused with an error instead of being called with its

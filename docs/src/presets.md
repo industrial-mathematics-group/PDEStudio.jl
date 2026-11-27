@@ -76,16 +76,13 @@ The simulation rows a full (replace) preset contains:
 Text values are written as plain text (`upwind`); text that would read back as something else, such as `1e3`, is written in quotes. Numbers and vectors whose type the plain literal doesn't show are written with it: `1.5f0` (`Float32`), `Float16(0.1)`, `SA{Float64}[1.0, 2.0]` (an `SVector`), so they read back with their type.
 
 !!! note "Which values keep their type through a CSV file"
-    Read back with type and value: `Int` (`Int64`), `Float64`, `Float32`, `Float16` (also `Inf`/`NaN`), `Bool`,
-    `Char`, `Symbol`, text (any, including empty text, quotes, commas and newlines), `nothing`, `Rational`,
-    `Complex`, `SVector`s, tuples, vectors and matrices with their element type, and `Dict`s. Read back changed
-    (the data hash is the same, so cached results still load, but a re-run gets the changed value): other integer
-    types (`Int32`, `UInt8`, … become `Int64`), `MVector`/`SMatrix` (plain arrays), ranges (`0:0.5:1` becomes a
-    vector). Pairs keep their value, also inside tuples, vectors and `Dict`s. Structs, enums and functions are *objects*:
-    the CSV holds them as text (functions as `"Closure"`), an export lists them (`Simulation, Objects`), and a
-    reload takes them from the configuration that its bundled source files build (see *File Operations*); the
-    editors don't change them. Keep such parameters in the
-    configuration file rather than in a CSV, or give them a type from the list above. A visual preset uses the categories `Scene` (scopes `Plot`, `Layout`, `Camera`, `Labels`, `Exploration`) and `UI` (one scope per style group, e.g. `UI, export, animation_FPS, 30`). The axes are stored per variant (`x_axis_1d`, `y_axis_1d`, `x_axis_nd`, `y_axis_nd`, `z_axis_3d`); files from earlier versions use `x_axis`, `y_axis` and `z_axis`, which are read as the variant of the file's plot style. Keys are always the backend names, never display labels.
+    Simulation parameters are the values PDEStudioCore accepts: `Int` (`Int64`), `Float64`, `Float32`, `Float16`
+    (also `Inf`/`NaN`), `Bool`, `Char`, `Symbol`, text (any, including empty text, quotes, commas and newlines),
+    `nothing`, `SVector`s, tuples, pairs, vectors and matrices with their element type, `Dict`s, and structs with an
+    identity (`@param_struct`) and enums. A CSV reads the data among them back with value and type; ranges and
+    `MVector`/`SMatrix` come back as plain arrays (the data hash is the same). Structs, enums and containers holding
+    one are *objects*: the CSV holds them as text in `Object` rows, a reload takes them from the configuration that
+    its bundled source files build (see *File Operations*), and the editors don't change them. A visual preset uses the categories `Scene` (scopes `Plot`, `Layout`, `Camera`, `Labels`, `Exploration`) and `UI` (one scope per style group, e.g. `UI, export, animation_FPS, 30`). The axes are stored per variant (`x_axis_1d`, `y_axis_1d`, `x_axis_nd`, `y_axis_nd`, `z_axis_3d`); files from earlier versions use `x_axis`, `y_axis` and `z_axis`, which are read as the variant of the file's plot style. Keys are always the backend names, never display labels.
 
 !!! note
     Applying a *visual* preset never changes the simulation, and applying a *simulation* preset never changes the look. Loading a full export CSV (load button, drag & drop or `set_sim_config!("file.csv")`) applies both.

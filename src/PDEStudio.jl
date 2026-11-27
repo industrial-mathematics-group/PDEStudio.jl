@@ -146,7 +146,6 @@ Base.@kwdef mutable struct PlotManager
     method_filter::Symbol = :all                                              # methods listed by the Methods tab
     allowed_styles::Vector{Symbol} = Symbol[]                                 # plot styles the data allows (empty: all)
     pending_code_load::String = ""                                            # file that runs code (path#content hash), waiting for a second Load
-    source_failures::Vector{String} = String[]                                # bundled sources that failed in the last load
     source_note::String = ""                                                  # e.g. "cfg.jl changed since the export: …"
     source_origins::Dict{String, String} = Dict{String, String}()             # bundled copy => original (`_origin_of`)
     preset_kind::Symbol = :simulation                                         # presets listed in the Files tab

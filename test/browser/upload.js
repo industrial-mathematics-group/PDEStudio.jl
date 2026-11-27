@@ -72,7 +72,7 @@ async function browseWithoutGesture() {
     const s = await until("second click requested", s => /click Load again/.test(s.status));
     if (!s.path_box.endsWith("exp2.csv")) { throw new Error("path box: " + s.path_box); }
     await click("load");
-    await until("exp2 loaded with its sources", s => s.N === 24 && s.source_failures.length === 0 && /Loaded exp2/.test(s.status));
+    await until("exp2 loaded with its sources", s => s.N === 24 && /Loaded exp2/.test(s.status));
   });
   await step("without a recent click a panel asks for one; Choose file… opens the chooser", async () => {
     await browseWithoutGesture();

@@ -29,7 +29,7 @@ The load button turns **green** when the file was read; press *Run Simulation* t
 
 **File dialog:** *Browse…* uses the tools the operating system brings: AppleScript on macOS, PowerShell on Windows, `zenity` or `kdialog` on Linux (GNOME, KDE and most desktops install one of them; otherwise install `zenity`, or type the path or drop the file). `PDEStudio.FILE_DIALOG[]` can be replaced by any function returning a path.
 
-**In a browser (WGLMakie):** *Browse…* opens the browser's own file picker, and files can be dropped onto the studio; both **upload** the file to the computer running Julia, so a studio served from a remote compute node loads configurations from your own computer. The files are stored under `<save path>/Uploads/<name>/` and loaded like the *Load* button (files that run code ask for the second click). Choose (or drop) the files that belong together at once: a CSV **with the files of its `<name>_sources/` folder**, or a Julia file with the helpers it includes relative to `@__DIR__`; they are stored next to each other, where the loader finds them. Uploads are limited to 20 MB per file. If the browser doesn't open the picker right away (it only does so shortly after a click), a small panel asks for one more click on *Choose file…*.
+**In a browser (WGLMakie):** *Browse…* opens the browser's own file picker, and files can be dropped onto the studio; both **upload** the file to the computer running Julia, so a studio served from a remote compute node loads configurations from your own computer. The files are stored under `<save path>/Uploads/<name>/` and loaded like the *Load* button (files that run code ask for the second click). Choose (or drop) the files that belong together at once: a CSV **with the files of its `<name>_sources/` folder**, or a Julia file with the helpers it includes relative to `@__DIR__`; they are stored where the loader finds them (a CSV's source files in its `<name>_sources/` folder). Uploads are limited to 20 MB per file. If the browser doesn't open the picker right away (it only does so shortly after a click), a small panel asks for one more click on *Choose file…*.
 
 If the file needs more parameter sliders or other physical dimensions than the open window has, the buttons turn **orange**: the configuration is staged, and the next click on *Run Simulation* rebuilds the whole window with the new limits, applies the file and runs it. (Save your current look as a preset first if you want to keep it.) Without an open window, the limits are applied directly.
 
@@ -41,24 +41,31 @@ under their own file names.
 
 **The CSV holds the configuration, the sources hold the code and the objects.** Loading the CSV builds the
 configuration from its rows: the parameters, the methods and the active ones, the sweep, the reference and the
-post-processor. Values the CSV can only hold as text, *objects* such as a struct (a boundary condition), a function
-(an initial condition), an enum or a container holding one, come from the source files: the export lists them
-(`Simulation, Objects, entries`, e.g. `[(:Shared, :bc), (:upwind, :flux, "ic_sine"), (:Sweep, :ic)]`), and the
-loader takes each from the configuration that the bundled sources build (the value the last file returns), at the
-same parameter (shared, the same method, or the sweep) and with the text the CSV holds. Every function's text is
-`"Closure"`, so a named function is also checked by its name (the third element); anonymous functions and closures
-are matched by their parameter alone. A value whose text is too large or deep for the CSV parser (more than 10⁶
-elements, nesting deeper than 32) counts as an object, too. The list is authoritative: an entry removed from it by
-hand makes the loader read that value as text. Objects are never changed in the studio (the editors refuse them), so change them in
-the source file and load that again. If the configuration of the sources has no such value (the file changed it, or
-it is not there), loading fails with an error naming the parameter.
+post-processor. Values the CSV can only hold as text, *objects* such as a struct (a boundary condition), an enum or
+a container holding one, come from the source files. The export writes them as **`Object` rows** with the scopes of
+the `Simulation` rows (`Object, Shared, bc, Wall(id=1)`, `Object, upwind, flux, …`, `Object, Sweep, ic, …`), and
+the loader takes each from the configuration that the bundled sources build (the value the last file returns), at
+the same parameter (shared, the same method, or the sweep), and checks that it has the text the CSV holds. A value
+whose text is too large or deep for the CSV parser (more than 10⁶ elements, nesting deeper than 32) is an object,
+too. Objects are never changed in the studio (the editors refuse them), so change them in the source file and load
+that again. Loading fails with an error naming the parameter if:
 
-*   **A CSV whose parameters are all data runs no code at loading** (even with bundled sources): its bundled files
-    become the configuration's sources, which *Run Simulation* includes (as below).
-*   **A CSV with objects** runs its bundled sources at loading, and the last one must return the configuration (a
-    `SimulationConfig`, or a function without arguments that returns one).
-*   **CSV files of older versions** (without the `Objects` row) run their bundled sources at loading and take the
-    objects of their configuration where the CSV holds their text.
+*   the configuration of the sources has no such object there, or another one (the file changed it);
+*   a `Simulation` row sets a parameter that is an object of that configuration (a struct and its text have the
+    same identity, so the text would silently replace the struct; the same holds for simulation presets and the
+    bound configuration);
+*   a parameter has both a `Simulation` and an `Object` row.
+
+Functions are no parameters (PDEStudioCore can't tell runs apart by them; give them a name or a struct instead): an
+export of a configuration PDEStudioCore refuses warns that it can't run.
+
+*   **A CSV without `Object` rows runs no code at loading** (even with bundled sources): its bundled files become
+    the configuration's sources, which *Run Simulation* includes (as below). Deleting the row `Metadata, General,
+    bundled_sources` loads such a CSV without its sources.
+*   **A CSV with `Object` rows** runs its bundled sources at loading, and the last one must return the
+    configuration (a `SimulationConfig`, or a function without arguments that returns one).
+*   **A bundled file that is missing, or fails, is an error:** the file isn't loaded (also if the original of a
+    missing copy still exists). Restore the `<name>_sources/` folder, or fix what the file needs.
 
 The bundled sources run like this:
 
@@ -72,16 +79,7 @@ The bundled sources run like this:
     original (also after you edit it) until a `.jl` file is loaded;
 *   the configuration's sources are the originals that are unchanged and the copies of the others: *Run Simulation*
     includes them again in the same way, and a new export bundles them (recording the originals), so it reproduces
-    the old one. (With PDEStudioCore versions before `run_all_simulations(...; load_sources = false)`, *Run
-    Simulation* includes the sources as they are: once an original was edited or is gone, all copies are the
-    sources, and they run from `<name>_sources/`, where only bundled files are found. An `include` by absolute path,
-    or of the original of a missing copy, then runs the edited original.);
-*   a missing copy is replaced by its original, if that still exists (and the original becomes a source);
-*   if a copy fails, a CSV with objects can't be loaded (the error names the file); for older CSV files the load
-    does not stop: the **parameters come from the CSV**, and the status line names the file and the error. *Run
-    Simulation* includes the sources again, so restore what the file needs (e.g. a missing helper) and load the
-    export again, or remove the file from the sources (*Advanced* tab) and define the solvers otherwise (e.g. by
-    loading their package).
+    the old one.
 
 Configuration files that reload reliably, from the studio and from any bundled copy:
 
@@ -89,8 +87,8 @@ Configuration files that reload reliably, from the studio and from any bundled c
     that returns it (`() -> SimulationConfig(...)`, `get_config() = SimulationConfig(...)` followed by `get_config`;
     not `get_config(N = 12)`: a function with arguments is refused); nothing interactive (no `launch_plotter()`, no
     `display`).
-2.  **Objects in the configuration file:** structs, functions and other objects among the parameters are created by
-    the file that returns the configuration (or its helpers), never by the studio or the CSV.
+2.  **Objects in the configuration file:** structs and other objects among the parameters are created by the file
+    that returns the configuration (or its helpers), never by the studio or the CSV.
 3.  **No absolute paths:** include helper files relative to the file (`include("solvers.jl")` or
     `include(joinpath(@__DIR__, "solvers.jl"))`) and list them in `sources` too
     (`sources = [joinpath(@__DIR__, "solvers.jl")]`), so they are bundled with it.
