@@ -182,10 +182,11 @@ What has changed since the last release. Released versions are described in the
     Simulation*), with their folders, and a `blueprint.csv` that says what it holds. Exports with the same code
     share the folder. The CSV names it (`Metadata, General, blueprint`, `blueprint_digest`; the rows
     `bundled_sources` and `source_origins` are gone, and files that have them are refused: export them again);
-  - loading a CSV that names a blueprint checks the folder against its digest (a file edited, missing or added to
-    the list is an error: it runs as it was exported, or not at all), runs it on its own (its sources are the
-    copies, the originals are neither run nor compared, an `include` of a file outside the folder is refused before
-    it runs) and applies the CSV to the configuration it builds. The blueprint **always runs when the file loads**
+  - loading a CSV that names a blueprint checks the folder against its digest (it covers the files with their paths
+    and what builds the configuration; a file edited, missing or renamed, or a changed `blueprint.csv` is an error:
+    it runs as it was exported, or not at all), runs it on its own (its sources are the copies, the originals are
+    neither run nor compared, an `include` of any file the blueprint doesn't list is refused before it runs, and the
+    sources of a loaded export can't be changed) and applies the CSV to the configuration it builds. The blueprint **always runs when the file loads**
     (before: only for files with objects, otherwise at *Run Simulation*), and *Run Simulation* checks the folder
     again. So files included by an absolute path and data files read next to the original no longer work from a
     loaded export; load the `.jl` file to develop;

@@ -524,7 +524,7 @@ end
 The public entry point for loading visual themes.
 It checks if the requested `name` exists as a hardcoded `apply_plot_preset!` dispatch. If not, it loads the custom
 `<save path>/Presets/<name>.csv` template. Only the visual part of a file is applied (scene, UI styles, labels,
-exploration); simulation parameters and bundled source files are ignored, so a visual preset never changes the physics.
+exploration); simulation parameters and blueprints are ignored, so a visual preset never changes the physics.
 """
 function set_plot_preset!(name::Union{Symbol, AbstractString})
     name = Symbol(name)

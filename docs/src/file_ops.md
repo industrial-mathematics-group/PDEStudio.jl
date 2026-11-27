@@ -29,7 +29,7 @@ The load button turns **green** when the file was read; press *Run Simulation* t
 
 **File dialog:** *Browse…* uses the tools the operating system brings: AppleScript on macOS, PowerShell on Windows, `zenity` or `kdialog` on Linux (GNOME, KDE and most desktops install one of them; otherwise install `zenity`, or type the path or drop the file). `PDEStudio.FILE_DIALOG[]` can be replaced by any function returning a path.
 
-**In a browser (WGLMakie):** *Browse…* opens the browser's own file picker, and files can be dropped onto the studio; both **upload** the file to the computer running Julia, so a studio served from a remote compute node loads configurations from your own computer. The files are stored under `<save path>/Uploads/<name>/` and loaded like the *Load* button (files that run code ask for the second click). Choose (or drop) the files that belong together at once: a CSV **with the files of its blueprint folder** (the source files and its `blueprint.csv`, which tells the studio where each file belongs), or a Julia file with the helpers it includes relative to `@__DIR__`; they are stored where the loader finds them. Uploads are limited to 20 MB per file. If the browser doesn't open the picker right away (it only does so shortly after a click), a small panel asks for one more click on *Choose file…*.
+**In a browser (WGLMakie):** *Browse…* opens the browser's own file picker, and files can be dropped onto the studio; both **upload** the file to the computer running Julia, so a studio served from a remote compute node loads configurations from your own computer. The files are stored under `<save path>/Uploads/<name>/` and loaded like the *Load* button (files that run code ask for the second click). Choose (or drop) the files that belong together at once: a CSV **with the files of its blueprint folder** (the source files and its `blueprint.csv`, which tells the studio where each file belongs), or a Julia file with the helpers it includes relative to `@__DIR__`; they are stored where the loader finds them. A browser's file picker and a drop take files of one folder: a blueprint whose files lie in subfolders (`lib/solvers.jl`) can't be chosen together with its CSV. Copy such an export (the CSV and its blueprint folder) to the computer running Julia and load it there. Uploads are limited to 20 MB per file. If the browser doesn't open the picker right away (it only does so shortly after a click), a small panel asks for one more click on *Choose file…*.
 
 If the file needs more parameter sliders or other physical dimensions than the open window has, the buttons turn **orange**: the configuration is staged, and the next click on *Run Simulation* rebuilds the whole window with the new limits, applies the file and runs it. (Save your current look as a preset first if you want to keep it.) Without an open window, the limits are applied directly.
 
@@ -47,10 +47,13 @@ file and the content of the code, e.g. `dmr-3fa9c2e1/`:
     recorded when the configuration file is loaded and at every *Run Simulation*; no need to list them), each with
     its path relative to the folder they all lie in, so relative `include`s find the copies;
 *   `blueprint.csv`, which says what the folder holds: the sources in their order, the other files, what builds the
-    configuration (the last source, a function, or nothing) and the digest of the files (SHA-256).
+    configuration (the last source, a function, or nothing) and the digest (SHA-256) of all of it: the files with
+    their paths, and what builds the configuration. Changing any of it makes another blueprint.
 
 The eight digits in the folder's name are the start of that digest. Exports with the same code share the folder,
-exports with other code get another one, and nothing is ever overwritten with other content. The CSV names the
+exports with other code get another one, and a folder that holds another blueprint is never overwritten (the export
+fails instead). Keep blueprint folders byte for byte, also in git (`* -text` in a `.gitattributes`): converted line
+endings are other files. The CSV names the
 folder (`Metadata, General, blueprint`) and pins the digest (`blueprint_digest`).
 
 **Loading a CSV that names a blueprint** checks the folder (every file is there, and the files are the ones the
@@ -58,7 +61,8 @@ digest was made of: a blueprint runs as it was exported, or not at all), runs it
 configuration it builds:
 
 *   the folder runs **on its own**: its sources are the copies, the originals are not looked at, and an `include`
-    of a file outside the folder is refused before that file runs. To change the code, load the configuration's
+    of any file the blueprint doesn't list (outside the folder, or added to it later) is refused before that file
+    runs. The sources of a loaded export can't be changed (e.g. in the Advanced tab): load the `.jl` file for that. To change the code, load the configuration's
     `.jl` file instead: **a CSV reproduces, a `.jl` file develops** (and its next export gets a new folder);
 *   an **export** (`Metadata, General, mode, replace`) is the whole realization: the shared parameters, the sweep,
     the active methods and their parameters are the file's. The blueprint's other methods stay available in the
@@ -98,9 +102,9 @@ parameter if:
 
 *   the blueprint's configuration has no such object there, or another one, or the file has no blueprint that
     builds a configuration;
-*   a `Simulation` row sets a parameter that is an object of the blueprint's configuration (a struct and its text
-    have the same identity, so the text would silently replace the struct; the same holds for simulation presets
-    and the bound configuration);
+*   a `Simulation` row sets a parameter whose key is an object anywhere in the blueprint's configuration (shared,
+    a method or the sweep: a struct and its text have the same identity, so the text would silently replace the
+    struct; the same holds for simulation presets and the bound configuration);
 *   a parameter has both a `Simulation` and an `Object` row.
 
 Functions are no parameters (PDEStudioCore can't tell runs apart by them; give them a name or a struct instead): an
@@ -112,8 +116,10 @@ What a blueprint folder doesn't hold, and so can't use:
     loading is refused). Include relative to the file: `include("solvers.jl")`, `include(joinpath(@__DIR__, …))`;
 *   **data files** the code reads (meshes, tables): they are not copied. Keep them in a package, or build the data
     in code;
-*   **code that is loaded in other ways** than `include` (`evalfile`, `Base.include_string` on a text that is read):
-    it is neither recorded nor checked.
+*   **code that is loaded in other ways** than `include` (`Base.include_string` on a text that is read, an `include`
+    in another task such as `@async` or `Threads.@spawn`): it is neither recorded nor checked;
+*   **files that are only included in some runs** (`isfile(p) && include(p)`): only the files that were included when
+    the configuration was loaded or run are copied, and a loaded blueprint runs exactly the files it lists.
 
 A configuration that was bound as a value but lists source files (`SimulationConfig(…; sources = ["solvers.jl"])`
 in a script) gets a blueprint of code only: the folder runs when the export loads, and the CSV is the whole

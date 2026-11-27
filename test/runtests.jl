@@ -562,7 +562,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         # ... and the load: the files aren't the ones the blueprint was made with (nothing runs, nothing is bound)
         reset_manager!()
         err = load_error(joinpath(out2, "exp2.csv"))
-        @test err isa ArgumentError && occursin("not the ones it was made with", err.msg)
+        @test err isa ArgumentError && occursin("not the one it was made with", err.msg)
         @test isnothing(cfg()) && isnothing(PDEStudio.manager.blueprint) && @eval(bundle_listed()) == 24
         write(joinpath(bp2, "listed.jl"), listed)
         # a file of the folder that is missing, a folder that is missing or renamed to another digest
@@ -576,7 +576,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         csv2 = read(joinpath(out2, "exp2.csv"), String)
         write(joinpath(out2, "renamed.csv"), replace(csv2, "blueprint,$folder" => "blueprint,cfg-00000000"))
         err = load_error(joinpath(out2, "renamed.csv"))
-        @test err isa ArgumentError && occursin("not the ones it was made with", err.msg)
+        @test err isa ArgumentError && occursin("not the one it was made with", err.msg)
         mv(joinpath(out2, "cfg-00000000"), bp2)
         # the file pins its blueprint: another one under the name is refused
         write(joinpath(out2, "pinned.csv"), replace(csv2, digest => "0"^64))
@@ -806,6 +806,97 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         # an export of a configuration with a source that is missing fails (it couldn't be loaded again)
         cfg().sources = [joinpath(linkdir, "gone.jl")]
         @test_logs (:error, r"CSV Save Failed") match_mode = :any @test !PDEStudio.save_params_to_csv("gone", mktempdir(), Dict("Save Type" => "test"))
+        reset_manager!()
+    end
+
+    @testset "Blueprints: what the digest covers, files it doesn't list, objects in other scopes" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        empty!(PDEStudio._CONFIRMED_CODE)
+        srcdir, out = mktempdir(), mktempdir()
+        cfg() = PDEStudio.manager.active_config
+        general(csv) = PDEStudio._read_csv(csv)[2]["Metadata"]["General"]
+        load_error(csv) = try PDEStudio.load_and_apply_csv!(csv); nothing catch e; e end
+        run!() = PDEStudio._run_simulations(cfg(); force_overwrite = false)
+        write(joinpath(srcdir, "rv.jl"), """
+            struct ReviewTag; a::Int; end
+            PDEStudioCore.@param_struct ReviewTag
+            isfile(joinpath(@__DIR__, "added.jl")) && include("added.jl")
+            SimulationConfig(create_param_dict(:N => 12, :tag => ReviewTag(1), :sim_func_name => :advection_solver_1d),
+                             create_method_dict(:m => create_param_dict()), [:m])
+            """)
+        PDEStudio.load_config_file!(joinpath(srcdir, "rv.jl"))
+        @test PDEStudio.save_params_to_csv("a", out, Dict("Save Type" => "test"))
+        folder = general(joinpath(out, "a.csv"))["blueprint"]
+        bp = joinpath(out, folder)
+        PDEStudio.load_and_apply_csv!(joinpath(out, "a.csv"))
+        @test PDEStudio._code_confirmed(joinpath(out, "a.csv"))
+        # what builds the configuration belongs to the digest: a blueprint.csv that says another thing is refused, and
+        # isn't confirmed by the confirmation of the original
+        @eval Main review_sneaky_calls = 0
+        @eval Main review_sneaky() = (global review_sneaky_calls += 1; nothing)
+        manifest = read(joinpath(bp, "blueprint.csv"), String)
+        write(joinpath(bp, "blueprint.csv"), replace(manifest, "builds,file" => "builds,function\nBlueprint,General,function,review_sneaky"))
+        @test !PDEStudio._code_confirmed(joinpath(out, "a.csv"))
+        err = load_error(joinpath(out, "a.csv"))
+        @test err isa ArgumentError && occursin("not the one it was made with", err.msg) && Main.review_sneaky_calls == 0
+        write(joinpath(bp, "blueprint.csv"), manifest)
+        # the same code built in another way (a configuration bound as a value: code only) is another blueprint, in
+        # another folder: the first export keeps loading
+        set_sim_config!(PDEStudio.manager.active_config)
+        @test isnothing(PDEStudio.manager.blueprint)
+        @test PDEStudio.save_params_to_csv("b", out, Dict("Save Type" => "test"))
+        @test general(joinpath(out, "b.csv"))["blueprint"] != folder
+        PDEStudio.load_and_apply_csv!(joinpath(out, "a.csv"))
+        @test cfg().shared[:tag].a == 1
+        # a folder of that name that holds another blueprint is never overwritten: the export fails
+        write(joinpath(bp, "blueprint.csv"), replace(manifest, "builds,file" => "builds,nothing"))
+        PDEStudio.load_config_file!(joinpath(srcdir, "rv.jl"))
+        @test_logs (:error, r"CSV Save Failed") match_mode = :any @test !PDEStudio.save_params_to_csv("c", out, Dict("Save Type" => "test"))
+        @test read(joinpath(bp, "blueprint.csv"), String) != manifest   # (left as it was)
+        write(joinpath(bp, "blueprint.csv"), manifest)
+        # a file added to the folder later doesn't run: the blueprint runs exactly the files it lists
+        write(joinpath(bp, "added.jl"), "global review_added_ran = true\n")
+        @eval Main review_added_ran = false
+        err = load_error(joinpath(out, "a.csv"))
+        @test err isa ArgumentError && occursin("added.jl", err.msg) && !Main.review_added_ran
+        rm(joinpath(bp, "added.jl"))
+        # the sources of a loaded export can't be changed (code the digest doesn't pin): Run and the export say so
+        PDEStudio.load_and_apply_csv!(joinpath(out, "a.csv"))
+        push!(cfg().sources, joinpath(srcdir, "rv.jl"))
+        err = try run!(); nothing catch e; e end
+        @test err isa ArgumentError && occursin("lists others now", err.msg)
+        @test_logs (:error, r"CSV Save Failed") match_mode = :any @test !PDEStudio.save_params_to_csv("d", out, Dict("Save Type" => "test"))
+        # a key that is an object in one scope can't be set as text in another one (it would have the same identity)
+        for (scope, line) in (("method", "Simulation,m,tag,ReviewTag(a=1)"), ("sweep", "Simulation,Sweep,tag,\"Any[\"\"ReviewTag(a=1)\"\"]\""))
+            write(joinpath(out, "cross.csv"), "Category,Scope,Parameter,Value\nMetadata,General,blueprint,$folder\n$line\n")
+            err = load_error(joinpath(out, "cross.csv"))
+            @test err isa ArgumentError && occursin("can't replace an object", err.msg) && occursin("Shared → tag", err.msg)
+        end
+
+        # an export before any run copies the files the sources include (a function's sources, a configuration bound as
+        # a value: they run for the export)
+        fsrc = mktempdir()
+        write(joinpath(fsrc, "inner.jl"), "review_inner() = 3\n")
+        write(joinpath(fsrc, "helper.jl"), "include(\"inner.jl\")\n")
+        @eval Main review_fn_config() = SimulationConfig(create_param_dict(:N => 8, :sim_func_name => :advection_solver_1d),
+                                                        create_method_dict(:m => create_param_dict()), [:m];
+                                                        sources = [$(joinpath(fsrc, "helper.jl"))])
+        reset_manager!()
+        set_sim_config!(Main.review_fn_config)
+        @test PDEStudio.save_params_to_csv("fn", out, Dict("Save Type" => "test"))
+        fn_folder = joinpath(out, general(joinpath(out, "fn.csv"))["blueprint"])
+        @test isfile(joinpath(fn_folder, "inner.jl"))
+        rm(fsrc; recursive = true)
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "fn.csv"))
+        @test cfg().shared[:N] == 8
+
+        # uploads: a name without a stem, or with a drive, is refused (its folder would be outside the uploads folder)
+        for bad in ("...csv", "..csv", "C:x.csv", "a:b.jl")
+            @test isnothing(PDEStudio.receive_upload!([bad => Vector{UInt8}("Category,Scope,Parameter,Value\n")]))
+        end
+        @test !isdir(joinpath(get_save_path(), "data", "blueprint.csv"))
         reset_manager!()
     end
 

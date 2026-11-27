@@ -352,7 +352,7 @@ end
     _request_load(path)
 
 Loads a configuration file from the Files tab (Load, drop, Browse…). A file that runs code (a Julia file, or a CSV
-with bundled sources) needs a second request for the same file: the first one only shows a warning in the status
+that names a blueprint) needs a second request for the same file: the first one only shows a warning in the status
 line.
 """
 function _request_load(path::AbstractString)
@@ -564,7 +564,10 @@ if the files contain no single configuration.
 """
 function receive_upload!(files::AbstractVector)
     names = [basename(replace(String(first(f)), '\\' => '/')) for f in files]   # never a path from the browser
-    if isempty(files) || any(n -> n in ("", ".", ".."), names)
+    # (no names that are folders or drives, nor a configuration whose name has no stem: its folder would be the
+    # uploads folder's parent)
+    bad(n) = n in ("", ".", "..") || occursin(':', n) || first(splitext(n)) in ("", ".", "..")
+    if isempty(files) || any(bad, names)
         _report(:warn, "Nothing was uploaded.")
         return nothing
     end
@@ -598,7 +601,8 @@ function receive_upload!(files::AbstractVector)
             nothing
         end
         manifest = findfirst(==(_BLUEPRINT_FILE), names)
-        if !isnothing(folder) && !isnothing(manifest) && !isabspath(folder) && !startswith(normpath(folder), "..")
+        if !isnothing(folder) && !isnothing(manifest) && !isabspath(folder) && !startswith(normpath(folder), "..") &&
+           !occursin(':', folder) && !occursin(r"[/\\]", normpath(folder))
             target = joinpath(dir, normpath(folder), _BLUEPRINT_FILE)
             mkpath(dirname(target))
             write(target, last(files[manifest]))
@@ -612,7 +616,7 @@ function receive_upload!(files::AbstractVector)
                 listed = get(general, key, String[])
                 for b in (listed isa AbstractVector ? listed : [listed])
                     rel = normpath(string(b))
-                    (isabspath(rel) || startswith(rel, "..")) && continue
+                    (isabspath(rel) || startswith(rel, "..") || occursin(':', rel)) && continue
                     where_ = joinpath(normpath(folder), rel)
                     if haskey(placed, basename(rel)) && placed[basename(rel)] != where_
                         _report(:warn, "Not uploaded: the blueprint of $(names[main]) has two files named " *
@@ -625,11 +629,16 @@ function receive_upload!(files::AbstractVector)
             end
         end
     end
-    for (i, (name, f)) in enumerate(zip(names, files))
+    inside(p) = startswith(normpath(abspath(p)), normpath(abspath(dir)) * Base.Filesystem.path_separator)
+    targets = [joinpath(dir, get(placed, name, name)) for name in names]
+    if !all(inside, targets)
+        _report(:warn, "Not uploaded: a file of $(names[main]) would be stored outside $(dir).")
+        return nothing
+    end
+    for (i, f) in enumerate(files)
         i == main && continue
-        target = joinpath(dir, get(placed, name, name))
-        mkpath(dirname(target))
-        write(target, last(f))
+        mkpath(dirname(targets[i]))
+        write(targets[i], last(f))
     end
     manager.pending_code_load = ""   # every upload asks for its own confirmation
     @info "Uploaded $(join(names, ", ")) to $dir"
