@@ -66,6 +66,14 @@ What has changed since the last release. Released versions are described in the
   statistics (`statistics`), and loading it warns about those the session doesn't register.
 
 ### Fixed
+- **Stat presets in a blueprint:** `set_stat_preset!` in a source included a file of PDEStudioCore, which an export
+  recorded (the blueprint folder got machine paths) and a load refused. Files a package includes into itself are
+  no longer recorded nor refused (PDEStudioCore).
+- **A blueprint that loads a package that sets the target module** (`using HyperCloud`) in a session without it: the
+  builder it defines is looked up where the blueprint's files ran, then in the target module (before: "isn't a
+  function that the target module HyperCloud defines").
+- **`launch_plotter()` with computing off** after a CSV was loaded shows what is stored and lists the missing runs, as
+  *Run Simulation* does (before: "Ready.", nothing listed).
 - **CSV files: pairs, and `Dict`s of `Float32`, `SVector`s etc.** (`:a => 1`, `Dict(:a => 1.5f0)`) are written as
   literals that read back with value and type (before, a pair as `Pair(first=…, second=…)`, which read back as text,
   and such `Dict`s with other value types). The data hash is unchanged. `nothing` and `missing` inside a container
@@ -196,7 +204,9 @@ What has changed since the last release. Released versions are described in the
     Simulation presets in `replace` mode keep the bound configuration's other methods in the same way;
   - a configuration that a function builds: `launch_plotter(f)` / `set_sim_config!(f)` (the function, not its
     result) remember the function as the blueprint (`Metadata, General, blueprint_function`), and loading such an
-    export calls it again, so configurations of packages get their objects back;
+    export calls it again, so configurations of packages get their objects back. With source files, the folder holds
+    the code (`builds, code`) and the CSV names the builder, so several builders of the same code (variants) share
+    one folder. Folders of PDEStudio 0.9.0 that name their function (`builds, function`) are refused: export again;
   - a CSV without a blueprint holds values for solvers of packages and runs no code (as before); it can't hold
     objects;
   - in the window, the question before code runs is asked once per blueprint and session.

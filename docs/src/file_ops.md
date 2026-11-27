@@ -47,7 +47,8 @@ file and the content of the code, e.g. `dmr-3fa9c2e1/`:
     recorded when the configuration file is loaded and at every *Run Simulation*; no need to list them), each with
     its path relative to the folder they all lie in, so relative `include`s find the copies;
 *   `blueprint.csv`, which says what the folder holds: the sources in their order, the other files, what builds the
-    configuration (the last source, a function, or nothing) and the digest (SHA-256) of all of it: the files with
+    configuration (`file`: the last source; `code`: nothing in the folder, the CSV or a function it names) and the
+    digest (SHA-256) of all of it: the files with
     their paths, and what builds the configuration. Changing any of it makes another blueprint.
 
 The eight digits in the folder's name are the start of that digest. Exports with the same code share the folder,
@@ -82,11 +83,17 @@ configuration it builds:
     loads without another click;
 *   *Run Simulation* checks the folder again: a file changed since the load stops the run.
 
-**A function as the blueprint.** A configuration that a function of a package builds has no file. Bind the function
-itself, `launch_plotter(test_advection_1d)` or `set_sim_config!(my_package_config)` (HyperCloud's `@plot name` does):
-exports name it (`Metadata, General, blueprint_function`), and loading one calls it again. The function is found by
-its name in the target module (`set_target_module!`), like solvers. A configuration bound as a value
-(`launch_plotter(test_advection_1d())`) has no blueprint: its exports hold values only.
+**A function as the blueprint.** Bind the function that builds the configuration, not its result:
+`launch_plotter(test_advection_1d)` or `set_sim_config!(my_config)` (HyperCloud's `@plot name` does). Exports name
+it (`Metadata, General, blueprint_function`), and loading one calls it again, so configurations of packages, which
+have no file, get their objects back. If the configuration lists source files (e.g. a file that defines several
+builders, one per variant), the blueprint folder holds that code, and the CSV names the builder: **several builders
+of the same code share one folder** (the folder's `blueprint.csv` says `builds, code`). Loading runs the folder's
+files, then calls the builder. It is looked up where the files ran first (a file may load a package that sets
+another target module, as `using HyperCloud` does), then in the target module. Each builder is confirmed on its own.
+The function must be found again by its name: one that the target module defines (like solvers), or one that the
+configuration's source files define. A configuration bound as a value (`launch_plotter(test_advection_1d())`) has no
+blueprint: its exports hold values only.
 
 **A CSV without a blueprint** holds values for solvers of packages: it loads without running code, in a session
 that has the packages loaded. It can't hold objects.
