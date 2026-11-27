@@ -270,14 +270,16 @@ end
 Binds the configuration that the function `builder` builds (a function without arguments that returns a
 `SimulationConfig`, e.g. `set_sim_config!(test_advection_1d)`, without calling it yourself) and remembers the
 function as the configuration's *blueprint*: exports name it (`Metadata, General, blueprint_function`), and loading
-such an export calls it again, so the export gets its objects (structs such as boundary conditions) back although
-the configuration has no source file. The function must be one the target module defines (`set_target_module!`; or
-one of PDEStudioCore's examples), found by its name; any other function (an anonymous one, a local one) is bound
-like the configuration it returns. Returns the bound configuration.
+such an export calls it again (after the configuration's source files, copied into its blueprint folder, ran), so
+the export gets its objects (structs such as boundary conditions) back. Several builders of the same code share one
+blueprint folder; the CSV names its builder. The function must be found again by its name: one the target module
+defines (`set_target_module!`; or one of PDEStudioCore's examples), or one the configuration's source files define.
+Any other function (an anonymous one, a local one, one defined in the REPL) is bound like the configuration it
+returns. Returns the bound configuration.
 """
 function set_sim_config!(builder::Function)
     config = to_simulation_config(builder, string(nameof(builder)))
-    blueprint = _function_blueprint(builder)
+    blueprint = _function_blueprint(builder, config)
     bound = set_sim_config!(config)
     manager.blueprint = blueprint
     return bound
@@ -364,8 +366,9 @@ end
 
 function launch_plotter(builder::Function; kwargs...)
     # (a function that builds the configuration: bound as `set_sim_config!(builder)` binds it, with its blueprint)
-    fig = launch_plotter(to_simulation_config(builder, string(nameof(builder))); kwargs...)
-    manager.blueprint = _function_blueprint(builder)
+    config = to_simulation_config(builder, string(nameof(builder)))
+    fig = launch_plotter(config; kwargs...)
+    manager.blueprint = _function_blueprint(builder, config)
     return fig
 end
 
@@ -375,7 +378,8 @@ end
 Builds the studio window and returns its `Figure` (show it with `display`, or use [`@launch`](@ref), which does).
 
 - `compute = false`: compute nothing, show what is stored (missing runs stay gaps and are listed); sets
-  [`set_compute!`](@ref) for the session (`nothing` keeps the setting).
+  [`set_compute!`](@ref) for the session (`nothing` keeps the setting). With computing off, a configuration bound
+  before (`set_sim_config!`, e.g. a loaded CSV) is shown right away, as with *Run Simulation*.
 - `style`: the plot style to start with, a group (`:lines`, `:scatter`, `:contour`, `:heatmap`, `:volume`,
   `:particles`: its first style) or a style (e.g. `:heatmap_surface`, `:contour_3d`, `:particles_2d`). The axes
   follow from the data: a 2D style shows `x` and `y`, or `x` and `t` for 1D data. The particle styles draw the data
@@ -429,6 +433,10 @@ function launch_plotter(config::Union{Nothing, SimulationConfig} = nothing; styl
     if !isnothing(config)
         set_sim_config!(config)
         manager.launch_run = launch_run   # (what the status line reports after the window's first run)
+        force_simulation()
+    elseif !isnothing(manager.active_config) && !_COMPUTE[]
+        # (a configuration bound before, e.g. a loaded CSV: with computing off, the window shows what is stored and lists
+        # the missing runs, as Run Simulation does; nothing is computed or written)
         force_simulation()
     end
     return master_fig 

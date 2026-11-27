@@ -727,7 +727,8 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         err = load_error(joinpath(out, "nofn.csv"))
         @test err isa ArgumentError && occursin("no_such_blueprint_fn", err.msg)
 
-        # a function with source files (helpers it lists): the blueprint is their folder and the function
+        # a function with source files (helpers it lists): the blueprint is their folder (code only) and the function,
+        # which the CSV names
         srcdir = mktempdir()
         write(joinpath(srcdir, "fn_helper.jl"), "global fn_helper_runs = (@isdefined(fn_helper_runs) ? fn_helper_runs : 0) + 1\n")
         @eval Main fn_sources_config() = SimulationConfig(create_param_dict(:N => 8, :sim_func_name => :advection_solver_1d),
@@ -736,9 +737,9 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         set_sim_config!(Main.fn_sources_config)
         @test PDEStudio.save_params_to_csv("fn_src", out, Dict("Save Type" => "test"))
         folder = general(joinpath(out, "fn_src.csv"))["blueprint"]
-        @test startswith(folder, "fn_sources_config-") && !haskey(general(joinpath(out, "fn_src.csv")), "blueprint_function")
+        @test startswith(folder, "fn_helper-") && general(joinpath(out, "fn_src.csv"))["blueprint_function"] == "fn_sources_config"
         said = PDEStudio._read_csv(joinpath(out, folder, "blueprint.csv"))[2]["Blueprint"]["General"]
-        @test said["builds"] == "function" && said["function"] == "fn_sources_config"
+        @test said["builds"] == "code" && !haskey(said, "function")
         rm(srcdir; recursive = true)
         reset_manager!()
         include(joinpath(out, folder, "fn_helper.jl")); n = @eval(fn_helper_runs)
@@ -753,7 +754,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
                                          create_method_dict(:m => create_param_dict()), [:m]; sources = [joinpath(codedir, "code.jl")]))
         @test PDEStudio.save_params_to_csv("code", out, Dict("Save Type" => "test"))
         code_folder = general(joinpath(out, "code.csv"))["blueprint"]
-        @test PDEStudio._read_csv(joinpath(out, code_folder, "blueprint.csv"))[2]["Blueprint"]["General"]["builds"] == "nothing"
+        @test PDEStudio._read_csv(joinpath(out, code_folder, "blueprint.csv"))[2]["Blueprint"]["General"]["builds"] == "code"
         reset_manager!()
         include(joinpath(codedir, "code.jl")); n = @eval(code_only_runs)
         PDEStudio.load_and_apply_csv!(joinpath(out, "code.csv"))
@@ -836,11 +837,15 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @eval Main review_sneaky_calls = 0
         @eval Main review_sneaky() = (global review_sneaky_calls += 1; nothing)
         manifest = read(joinpath(bp, "blueprint.csv"), String)
-        write(joinpath(bp, "blueprint.csv"), replace(manifest, "builds,file" => "builds,function\nBlueprint,General,function,review_sneaky"))
+        write(joinpath(bp, "blueprint.csv"), replace(manifest, "builds,file" => "builds,code"))
         @test !PDEStudio._code_confirmed(joinpath(out, "a.csv"))
         err = load_error(joinpath(out, "a.csv"))
-        @test err isa ArgumentError && occursin("not the one it was made with", err.msg) && Main.review_sneaky_calls == 0
+        @test err isa ArgumentError && occursin("not the one it was made with", err.msg)
         write(joinpath(bp, "blueprint.csv"), manifest)
+        # ... and a CSV that names a function for it is refused (the folder's last source builds the configuration)
+        write(joinpath(out, "a_fn.csv"), read(joinpath(out, "a.csv"), String) * "Metadata,General,blueprint_function,review_sneaky\n")
+        err = load_error(joinpath(out, "a_fn.csv"))
+        @test err isa ArgumentError && occursin("built in one way", err.msg) && Main.review_sneaky_calls == 0
         # the same code built in another way (a configuration bound as a value: code only) is another blueprint, in
         # another folder: the first export keeps loading
         set_sim_config!(PDEStudio.manager.active_config)
@@ -897,6 +902,67 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             @test isnothing(PDEStudio.receive_upload!([bad => Vector{UInt8}("Category,Scope,Parameter,Value\n")]))
         end
         @test !isdir(joinpath(get_save_path(), "data", "blueprint.csv"))
+        reset_manager!()
+    end
+
+    @testset "Blueprints: several builders of one code share a folder; the builder is looked up where the code ran" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        empty!(PDEStudio._CONFIRMED_CODE)
+        srcdir, out = mktempdir(), mktempdir()
+        cfg() = PDEStudio.manager.active_config
+        general(csv) = PDEStudio._read_csv(csv)[2]["Metadata"]["General"]
+        load_error(csv) = try PDEStudio.load_and_apply_csv!(csv); nothing catch e; e end
+        # one file with two builders (variants), as a study writes them; it also loads a "package" that sets another
+        # target module when it loads (as HyperCloud's `__init__` does)
+        @eval Main module VariantsOtherTarget using PDEStudio end   # (a package that reexports PDEStudioCore, as HyperCloud does)
+        write(joinpath(srcdir, "variants.jl"), """
+            set_target_module!(Main.VariantsOtherTarget)
+            struct VariantTag; a::Int; end
+            PDEStudioCore.@param_struct VariantTag
+            variant_cfg(n) = SimulationConfig(create_param_dict(:N => n, :tag => VariantTag(n), :sim_func_name => :advection_solver_1d),
+                                              create_method_dict(:m => create_param_dict()), [:m]; sources = [@__FILE__])
+            variant_a() = variant_cfg(10)
+            variant_b() = variant_cfg(20)
+            variant_a
+            """)
+        include(joinpath(srcdir, "variants.jl"))
+        set_target_module!(Main)
+        set_sim_config!(Main.variant_a)
+        @test PDEStudio.manager.blueprint.builds === :function           # (the sources define it)
+        @test PDEStudio.save_params_to_csv("a", out, Dict("Save Type" => "test"))
+        set_sim_config!(Main.variant_b)
+        @test PDEStudio.save_params_to_csv("b", out, Dict("Save Type" => "test"))
+        set_target_module!(Main)   # (the export ran the sources, which switched it again)
+        # the two exports share the folder (the code), and name their builders
+        @test general(joinpath(out, "a.csv"))["blueprint"] == general(joinpath(out, "b.csv"))["blueprint"]
+        @test (general(joinpath(out, "a.csv"))["blueprint_function"], general(joinpath(out, "b.csv"))["blueprint_function"]) ==
+              ("variant_a", "variant_b")
+        @test count(startswith("variants-"), readdir(out)) == 1
+        # loading runs the code (which switches the target module) and finds the builder where the code ran
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "b.csv"))
+        @test cfg().shared[:N] == 20 && cfg().shared[:tag].a == 20 && PDEStudio.manager.blueprint.func === :variant_b
+        @test get_target_module() === Main.VariantsOtherTarget
+        set_target_module!(Main)
+        # each builder is confirmed on its own: the same folder with another builder asks again
+        @test PDEStudio._code_confirmed(joinpath(out, "b.csv")) && !PDEStudio._code_confirmed(joinpath(out, "a.csv"))
+        # a folder whose last source builds the configuration can't take a builder from the CSV; a 0.9.0 folder that
+        # names its function is refused
+        write(joinpath(srcdir, "file_cfg.jl"), "SimulationConfig(create_param_dict(:N => 5, :sim_func_name => :advection_solver_1d), " *
+                                             "create_method_dict(:m => create_param_dict()), [:m])\n")
+        PDEStudio.load_config_file!(joinpath(srcdir, "file_cfg.jl"))
+        @test PDEStudio.save_params_to_csv("f", out, Dict("Save Type" => "test"))
+        write(joinpath(out, "f_fn.csv"), read(joinpath(out, "f.csv"), String) * "Metadata,General,blueprint_function,variant_a\n")
+        err = load_error(joinpath(out, "f_fn.csv"))
+        @test err isa ArgumentError && occursin("built in one way", err.msg)
+        folder = joinpath(out, general(joinpath(out, "a.csv"))["blueprint"])
+        manifest = read(joinpath(folder, "blueprint.csv"), String)
+        write(joinpath(folder, "blueprint.csv"), replace(manifest, "builds,code" => "builds,function\nBlueprint,General,function,variant_a"))
+        err = load_error(joinpath(out, "a.csv"))
+        @test err isa ArgumentError && occursin("PDEStudio 0.9.0", err.msg)
+        write(joinpath(folder, "blueprint.csv"), manifest)
+        set_target_module!(Main)
         reset_manager!()
     end
 
@@ -3152,6 +3218,21 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         set_sim_config!(joinpath(root, "built.csv"))
         @test manager.active_config.shared[:N] == 44 && manager.blueprint.func === :test_advection_1d
         @test Set(keys(manager.active_config.methods)) == Set(keys(test_advection_1d().methods))
+
+        # 10. With computing off, a window opened after a CSV was loaded shows what is stored and lists the missing runs
+        #     (N = 44 was never run), as Run Simulation does; nothing is computed
+        set_compute!(false)
+        try
+            reset_plotter!()
+            set_sim_config!(joinpath(root, "built.csv"))
+            fig = launch_plotter()
+            t0 = time()
+            while isempty(manager.missing_runs) && time() - t0 < 60; sleep(0.1); end
+            @test !isempty(manager.missing_runs) && all(r -> r[:N] == 44, manager.missing_runs)
+            @test !any(does_sim_data_exist, manager.missing_runs) && manager.blueprint.func === :test_advection_1d
+        finally
+            set_compute!(true)
+        end
     end
 
     # =========================================================================
