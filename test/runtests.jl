@@ -476,12 +476,13 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test length(PDEStudio.manager.active_config.sources) == 2
     end
 
-    @testset "Bundled sources: an export's bundle runs on its own" begin
+    @testset "Blueprints: an export is a realization of a blueprint that runs on its own" begin
         set_save_path!(mktempdir())
         reset_manager!()
+        empty!(PDEStudio._CONFIRMED_CODE)
         srcdir = mktempdir()
         # a configuration file that includes a helper in a subfolder (which includes another one) without listing them,
-        # and lists a second helper; it holds an object, so a reload runs the bundle
+        # and lists a second helper; it holds an object
         function write_sources(n)
             mkpath(joinpath(srcdir, "lib"))
             write(joinpath(srcdir, "lib", "inner.jl"), "bundle_inner() = $n\n")
@@ -498,122 +499,272 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
                 """)
         end
         cfg() = PDEStudio.manager.active_config
-        general(csv) = PDEStudio.parse_csv_to_dict(csv)["Metadata"]["General"]
-        run!() = PDEStudio._run_simulations(cfg(); force_overwrite = false)   # as Run Simulation
+        general(csv) = PDEStudio._read_csv(csv)[2]["Metadata"]["General"]          # (the cells as text)
+        blueprint_file(dir) = PDEStudio.parse_csv_to_dict(joinpath(dir, "blueprint.csv"))["Blueprint"]["General"]
+        run!() = PDEStudio._run_simulations(cfg(); force_overwrite = false)       # as Run Simulation
+        load_error(csv) = try PDEStudio.load_and_apply_csv!(csv); nothing catch e; e end
         write_sources(24)
         PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
         # the sources are the listed files (the configuration's own last); the files it includes are recorded
         @test realpath.(cfg().sources) == realpath.(joinpath.(srcdir, ["listed.jl", "cfg.jl"]))
         @test realpath.(PDEStudio._source_extras(cfg())) == realpath.(joinpath.(srcdir, "lib", ["helper.jl", "inner.jl"]))
+        @test PDEStudio.manager.blueprint.builds === :file && isempty(PDEStudio.manager.blueprint.dir)
         out1 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out1, Dict("Save Type" => "test"))
-        # the bundle keeps the folders: the sources, and the files they include (which are no sources)
-        bundle1 = joinpath(out1, "exp_sources")
-        @test all(isfile, joinpath.(bundle1, ["cfg.jl", "listed.jl", joinpath("lib", "helper.jl"), joinpath("lib", "inner.jl")]))
+        # the export names its blueprint: a folder named after its content, which says what it holds
         meta = general(joinpath(out1, "exp.csv"))
-        @test meta["bundled_sources"] == ["exp_sources/listed.jl", "exp_sources/cfg.jl"]
-        @test meta["bundled_files"] == ["exp_sources/lib/helper.jl", "exp_sources/lib/inner.jl"]
-        @test !haskey(meta, "source_origins")
-        # the originals were edited since: the reload runs the bundle only, its copies are the sources
+        folder = meta["blueprint"]
+        digest = meta["blueprint_digest"]
+        bp1 = joinpath(out1, folder)
+        @test occursin(r"^cfg-[0-9a-f]{8}$", folder) && length(digest) == 64 && startswith(digest, folder[5:end])
+        @test meta["mode"] == "replace" && !haskey(meta, "bundled_sources") && !haskey(meta, "blueprint_function")
+        @test all(isfile, joinpath.(bp1, ["cfg.jl", "listed.jl", joinpath("lib", "helper.jl"), joinpath("lib", "inner.jl")]))
+        said = blueprint_file(bp1)
+        @test said["sources"] == ["listed.jl", "cfg.jl"] && said["files"] == ["lib/helper.jl", "lib/inner.jl"]
+        @test said["builds"] == "file" && PDEStudio._read_csv(joinpath(bp1, "blueprint.csv"))[2]["Blueprint"]["General"]["digest"] == digest
+        # another export of the same code (other values) shares the folder
+        cfg().shared[:N] = 30
+        @test PDEStudio.save_params_to_csv("exp_b", out1, Dict("Save Type" => "test"))
+        @test general(joinpath(out1, "exp_b.csv"))["blueprint"] == folder
+        @test count(startswith("cfg-"), readdir(out1)) == 1
+        # the originals were edited since: the reload runs the blueprint only, its copies are the sources
         write_sources(25)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out1, "exp.csv"))
         @test cfg().shared[:N] == 24 && cfg().shared[:tag].a == 24 && @eval(bundle_N()) == 24 && @eval(bundle_listed()) == 24
-        @test cfg().sources == joinpath.(bundle1, ["listed.jl", "cfg.jl"])
-        @test PDEStudio.manager.bundle_dir == bundle1 && PDEStudio._bundle_dir(cfg()) == bundle1
-        # ... and so does Run Simulation; the next export reproduces the bundle (with the files it includes)
+        @test cfg().sources == joinpath.(bp1, ["listed.jl", "cfg.jl"])
+        @test PDEStudio.manager.blueprint.dir == bp1 && PDEStudio._blueprint_dir(cfg()) == bp1
+        @test PDEStudio.manager.blueprint.digest == digest && digest in PDEStudio._CONFIRMED_CODE
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out1, "exp_b.csv"))
+        @test cfg().shared[:N] == 30 && cfg().shared[:tag].a == 24      # (the other realization of the blueprint)
+        # ... and so does Run Simulation; the next export elsewhere copies the same blueprint
         include(joinpath(srcdir, "lib", "inner.jl"))   # (the edited original, meanwhile)
         @test @eval(bundle_N()) == 25
         run!()
         @test @eval(bundle_N()) == 24 && does_sim_data_exist(only(generate_tasks(cfg())))
         out2 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp2", out2, Dict("Save Type" => "test"))
-        bundle2 = joinpath(out2, "exp2_sources")
-        @test general(joinpath(out2, "exp2.csv"))["bundled_files"] == ["exp2_sources/lib/helper.jl", "exp2_sources/lib/inner.jl"]
-        @test read(joinpath(bundle2, "lib", "inner.jl"), String) == "bundle_inner() = 24\n"
+        bp2 = joinpath(out2, folder)
+        @test general(joinpath(out2, "exp2.csv"))["blueprint"] == folder && general(joinpath(out2, "exp2.csv"))["blueprint_digest"] == digest
+        @test read(joinpath(bp2, "lib", "inner.jl"), String) == "bundle_inner() = 24\n" && blueprint_file(bp2) == said
         # without the originals and the first export, the second one still loads and runs
         rm(srcdir; recursive = true); rm(out1; recursive = true)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv"))
         @test cfg().shared[:tag].a == 24
         run!()
-        # Run Simulation asks again if the bundle changed since it was loaded (once: the next click runs it)
-        @test !PDEStudio._bundle_changed!()
-        write(joinpath(bundle2, "listed.jl"), "bundle_listed() = 26\n")
-        @test PDEStudio._bundle_changed!() && !PDEStudio._bundle_changed!()
-        run!()
-        @test @eval(bundle_listed()) == 26
-        # a bundle that includes a file from outside is refused before that file runs (at loading, and at a run)
-        outside = joinpath(mktempdir(), "outside.jl")
-        write(outside, "global bundle_outside_ran = true\n")
-        @eval global bundle_outside_ran = false
-        good = read(joinpath(bundle2, "cfg.jl"), String)
-        write(joinpath(bundle2, "cfg.jl"), "include($(repr(outside)))\n" * good)
-        err = try run!(); nothing catch e; PDEStudio._load_error(e) end
-        @test err isa ArgumentError && occursin("from outside", err.msg) && !@eval(bundle_outside_ran)
+        # a blueprint runs as it was exported, or not at all: a file edited after the load stops Run Simulation,
+        listed = read(joinpath(bp2, "listed.jl"), String)
+        write(joinpath(bp2, "listed.jl"), "bundle_listed() = 26\n")
+        err = try run!(); nothing catch e; e end
+        @test err isa ArgumentError && occursin("changed since the export was loaded", err.msg) && @eval(bundle_listed()) == 24
+        # ... and the load: the files aren't the ones the blueprint was made with (nothing runs, nothing is bound)
         reset_manager!()
-        err = try PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv")); nothing catch e; e end
-        @test err isa ArgumentError && occursin("outside.jl", err.msg) && occursin("from outside", err.msg)
-        @test !@eval(bundle_outside_ran) && isnothing(cfg()) && isempty(PDEStudio.manager.bundle_dir)
-        write(joinpath(bundle2, "cfg.jl"), good)
-        # a missing bundle file (a source, or a file the sources include) is an error; without the rows of the bundle
-        # the file can't be loaded either, since it holds an object
-        mv(joinpath(bundle2, "lib", "inner.jl"), joinpath(bundle2, "inner.bak"))
-        err = try PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv")); nothing catch e; e end
+        err = load_error(joinpath(out2, "exp2.csv"))
+        @test err isa ArgumentError && occursin("not the ones it was made with", err.msg)
+        @test isnothing(cfg()) && isnothing(PDEStudio.manager.blueprint) && @eval(bundle_listed()) == 24
+        write(joinpath(bp2, "listed.jl"), listed)
+        # a file of the folder that is missing, a folder that is missing or renamed to another digest
+        mv(joinpath(bp2, "lib", "inner.jl"), joinpath(out2, "inner.bak"))
+        err = load_error(joinpath(out2, "exp2.csv"))
         @test err isa ArgumentError && occursin("missing", err.msg) && occursin("inner.jl", err.msg)
-        mv(joinpath(bundle2, "inner.bak"), joinpath(bundle2, "lib", "inner.jl"))
-        # names that leave the bundle folder are refused
+        mv(joinpath(out2, "inner.bak"), joinpath(bp2, "lib", "inner.jl"))
+        mv(bp2, joinpath(out2, "cfg-00000000"))
+        err = load_error(joinpath(out2, "exp2.csv"))
+        @test err isa ArgumentError && occursin("is not next to it", err.msg)
         csv2 = read(joinpath(out2, "exp2.csv"), String)
-        write(joinpath(out2, "escape.csv"), replace(csv2, "exp2_sources/listed.jl" => "exp2_sources/../listed.jl"))
-        @test_throws ArgumentError PDEStudio.load_and_apply_csv!(joinpath(out2, "escape.csv"))
+        write(joinpath(out2, "renamed.csv"), replace(csv2, "blueprint,$folder" => "blueprint,cfg-00000000"))
+        err = load_error(joinpath(out2, "renamed.csv"))
+        @test err isa ArgumentError && occursin("not the ones it was made with", err.msg)
+        mv(joinpath(out2, "cfg-00000000"), bp2)
+        # the file pins its blueprint: another one under the name is refused
+        write(joinpath(out2, "pinned.csv"), replace(csv2, digest => "0"^64))
+        err = load_error(joinpath(out2, "pinned.csv"))
+        @test err isa ArgumentError && occursin("exported with another blueprint", err.msg)
+        # the blueprint is named relative to the file; exports of earlier versions are refused
+        write(joinpath(out2, "abs.csv"), replace(csv2, "blueprint,$folder" => "blueprint,$bp2"))
+        @test load_error(joinpath(out2, "abs.csv")) isa ArgumentError
+        write(joinpath(out2, "old.csv"), csv2 * "\nMetadata,General,bundled_sources,exp_sources/cfg.jl\n")
+        err = load_error(joinpath(out2, "old.csv"))
+        @test err isa ArgumentError && occursin("earlier version", err.msg)
+        PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv"))      # (and as it was, it loads)
+        @test cfg().shared[:tag].a == 24
         reset_manager!()
     end
 
-    @testset "Bundled sources: data-only exports, absolute includes, symlinks, other configurations" begin
+    @testset "Blueprints: realizations written by hand, the method pool, confirmations" begin
         set_save_path!(mktempdir())
         reset_manager!()
-        srcdir = mktempdir()
+        empty!(PDEStudio._CONFIRMED_CODE)
+        srcdir, out = mktempdir(), mktempdir()
+        cfg() = PDEStudio.manager.active_config
+        general(csv) = PDEStudio._read_csv(csv)[2]["Metadata"]["General"]
+        # a blueprint with three methods (two active), a sweep and an object
+        write(joinpath(srcdir, "pool.jl"), """
+            struct PoolTag; a::Int; end
+            PDEStudioCore.@param_struct PoolTag
+            global pool_blueprint_runs = (@isdefined(pool_blueprint_runs) ? pool_blueprint_runs : 0) + 1
+            pool_config() = SimulationConfig(
+                create_param_dict(:N => 12, :cfl => 0.5, :tag => PoolTag(1), :sim_func_name => :advection_solver_1d),
+                create_method_dict(:m1 => create_param_dict(:order => 1, :limiter => :none), :m2 => create_param_dict(:order => 2),
+                                   :m3 => create_param_dict(:order => 3)),
+                [:m1, :m2]; varied = create_varied_dict(:eps => [0.1, 0.01]))
+            pool_config
+            """)
+        PDEStudio.load_config_file!(joinpath(srcdir, "pool.jl"))
+        cfg().shared[:N] = 16                  # (changed in the studio before the export ...)
+        delete!(cfg().shared, :cfl)            # (... a parameter removed ...)
+        cfg().defaults = [:m2]                 # (... and one method chosen)
+        cfg().methods[:m2][:order] = 4
+        @test PDEStudio.save_params_to_csv("full", out, Dict("Save Type" => "test"))
+        folder = general(joinpath(out, "full.csv"))["blueprint"]
+        # an export is the whole realization: its values, without what was removed; the blueprint's other methods stay
+        # as the pool to choose from
+        reset_manager!()
+        n = @eval(pool_blueprint_runs)
+        PDEStudio.load_and_apply_csv!(joinpath(out, "full.csv"))
+        @test @eval(pool_blueprint_runs) == n + 1                             # (the blueprint runs when the file loads)
+        @test cfg().shared[:N] == 16 && !haskey(cfg().shared, :cfl) && cfg().shared[:tag].a == 1
+        @test cfg().defaults == [:m2] && cfg().methods[:m2] == Dict(:order => 4)
+        @test Set(keys(cfg().methods)) == Set([:m1, :m2, :m3]) && cfg().methods[:m3][:order] == 3
+        @test cfg().varied[:eps] == [0.1, 0.01]
+        # a file written by hand names the blueprint and lists what differs: a patch of the blueprint's configuration
+        hand = joinpath(out, "fine.csv")
+        write(hand, """
+            Category,Scope,Parameter,Value
+            Metadata,General,blueprint,$folder
+            Simulation,Shared,N,64
+            Simulation,m1,order,5
+            Simulation,Config,defaults,"[:m3, :m1]"
+            """)
+        @test PDEStudio._load_runs_code(hand) && PDEStudio._code_confirmed(hand)   # (this code ran in the session)
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(hand)
+        @test cfg().shared[:N] == 64 && cfg().shared[:cfl] == 0.5 && cfg().shared[:tag].a == 1
+        @test cfg().defaults == [:m3, :m1] && cfg().methods[:m1] == Dict(:order => 5, :limiter => :none)
+        @test Set(keys(cfg().methods)) == Set([:m1, :m2, :m3]) && cfg().methods[:m2][:order] == 2
+        @test cfg().varied[:eps] == [0.1, 0.01] && cfg().sources == [joinpath(out, folder, "pool.jl")]
+        @test PDEStudio.manager.blueprint.dir == joinpath(out, folder)
+        # ... its export is a whole realization of the same blueprint
+        @test PDEStudio.save_params_to_csv("fine_export", out, Dict("Save Type" => "test"))
+        @test general(joinpath(out, "fine_export.csv"))["blueprint"] == folder && general(joinpath(out, "fine_export.csv"))["mode"] == "replace"
+        # a file that only names the blueprint is its configuration as it is
+        write(joinpath(out, "plain_link.csv"), "Category,Scope,Parameter,Value\nMetadata,General,blueprint,$folder\n")
+        reset_manager!()
+        PDEStudio.load_and_apply_csv!(joinpath(out, "plain_link.csv"))
+        @test cfg().shared[:N] == 12 && cfg().defaults == [:m1, :m2] && cfg().shared[:tag].a == 1
+        # a file can't set an object as a value, in either mode
+        write(joinpath(out, "tag.csv"), "Category,Scope,Parameter,Value\nMetadata,General,blueprint,$folder\nSimulation,Shared,tag,PoolTag(a=2)\n")
+        err = try PDEStudio.load_and_apply_csv!(joinpath(out, "tag.csv")); nothing catch e; e end
+        @test err isa ArgumentError && occursin("can't replace an object", err.msg)
+        # the question before code runs: a blueprint this session hasn't run asks, also for another digest
+        empty!(PDEStudio._CONFIRMED_CODE)
+        @test !PDEStudio._code_confirmed(hand)
+        key = PDEStudio._load_key(hand)
+        PDEStudio.load_and_apply_csv!(hand)
+        @test PDEStudio._code_confirmed(hand) && PDEStudio._code_confirmed(joinpath(out, "full.csv")) && PDEStudio._load_key(hand) == key
+        write(hand, read(hand, String) * "Simulation,Shared,cfl,0.25\n")
+        @test PDEStudio._load_key(hand) != key && PDEStudio._code_confirmed(hand)   # (another file, the same code)
+        # values for solvers of packages need no blueprint, and run no code
+        plain = joinpath(out, "plain.csv")
+        write(plain, "Category,Scope,Parameter,Value\nSimulation,Shared,N,40\nSimulation,Shared,sim_func_name,:advection_solver_1d\n")
+        @test !PDEStudio._load_runs_code(plain)
+        reset_manager!()
+        n = @eval(pool_blueprint_runs)
+        PDEStudio.load_and_apply_csv!(plain)
+        @test cfg().shared[:N] == 40 && isnothing(PDEStudio.manager.blueprint) && @eval(pool_blueprint_runs) == n
+        reset_manager!()
+    end
+
+    @testset "Blueprints: a function builds the configuration; code only; absolute includes; symlinks" begin
+        set_save_path!(mktempdir())
+        reset_manager!()
+        empty!(PDEStudio._CONFIRMED_CODE)
+        out = mktempdir()
         cfg() = PDEStudio.manager.active_config
         N() = cfg().shared[:N]
+        general(csv) = PDEStudio._read_csv(csv)[2]["Metadata"]["General"]
         run!() = PDEStudio._run_simulations(cfg(); force_overwrite = false)
-        # a configuration of data only, with a helper next to it: the reload runs no code, Run Simulation runs the bundle
-        write(joinpath(srcdir, "util.jl"), "global data_bundle_runs = (@isdefined(data_bundle_runs) ? data_bundle_runs : 0) + 1\nutil_N() = 2\n")
-        write(joinpath(srcdir, "cfg.jl"), """
-            include("util.jl")
-            SimulationConfig(create_param_dict(:N => 14 + util_N(), :sim_func_name => :advection_solver_1d),
-                             create_method_dict(:m => create_param_dict()), [:m])
-            """)
-        PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
-        out = mktempdir()
-        @test PDEStudio.save_params_to_csv("exp", out, Dict("Save Type" => "test"))
+        load_error(csv) = try PDEStudio.load_and_apply_csv!(csv); nothing catch e; e end
+        # a configuration that a function of the target module builds (no file), with an object
+        @eval Main begin
+            struct FnBlueprintTag; a::Int; end
+            PDEStudioCore.@param_struct FnBlueprintTag
+            fn_blueprint_calls = 0
+            function fn_blueprint_config()
+                global fn_blueprint_calls += 1
+                return SimulationConfig(create_param_dict(:N => 12, :tag => FnBlueprintTag(7), :sim_func_name => :advection_solver_1d),
+                                        create_method_dict(:m => create_param_dict(), :other => create_param_dict()), [:m])
+            end
+        end
+        bound = set_sim_config!(Main.fn_blueprint_config)
+        @test bound.shared[:N] == 12 && PDEStudio.manager.blueprint.builds === :function
+        @test PDEStudio.manager.blueprint.func === :fn_blueprint_config
+        cfg().shared[:N] = 20
+        @test PDEStudio.save_params_to_csv("fn", out, Dict("Save Type" => "test"))
+        meta = general(joinpath(out, "fn.csv"))
+        @test meta["blueprint_function"] == "fn_blueprint_config" && !haskey(meta, "blueprint") && meta["mode"] == "replace"
+        # the export calls the function again: its object is back, the values and the active methods are the file's
+        reset_manager!()
+        n = Main.fn_blueprint_calls
+        @test PDEStudio._load_runs_code(joinpath(out, "fn.csv"))
+        PDEStudio.load_and_apply_csv!(joinpath(out, "fn.csv"))
+        @test Main.fn_blueprint_calls == n + 1 && N() == 20 && cfg().shared[:tag].a == 7
+        @test Set(keys(cfg().methods)) == Set([:m, :other]) && cfg().defaults == [:m]
+        @test PDEStudio.manager.blueprint.func === :fn_blueprint_config
+        # a function the target module doesn't find by its name is no blueprint; nor is a configuration bound as it is
+        @test_logs (:info, r"without a blueprint") match_mode = :any set_sim_config!(() -> Main.fn_blueprint_config())
+        @test isnothing(PDEStudio.manager.blueprint) && cfg().shared[:tag].a == 7
+        set_sim_config!(Main.fn_blueprint_config)
+        set_sim_config!(Main.fn_blueprint_config())
+        @test isnothing(PDEStudio.manager.blueprint)
+        # ... whose export, with an object and nothing that builds it again, warns, and can't be loaded
+        @test_logs (:warn, r"nothing builds the configuration") match_mode = :any PDEStudio.save_params_to_csv("unbuilt", out, Dict("Save Type" => "test"))
+        err = load_error(joinpath(out, "unbuilt.csv"))
+        @test err isa ArgumentError && occursin("Shared → tag", err.msg) && occursin("no blueprint that builds", err.msg)
+        write(joinpath(out, "nofn.csv"), "Category,Scope,Parameter,Value\nMetadata,General,blueprint_function,no_such_blueprint_fn\n")
+        err = load_error(joinpath(out, "nofn.csv"))
+        @test err isa ArgumentError && occursin("no_such_blueprint_fn", err.msg)
+
+        # a function with source files (helpers it lists): the blueprint is their folder and the function
+        srcdir = mktempdir()
+        write(joinpath(srcdir, "fn_helper.jl"), "global fn_helper_runs = (@isdefined(fn_helper_runs) ? fn_helper_runs : 0) + 1\n")
+        @eval Main fn_sources_config() = SimulationConfig(create_param_dict(:N => 8, :sim_func_name => :advection_solver_1d),
+                                                         create_method_dict(:m => create_param_dict()), [:m];
+                                                         sources = [$(joinpath(srcdir, "fn_helper.jl"))])
+        set_sim_config!(Main.fn_sources_config)
+        @test PDEStudio.save_params_to_csv("fn_src", out, Dict("Save Type" => "test"))
+        folder = general(joinpath(out, "fn_src.csv"))["blueprint"]
+        @test startswith(folder, "fn_sources_config-") && !haskey(general(joinpath(out, "fn_src.csv")), "blueprint_function")
+        said = PDEStudio._read_csv(joinpath(out, folder, "blueprint.csv"))[2]["Blueprint"]["General"]
+        @test said["builds"] == "function" && said["function"] == "fn_sources_config"
         rm(srcdir; recursive = true)
         reset_manager!()
-        n = @eval(data_bundle_runs)
-        PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
-        @test @eval(data_bundle_runs) == n && N() == 16
-        @test cfg().sources == [joinpath(out, "exp_sources", "cfg.jl")]
-        @test PDEStudio._source_extras(cfg()) == [joinpath(out, "exp_sources", "util.jl")]   # (bundled again by an export)
-        run!()
-        @test @eval(data_bundle_runs) == n + 1 && does_sim_data_exist(only(generate_tasks(cfg())))
-        out_b = mktempdir()
-        @test PDEStudio.save_params_to_csv("again", out_b, Dict("Save Type" => "test"))
-        @test isfile(joinpath(out_b, "again_sources", "util.jl"))
-        # without the rows of the bundle its values load without code (and without sources)
-        csv = joinpath(out, "exp.csv")
-        write(joinpath(out, "values.csv"), join(filter(l -> !occursin("bundled_", l), readlines(csv)), "\n"))
-        reset_manager!()
-        PDEStudio.load_and_apply_csv!(joinpath(out, "values.csv"))
-        @test N() == 16 && isempty(cfg().sources) && isempty(PDEStudio.manager.bundle_dir)
-        # a missing bundle file is an error also for a file of data only
-        mv(joinpath(out, "exp_sources", "util.jl"), joinpath(out, "util.bak"))
-        reset_manager!()
-        err = try PDEStudio.load_and_apply_csv!(csv); nothing catch e; e end
-        @test err isa ArgumentError && occursin("missing", err.msg) && isnothing(cfg())
-        mv(joinpath(out, "util.bak"), joinpath(out, "exp_sources", "util.jl"))
+        include(joinpath(out, folder, "fn_helper.jl")); n = @eval(fn_helper_runs)
+        PDEStudio.load_and_apply_csv!(joinpath(out, "fn_src.csv"))
+        @test @eval(fn_helper_runs) == n + 1 && N() == 8 && cfg().sources == [joinpath(out, folder, "fn_helper.jl")]
+        @test PDEStudio.manager.blueprint.builds === :function
 
-        # a file included by an absolute path is copied, but the bundle can't use the copy: its run is refused
+        # code only: a configuration bound as it is, with source files; the blueprint runs, the file is the configuration
+        codedir = mktempdir()
+        write(joinpath(codedir, "code.jl"), "global code_only_runs = (@isdefined(code_only_runs) ? code_only_runs : 0) + 1\n")
+        set_sim_config!(SimulationConfig(create_param_dict(:N => 9, :sim_func_name => :advection_solver_1d),
+                                         create_method_dict(:m => create_param_dict()), [:m]; sources = [joinpath(codedir, "code.jl")]))
+        @test PDEStudio.save_params_to_csv("code", out, Dict("Save Type" => "test"))
+        code_folder = general(joinpath(out, "code.csv"))["blueprint"]
+        @test PDEStudio._read_csv(joinpath(out, code_folder, "blueprint.csv"))[2]["Blueprint"]["General"]["builds"] == "nothing"
+        reset_manager!()
+        include(joinpath(codedir, "code.jl")); n = @eval(code_only_runs)
+        PDEStudio.load_and_apply_csv!(joinpath(out, "code.csv"))
+        @test @eval(code_only_runs) == n + 1 && N() == 9 && PDEStudio.manager.blueprint.builds === :none
+        run!()
+        @test @eval(code_only_runs) == n + 2 && does_sim_data_exist(only(generate_tasks(cfg())))
+
+        # a file included by an absolute path is copied, but the blueprint can't use the copy: its load is refused
+        # before the file outside runs
         absdir, cfgdir = mktempdir(), mktempdir()
-        write(joinpath(absdir, "abs_helper.jl"), "abs_N() = 1\n")
+        write(joinpath(absdir, "abs_helper.jl"), "global abs_helper_runs = (@isdefined(abs_helper_runs) ? abs_helper_runs : 0) + 1\nabs_N() = 1\n")
         write(joinpath(cfgdir, "cfg.jl"), """
             include($(repr(joinpath(absdir, "abs_helper.jl"))))
             SimulationConfig(create_param_dict(:N => 10 + abs_N(), :sim_func_name => :advection_solver_1d),
@@ -625,12 +776,12 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         out2 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out2, Dict("Save Type" => "test"))
         reset_manager!()
-        PDEStudio.load_and_apply_csv!(joinpath(out2, "exp.csv"))
-        @test N() == 11
-        err = try run!(); nothing catch e; PDEStudio._load_error(e) end
+        n = @eval(abs_helper_runs)
+        err = load_error(joinpath(out2, "exp.csv"))
         @test err isa ArgumentError && occursin("abs_helper.jl", err.msg) && occursin("from outside", err.msg)
+        @test @eval(abs_helper_runs) == n && isnothing(cfg())
 
-        # a symlinked source is bundled as a file
+        # a symlinked source is copied as a file
         linkdir = mktempdir()
         write(joinpath(linkdir, "real.jl"), "SimulationConfig(create_param_dict(:N => 7, :sim_func_name => :advection_solver_1d), " *
                                            "create_method_dict(:m => create_param_dict()), [:m])\n")
@@ -639,19 +790,18 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         PDEStudio.load_config_file!(joinpath(linkdir, "link.jl"))
         out4 = mktempdir()
         @test PDEStudio.save_params_to_csv("exp", out4, Dict("Save Type" => "test"))
-        @test isfile(joinpath(out4, "exp_sources", "link.jl")) && !islink(joinpath(out4, "exp_sources", "link.jl"))
+        link_copy = joinpath(out4, general(joinpath(out4, "exp.csv"))["blueprint"], "link.jl")
+        @test isfile(link_copy) && !islink(link_copy)
         write(joinpath(linkdir, "real.jl"), replace(read(joinpath(linkdir, "real.jl"), String), "7" => "8"))
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out4, "exp.csv"))
         @test N() == 7
 
-        # another configuration bound afterwards isn't the bundle's: it runs as it is, without the bundle's extra files
+        # another configuration bound afterwards isn't the blueprint's: it runs as it is
         other = SimulationConfig(create_param_dict(:N => 9, :sim_func_name => :advection_solver_1d),
                                  create_method_dict(:m => create_param_dict()), [:m]; sources = [joinpath(linkdir, "real.jl")])
-        reset_manager!()
-        PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
         set_sim_config!(other)
-        @test isnothing(PDEStudio._bundle_dir(cfg())) && isempty(PDEStudio._source_extras(cfg())) && !PDEStudio._bundle_changed!()
+        @test isnothing(PDEStudio.manager.blueprint) && isnothing(PDEStudio._blueprint_dir(cfg())) && isempty(PDEStudio._source_extras(cfg()))
         run!()
         # an export of a configuration with a source that is missing fails (it couldn't be loaded again)
         cfg().sources = [joinpath(linkdir, "gone.jl")]
@@ -694,17 +844,15 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         parsed = Dict("Metadata" => Dict("General" => Dict("statistics" => ["no_such_stat", "pointwise_diff"])))
         @test_logs (:warn, r"no_such_stat") PDEStudio._note_missing_statistics!(parsed, "x.csv")
         @test occursin("no_such_stat", PDEStudio.manager.source_note) && !occursin("pointwise_diff", PDEStudio.manager.source_note)
-        # (the export holds data only: its bundled source runs at Run Simulation, which registers :sourced_stat again;
-        # the load doesn't warn about it)
+        # (the export's blueprint, its source file, runs when the export loads and registers :sourced_stat again: the
+        # load doesn't warn about it)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(joinpath(out, "exp.csv"))
-        @test !haskey(get_stat_registry(), :sourced_stat) && !occursin("doesn't register", PDEStudio.manager.source_note)
-        include_sources(PDEStudio.manager.active_config.sources)   # (as Run Simulation)
-        @test haskey(get_stat_registry(), :sourced_stat)
+        @test haskey(get_stat_registry(), :sourced_stat) && !occursin("doesn't register", PDEStudio.manager.source_note)
         delete!(get_stat_registry(), :sourced_stat)
     end
 
-    @testset "Bundled sources: objects come from the sources, everything else from the CSV" begin
+    @testset "Blueprints: objects come from the blueprint, the values from the CSV" begin
         set_save_path!(mktempdir())
         reset_manager!()
         srcdir = mktempdir()
@@ -714,12 +862,13 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             struct CsvReloadTag; a::Int; end
             PDEStudioCore.@param_struct CsvReloadTag
             global csv_reload_runs = (@isdefined(csv_reload_runs) ? csv_reload_runs : 0) + 1
+            (@isdefined(csv_reload_fails) && csv_reload_fails) && error("boom")
             get_csv_config() = SimulationConfig(create_param_dict(:N => 12, :tag => CsvReloadTag(1),
                                                                   :sim_func_name => :advection_solver_1d),
                                                 create_method_dict(:m1 => create_param_dict(:flux => CsvReloadTag(3)),
                                                                    :m2 => create_param_dict()),
                                                 [:m1, :m2]; varied = create_varied_dict(:bc => [CsvReloadTag(1), CsvReloadTag(2)]))
-            get_csv_config
+            (@isdefined(csv_reload_nothing) && csv_reload_nothing) ? nothing : get_csv_config
             """)
         PDEStudio.load_config_file!(joinpath(srcdir, "cfg.jl"))
         runs() = @eval(csv_reload_runs)
@@ -734,14 +883,15 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         # (objects are Object rows, of the same scopes, instead of Simulation rows)
         @test Set(keys(PDEStudio._object_rows(parsed))) == Set([(:Shared, :tag), (:m1, :flux), (:Sweep, :bc)])
         @test !haskey(parsed["Simulation"]["Shared"], "tag") && !haskey(get(parsed["Simulation"], "Sweep", Dict()), "bc")
-        # the reload runs the sources (the CSV holds objects) and builds the rest from the CSV: N, the active methods
-        # and the method list are the exported ones (not the source's 12 and both methods), the objects the source's
+        # the reload runs the blueprint and applies the CSV: N and the active methods are the exported ones (not the
+        # blueprint's 12 and both methods), the objects the blueprint's
         reset_manager!()
         n = runs()
         PDEStudio.load_and_apply_csv!(csv)
         loaded = PDEStudio.manager.active_config
         @test runs() == n + 1
-        @test loaded.shared[:N] == 16 && loaded.defaults == [:m1] && collect(keys(loaded.methods)) == [:m1]
+        @test loaded.shared[:N] == 16 && loaded.defaults == [:m1]
+        @test Set(keys(loaded.methods)) == Set([:m1, :m2])   # (the blueprint's other method stays in the pool)
         @test nameof(typeof(loaded.shared[:tag])) === :CsvReloadTag && loaded.shared[:tag].a == 1   # (the struct, not its text)
         @test loaded.methods[:m1][:flux].a == 3 && [t.a for t in loaded.varied[:bc]] == [1, 2]
         @test PDEStudio.manager.labels[:t] == "t"
@@ -751,17 +901,17 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test occursin("CsvReloadTag(a=9)", read(bad, String))
         staged = (dims = [1], max_params = 1, parsed = Dict{String, Any}(), raw = nothing, config = nothing, sources = String[])
         PDEStudio.manager.csv_cache = staged
-        bundle_before = (PDEStudio.manager.bundle_dir, PDEStudio.manager.bundle_key)
+        blueprint_before = PDEStudio.manager.blueprint
         err = try PDEStudio.load_and_apply_csv!(bad); nothing catch e; e end
         @test err isa ArgumentError && occursin("Shared → tag", err.msg)
         # (a file that can't be loaded leaves a staged file and the bundle of the loaded one as they were)
-        @test PDEStudio.manager.csv_cache === staged && (PDEStudio.manager.bundle_dir, PDEStudio.manager.bundle_key) == bundle_before
+        @test PDEStudio.manager.csv_cache === staged && PDEStudio.manager.blueprint === blueprint_before
         PDEStudio.manager.csv_cache = nothing
-        # ... and without source files no object can be restored
+        # ... and without a blueprint no object can be restored
         nosrc = joinpath(out, "nosrc.csv")
-        write(nosrc, join(filter(l -> !occursin("bundled_", l), readlines(csv)), "\n"))
+        write(nosrc, join(filter(l -> !occursin("blueprint", l), readlines(csv)), "\n"))
         err = try PDEStudio.load_and_apply_csv!(nosrc); nothing catch e; e end
-        @test err isa ArgumentError && occursin("bundles no source files", err.msg) && occursin("Sweep → bc", err.msg)
+        @test err isa ArgumentError && occursin("no blueprint that builds the configuration", err.msg)
         # a Simulation row can't replace an object (the struct and its text have the same identity, so a CSV that holds
         # the text as data would swap the struct for a string)
         asdata = joinpath(out, "asdata.csv")
@@ -777,16 +927,14 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         write(v080, "Category,Scope,Parameter,Value\nSimulation,Shared,N,16\nSimulation,Objects,entries,Any[]\n")
         err = try PDEStudio.load_and_apply_csv!(v080); nothing catch e; e end
         @test err isa ArgumentError && occursin("PDEStudio 0.8.0", err.msg)
-        # a bundled source that fails, or a last one that returns no configuration, is an error: nothing is loaded
-        copy_file = joinpath(out, "exp_sources", "cfg.jl")
-        good = read(copy_file, String)
-        for (code, msg) in (("error(\"boom\")\n", "boom"), ("nothing\n", "SimulationConfig"))
-            write(copy_file, good * code)
+        # a blueprint that fails, or whose last source returns no configuration, is an error: nothing is loaded
+        for (flag, msg) in ((:csv_reload_fails, "boom"), (:csv_reload_nothing, "SimulationConfig"))
+            @eval global $flag = true
             reset_manager!()
             err = try PDEStudio.load_and_apply_csv!(csv); nothing catch e; e end
             @test err isa ArgumentError && occursin(msg, err.msg) && isnothing(PDEStudio.manager.active_config)
+            @eval global $flag = false
         end
-        write(copy_file, good)
         reset_manager!()
         PDEStudio.load_and_apply_csv!(csv)
         # the editors don't overwrite objects (they come from the source files)
@@ -797,7 +945,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         @test [t.a for t in loaded.varied[:bc]] == [1, 2]
         @test PDEStudio._apply_editor_input!(:simulation, :shared, :N, loaded.shared, "17", nothing) && loaded.shared[:N] == 17
 
-        # A CSV whose parameters are all data runs no code at loading: its sources run at Run Simulation
+        # A file of data only runs its blueprint when it loads, too (the code that defines its solvers and statistics)
         write(joinpath(srcdir, "data_cfg.jl"), """
             global csv_data_runs = (@isdefined(csv_data_runs) ? csv_data_runs : 0) + 1
             SimulationConfig(create_param_dict(:N => 12, :sim_func_name => :advection_solver_1d),
@@ -810,10 +958,8 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
         n = @eval(csv_data_runs)
         PDEStudio.load_and_apply_csv!(joinpath(out, "data.csv"))
-        @test @eval(csv_data_runs) == n && PDEStudio.manager.active_config.shared[:N] == 18
+        @test @eval(csv_data_runs) == n + 1 && PDEStudio.manager.active_config.shared[:N] == 18
         @test basename(only(PDEStudio.manager.active_config.sources)) == "data_cfg.jl"
-        include_sources(PDEStudio.manager.active_config.sources)   # (as Run Simulation)
-        @test @eval(csv_data_runs) == n + 1
 
         # A configuration PDEStudioCore refuses (a function as a parameter) can't run: the export says so
         fn = SimulationConfig(create_param_dict(:N => 12, :ic => sin, :sim_func_name => :advection_solver_1d),
@@ -863,7 +1009,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
         reset_manager!()
     end
 
-    @testset "Bundled config file ending with a function" begin
+    @testset "Blueprints: a configuration file ending with a function" begin
         set_save_path!(mktempdir())
         dir = mktempdir()
         @eval Main begin
@@ -898,7 +1044,7 @@ ingroup("helpers") && @testset "PDEStudio: Helpers" begin
             reset_manager!()
             PDEStudio.load_and_apply_csv!(first_export)
             @test PDEStudio.save_params_to_csv("exp2", out2, Dict("Save Type" => "test"))
-            @test haskey(PDEStudio.parse_csv_to_dict(joinpath(out2, "exp2.csv"))["Metadata"]["General"], "bundled_sources")
+            @test haskey(PDEStudio.parse_csv_to_dict(joinpath(out2, "exp2.csv"))["Metadata"]["General"], "blueprint")
             reset_manager!()
             PDEStudio.load_and_apply_csv!(joinpath(out2, "exp2.csv"))
             @test is_ic()
@@ -1851,19 +1997,20 @@ ingroup("agent") && @testset "Review fixes 2026-11-12 (headless)" begin
     @test isnothing(PDEStudio.receive_upload!(["big.csv" => zeros(UInt8, PDEStudio.MAX_UPLOAD_BYTES + 1)]))
     @test occursin("exceeds", studio_state().status.text)
 
-    # 10. The load confirmation covers the bundle of an export: every file in its folder
-    edir = mktempdir()
-    mkpath(joinpath(edir, "export_sources", "lib")); write(joinpath(edir, "export_sources", "solver.jl"), "f() = 1\n")
-    rows = PDEStudio._CSVRows()
-    PDEStudio.add_row!(rows, "Metadata", "General", "bundled_sources", ["export_sources/solver.jl"])
-    csv = PDEStudio._write_rows(joinpath(edir, "export.csv"), rows)
+    # 10. The load confirmation covers the code an export runs: the content of its blueprint
+    edir, sdir = mktempdir(), mktempdir()
+    write(joinpath(sdir, "solver_cfg.jl"), "SimulationConfig(create_param_dict(:N => 8, :sim_func_name => :advection_solver_1d), " *
+                                           "create_method_dict(:m => create_param_dict()), [:m])\n")
+    PDEStudio.load_config_file!(joinpath(sdir, "solver_cfg.jl"))
+    @test PDEStudio.save_params_to_csv("export", edir, Dict("Save Type" => "test"))
+    csv = joinpath(edir, "export.csv")
+    folder = PDEStudio._read_csv(csv)[2]["Metadata"]["General"]["blueprint"]
     key1 = PDEStudio._load_key(csv)
-    @test PDEStudio._load_key(csv) == key1
-    write(joinpath(edir, "export_sources", "solver.jl"), "f() = 3\n")   # a source changed: another confirmation
-    key2 = PDEStudio._load_key(csv)
-    @test key2 != key1
-    write(joinpath(edir, "export_sources", "lib", "new.jl"), "g() = 1\n")   # so does a file added to the folder
-    @test PDEStudio._load_key(csv) != key2
+    @test PDEStudio._load_key(csv) == key1 && PDEStudio._load_runs_code(csv)
+    # (a blueprint that was changed has no key of its own: it can't be loaded at all)
+    write(joinpath(edir, folder, "solver_cfg.jl"), "error(\"changed\")\n")
+    @test PDEStudio._load_key(csv) != key1 && !PDEStudio._code_confirmed(csv)
+    @test_throws ArgumentError PDEStudio.load_and_apply_csv!(csv)
 end
 
 ingroup("agent") && @testset "Studio features: window access, lines with compared methods" begin
@@ -2726,10 +2873,12 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         click_button!(:load_config_button)
         @test manager.active_config.shared[:N] == 24 && occursin("Loaded config.jl", status())
 
-        # 3. Exports bundle the sources and the files they include (the helper isn't listed); a reload runs the bundle
+        # 3. Exports name their blueprint: a folder with the sources and the files they include (the helper isn't
+        #    listed); a reload runs it
         PDEStudio.save_params_to_csv("exp", root, Dict{String, Any}())
         csv = joinpath(root, "exp.csv")
-        @test isfile(joinpath(root, "exp_sources", "config.jl")) && isfile(joinpath(root, "exp_sources", "helper.jl"))
+        bp_dir(file) = joinpath(root, PDEStudio._read_csv(file)[2]["Metadata"]["General"]["blueprint"])
+        @test all(isfile, joinpath.(bp_dir(csv), ["config.jl", "helper.jl", "blueprint.csv"]))
         @test PDEStudio._load_runs_code(csv)
         set_sim_config!(fn_file)
         set_sim_config!(csv)
@@ -2747,20 +2896,35 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test manager.active_config.shared[:N] == 24
         click_button!(:run_button)
         @test wait_status(s -> occursin("Simulation finished", s); timeout = 60)
-        @test all(src -> startswith(src, joinpath(root, "exp_sources")), manager.active_config.sources)
-        # ... and if the bundle changed since it was loaded, the first click on Run Simulation only says so
-        write(joinpath(root, "exp_sources", "helper.jl"), "helper_N() = 24   # edited\n")
+        @test all(src -> startswith(src, bp_dir(csv)), manager.active_config.sources)
+        # ... a blueprint that was changed after the load doesn't run: Run Simulation says why
+        helper_code = read(joinpath(bp_dir(csv), "helper.jl"), String)
+        write(joinpath(bp_dir(csv), "helper.jl"), "helper_N() = 24   # edited\n")
         manager.flags[:Simulation][] = true
         click_button!(:run_button)
-        @test occursin("changed since the export was loaded", status()) && occursin("click Run Simulation again", status())
+        @test wait_status(s -> occursin("Running failed", s) && occursin("changed since the export was loaded", s); timeout = 60)
+        write(joinpath(bp_dir(csv), "helper.jl"), helper_code)
         click_button!(:run_button)
         @test wait_status(s -> occursin("Simulation finished", s); timeout = 60)
+        # ... the Files tab asks before a blueprint runs that this session hasn't run yet, and only then
+        click_button!(:tab_files)
+        set_sim_config!(fn_file)
+        w[:export_text].stored_string[] = csv
+        click_button!(:load_config_button)                       # (this code ran above: no question)
+        @test manager.active_config.shared[:N] == 24 && occursin("Loaded exp.csv", status())
+        empty!(PDEStudio._CONFIRMED_CODE)
+        set_sim_config!(fn_file)
+        click_button!(:load_config_button)
+        @test occursin("click Load again", status()) && occursin("blueprint", status()) && manager.active_config.shared[:N] == 30
+        click_button!(:load_config_button)
+        @test manager.active_config.shared[:N] == 24 && occursin("Loaded exp.csv", status())
 
-        # ... a helper that is listed in the sources is a source of the bundle
+        # ... a helper that is listed in the sources is a source of the blueprint
         cfg_file = write_config(orig; list_helper = true)
         set_sim_config!(cfg_file)
         PDEStudio.save_params_to_csv("exp2", root, Dict{String, Any}())
-        @test isfile(joinpath(root, "exp2_sources", "helper.jl"))
+        exp2_dir = bp_dir(joinpath(root, "exp2.csv"))
+        @test isfile(joinpath(exp2_dir, "helper.jl"))
         rm(orig; recursive = true)
         set_sim_config!(fn_file)
         set_sim_config!(joinpath(root, "exp2.csv"))
@@ -2808,11 +2972,15 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         up_csv = PDEStudio.receive_upload!(["plain.csv" => bytes(plain_csv)])
         @test up_csv == joinpath(PDEStudio.upload_dir(), "plain", "plain.csv") && isfile(up_csv)
         @test manager.active_config.shared[:N] == 40 && w[:export_text].displayed_string[] == up_csv
-        # a CSV with its bundled sources (chosen together, so they sit next to it): asks first, then runs them
+        # a CSV with the files of its blueprint folder (chosen together; a browser sends them without their folder, the
+        # blueprint.csv among them says where they belong): asks first, then runs the blueprint
         set_sim_config!(fn_file)
+        empty!(PDEStudio._CONFIRMED_CODE)
         exp2_files = ["exp2.csv" => bytes(joinpath(root, "exp2.csv"));
-                      [f => bytes(joinpath(root, "exp2_sources", f)) for f in readdir(joinpath(root, "exp2_sources"))]]
+                      [f => bytes(joinpath(exp2_dir, f)) for f in readdir(exp2_dir)]]
         up_exp2 = PDEStudio.receive_upload!(exp2_files)
+        @test up_exp2 == joinpath(PDEStudio.upload_dir(), "exp2", "exp2.csv")
+        @test all(isfile, joinpath.(dirname(up_exp2), basename(exp2_dir), ["config.jl", "helper.jl", "blueprint.csv"]))
         @test occursin("click Load again", status()) && manager.active_config.shared[:N] == 30
         click_button!(:load_config_button)
         @test manager.active_config.shared[:N] == 24
@@ -2878,6 +3046,21 @@ any(ingroup, UI_TEST_GROUPS) && @testset "PDEStudio: UI Rendering Integration" b
         @test occursin("Not uploaded: big.csv", status())
         # a WGLMakie screen that no browser shows yet has no picker: Browse… falls back to FILE_DIALOG
         @test !PDEStudio._open_upload_picker(WGLMakie.Screen())
+
+        # 9. A window opened with the function that builds its configuration: the function is the blueprint its
+        #    exports name, and loading one calls it again
+        reset_plotter!()
+        fig = launch_plotter(test_advection_1d)
+        @test manager.blueprint.builds === :function && manager.blueprint.func === :test_advection_1d
+        @test manager.active_config.defaults == test_advection_1d().defaults
+        manager.active_config.shared[:N] = 44
+        PDEStudio.save_params_to_csv("built", root, Dict{String, Any}())
+        @test PDEStudio._read_csv(joinpath(root, "built.csv"))[2]["Metadata"]["General"]["blueprint_function"] == "test_advection_1d"
+        set_sim_config!(fn_file)
+        @test manager.blueprint.builds === :file            # (a configuration file builds this one)
+        set_sim_config!(joinpath(root, "built.csv"))
+        @test manager.active_config.shared[:N] == 44 && manager.blueprint.func === :test_advection_1d
+        @test Set(keys(manager.active_config.methods)) == Set(keys(test_advection_1d().methods))
     end
 
     # =========================================================================

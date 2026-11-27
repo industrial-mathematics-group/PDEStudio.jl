@@ -32,7 +32,7 @@ end
         reset_plotter!()
         WGLMakie.activate!()
 
-        # Files to upload: a plain CSV, and an export whose bundled sources exist only next to it
+        # Files to upload: a plain CSV, and an export with its blueprint folder (`config-<digest>/`), whose originals are gone
         files = joinpath(dir, "files")
         mkpath(files)
         write(joinpath(files, "plain.csv"),

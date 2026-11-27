@@ -43,10 +43,10 @@ Built-in look presets: `:publication`, `:heatmap`, `:component`, `:compact3d`, `
 
 A simulation preset is applied in one of two modes:
 
-*   **`replace`** (written into every preset saved by the studio): the preset *is* the simulation. Shared parameters, methods, active methods, sweep and functions all come from the file.
+*   **`replace`** (written into every preset saved by the studio): the preset *is* the simulation. Shared parameters, the sweep, the active methods, their parameters and the functions all come from the file; the bound configuration's other methods stay available in the Methods tab (inactive).
 *   **`patch`** (the default for hand-written files): only the entries in the file change; everything else of the bound configuration stays. Ideal for small variations such as "high resolution" or "long time".
 
-The mode is stored in the file (`Metadata, Preset, mode, …`) and can be overridden: `set_sim_preset!(:coarse; mode = :patch)`. In both modes the source files of the bound configuration are kept, since a preset swaps parameters, not code.
+The mode is stored in the file (`Metadata, Preset, mode, …`) and can be overridden: `set_sim_preset!(:coarse; mode = :patch)`. In both modes the code of the bound configuration is kept (its source files, its blueprint and its objects), since a preset swaps parameters, not code. A preset is to the bound configuration what an exported CSV is to its blueprint: a realization (see *File Operations*, which uses the same two modes for CSV files that name a blueprint).
 
 *Files → Simulation → Reset* / `reset_sim_config!()` returns to the configuration last bound with [`set_sim_config!`](@ref) or loaded from a project CSV, discarding presets and editor changes applied since.
 
@@ -82,7 +82,7 @@ Text values are written as plain text (`upwind`); text that would read back as s
     identity (`@param_struct`) and enums. A CSV reads the data among them back with value and type; ranges and
     `MVector`/`SMatrix` come back as plain arrays (the data hash is the same). Structs, enums and containers holding
     one are *objects*: the CSV holds them as text in `Object` rows, a reload takes them from the configuration that
-    its bundled source files build (see *File Operations*), and the editors don't change them. A visual preset uses the categories `Scene` (scopes `Plot`, `Layout`, `Camera`, `Labels`, `Exploration`) and `UI` (one scope per style group, e.g. `UI, export, animation_FPS, 30`). The axes are stored per variant (`x_axis_1d`, `y_axis_1d`, `x_axis_nd`, `y_axis_nd`, `z_axis_3d`); files from earlier versions use `x_axis`, `y_axis` and `z_axis`, which are read as the variant of the file's plot style. Keys are always the backend names, never display labels.
+    its blueprint builds (see *File Operations*), and the editors don't change them. A visual preset uses the categories `Scene` (scopes `Plot`, `Layout`, `Camera`, `Labels`, `Exploration`) and `UI` (one scope per style group, e.g. `UI, export, animation_FPS, 30`). The axes are stored per variant (`x_axis_1d`, `y_axis_1d`, `x_axis_nd`, `y_axis_nd`, `z_axis_3d`); files from earlier versions use `x_axis`, `y_axis` and `z_axis`, which are read as the variant of the file's plot style. Keys are always the backend names, never display labels.
 
 !!! note
     Applying a *visual* preset never changes the simulation, and applying a *simulation* preset never changes the look. Loading a full export CSV (load button, drag & drop or `set_sim_config!("file.csv")`) applies both.

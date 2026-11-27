@@ -64,15 +64,18 @@ async function browseWithoutGesture() {
     });
     if (!prevented) { throw new Error("the drop on the page was not prevented"); }
   });
-  await step("Browse… opens the file chooser; a CSV with its sources asks first, then Load runs them", async () => {
+  await step("Browse… opens the file chooser; a CSV with its blueprint asks first, then Load runs it", async () => {
     const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 15000 }), click("browse")]);
     if (!chooser.isMultiple()) { throw new Error("the chooser doesn't allow several files"); }
-    const src = path.join(FILES, "exp2_sources");
+    // the export's blueprint folder (config-<digest>): its source files and its blueprint.csv, chosen with the CSV
+    const folder = fs.readdirSync(FILES).find(d => d.startsWith("config-"));
+    if (!folder) { throw new Error("no blueprint folder next to exp2.csv"); }
+    const src = path.join(FILES, folder);
     await chooser.setFiles([path.join(FILES, "exp2.csv"), ...fs.readdirSync(src).map(f => path.join(src, f))]);
     const s = await until("second click requested", s => /click Load again/.test(s.status));
     if (!s.path_box.endsWith("exp2.csv")) { throw new Error("path box: " + s.path_box); }
     await click("load");
-    await until("exp2 loaded with its sources", s => s.N === 24 && /Loaded exp2/.test(s.status));
+    await until("exp2 loaded with its blueprint", s => s.N === 24 && /Loaded exp2/.test(s.status));
   });
   await step("without a recent click a panel asks for one; Choose file… opens the chooser", async () => {
     await browseWithoutGesture();

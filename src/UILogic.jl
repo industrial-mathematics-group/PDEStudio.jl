@@ -357,37 +357,16 @@ line.
 """
 function _request_load(path::AbstractString)
     key = _load_key(path)
-    if _load_runs_code(path) && manager.pending_code_load != key
+    if _load_runs_code(path) && !_code_confirmed(path) && manager.pending_code_load != key
         manager.pending_code_load = key
-        # (a CSV runs its bundled sources at loading if it holds objects, otherwise at Run Simulation)
         what = endswith(lowercase(path), ".jl") ? "is Julia code that will be executed" :
-               "bundles source files that will be executed (at loading or at Run Simulation)"
+               "names a blueprint (code that builds its configuration), which will be executed"
         _status!("$(basename(path)) $what. Only load files you trust: click Load again to load it.", :warn)
         haskey(manager.widgets, :load_config_button) && (manager.widgets[:load_config_button].buttoncolor[] = :orange)
         return nothing
     end
     manager.pending_code_load = ""
     _handle_load(path)
-end
-
-"""
-    _bundle_changed!() -> Bool
-
-Run Simulation runs the source files of a loaded export (its bundle), which were confirmed as they were when the
-export was loaded. Returns `true` if they changed since (a file edited, added or removed in `<name>_sources/`): the
-status line says so, and the next click runs them (`manager.bundle_key`).
-"""
-function _bundle_changed!()
-    config = isnothing(manager.csv_cache) ? manager.active_config : manager.csv_cache.config   # (also a staged file)
-    dir = isnothing(config) ? nothing : _bundle_dir(config)
-    isnothing(dir) && return false
-    key = _folder_key(dir)
-    key == manager.bundle_key && return false
-    manager.bundle_key = key
-    _status!("The source files in $(basename(dir)) changed since the export was loaded. Only run code you trust: " *
-             "click Run Simulation again to run them.", :warn)
-    haskey(manager.widgets, :run_button) && (manager.widgets[:run_button].buttoncolor[] = :orange)
-    return true
 end
 
 # Whether a CSV file has the studio's header (`Category, Scope, Parameter, Value`)
@@ -445,29 +424,36 @@ function _load_series_csv!(path::AbstractString)
     return true
 end
 
-# What a confirmation (the second Load) is for: the path and the content of the file and of the source files a CSV
-# bundles, so another file under the same name (a new upload, a file changed on disk) needs its own confirmation.
+# The blueprint a CSV file names, as it is on disk now (checked, nothing runs), or `nothing` (none, or one that
+# can't be read: loading the file reports that)
+function _blueprint_of_file(path::AbstractString)
+    return try
+        parsed, raw = _read_csv(path)
+        _blueprint(parsed, raw, path)
+    catch
+        nothing
+    end
+end
+
+# What a confirmation (the second Load) is for: the path and the content of the file and the code a CSV runs (its
+# blueprint: the digest of its files, or its function), so another file under the same name (a new upload, a file
+# changed on disk) needs its own confirmation.
 function _load_key(path::AbstractString)
-    files = [path]
-    bundle = ""
-    if !endswith(lowercase(path), ".jl")
-        meta = try
-            get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict())
-        catch
-            Dict{String, Any}()
-        end
-        names = get(meta, "bundled_sources", String[])
-        # every file the export may run: its bundle folder (the first part of the names, see `_bundle`)
-        first_name = names isa AbstractVector ? (isempty(names) ? "" : string(first(names))) : string(names)
-        parts = split(replace(first_name, '\\' => '/'), '/'; keepempty = false)
-        length(parts) >= 2 && (bundle = joinpath(dirname(abspath(path)), String(parts[1])))
-    end
     h = hash(abspath(path))
-    for f in files
-        h = isfile(f) ? hash(read(f), h) : hash(f, h)
+    h = isfile(path) ? hash(read(path), h) : h
+    if !endswith(lowercase(path), ".jl")
+        bp = _blueprint_of_file(path)
+        isnothing(bp) || (h = hash(_code_key(bp), h))
     end
-    isempty(bundle) || (h = hash(_folder_key(bundle), h))
     return "$(abspath(path))#$(string(h; base = 16))"
+end
+
+# Whether the code a file runs was confirmed in this session already: a CSV whose blueprint ran before (the same
+# digest, i.e. the same files; or the same function). Julia files always ask.
+function _code_confirmed(path::AbstractString)
+    endswith(lowercase(path), ".jl") && return false
+    bp = _blueprint_of_file(path)
+    return !isnothing(bp) && _code_key(bp) in _CONFIRMED_CODE
 end
 
 # Loads a CSV or a Julia configuration file and reports the result (status line, colour of the load button).
@@ -571,8 +557,9 @@ const MAX_UPLOAD_BYTES = 20 * 1024^2
 Stores files uploaded from a browser (*Browse…* or drag & drop with WGLMakie; `files` are `name => bytes` pairs) on
 the computer running Julia and loads the configuration among them like the *Load* button: the CSV, or without a CSV
 the Julia file that none of the other files mentions by name (the others are the helpers it includes). The files go together into `upload_dir()/<configuration name>/` (files of an earlier upload with
-the same name are replaced): the source files a CSV bundles into its `<name>_sources/` folder there, where the
-loader looks for them, and the helpers a Julia file includes relative to `@__DIR__` next to it. Returns the stored path of the configuration, or `nothing` (with a status message)
+the same name are replaced): the files of the blueprint a CSV names (its source files and its `blueprint.csv`) into
+the blueprint's folder there, where the loader looks for them, and the helpers a Julia file includes relative to
+`@__DIR__` next to it. Returns the stored path of the configuration, or `nothing` (with a status message)
 if the files contain no single configuration.
 """
 function receive_upload!(files::AbstractVector)
@@ -587,7 +574,7 @@ function receive_upload!(files::AbstractVector)
         return nothing
     end
     ext(n) = lowercase(splitext(n)[2])
-    csvs = findall(n -> ext(n) == ".csv", names)
+    csvs = findall(n -> ext(n) == ".csv" && n != _BLUEPRINT_FILE, names)   # (`blueprint.csv` belongs to a blueprint folder)
     # without a CSV: the Julia file none of the other files mentions (those are the helpers it includes)
     mentioned(i) = any(j -> j != i && occursin(names[i], String(copy(last(files[j])))), eachindex(files))
     jls = filter(i -> ext(names[i]) == ".jl" && !mentioned(i), eachindex(names))
@@ -601,28 +588,40 @@ function receive_upload!(files::AbstractVector)
     mkpath(dir)
     path = joinpath(dir, names[main])
     write(path, last(files[main]))
-    # the source files a CSV bundles go where it names them (`<name>_sources/<file>`, where the loader looks), the
-    # other files next to the configuration
+    # the files of the blueprint a CSV names go into its folder, where the loader looks (a browser sends file names
+    # without their folders: the uploaded `blueprint.csv` says where each file belongs); other files next to the CSV
     placed = Dict{String, String}()
     if ext(names[main]) == ".csv"
-        meta = try
-            get(get(first(_read_csv(path)), "Metadata", Dict()), "General", Dict())
+        folder = try
+            _text_cell(last(_read_csv(path)), "Metadata", "General", "blueprint")
         catch
-            Dict{String, Any}()
+            nothing
         end
-        for key in ("bundled_sources", "bundled_files")
-            bundled = get(meta, key, String[])
-            for b in (bundled isa AbstractVector ? bundled : [bundled])
-                rel = normpath(string(b))
-                (isabspath(rel) || startswith(rel, "..")) && continue
-                if haskey(placed, basename(rel)) && placed[basename(rel)] != rel
-                    # (a browser sends file names without their folders)
-                    _report(:warn, "Not uploaded: the bundle of $(names[main]) has two files named $(basename(rel)) " *
-                                   "(in different folders), which an upload can't tell apart. Copy the export and " *
-                                   "its `_sources` folder to the computer running Julia instead.")
-                    return nothing
+        manifest = findfirst(==(_BLUEPRINT_FILE), names)
+        if !isnothing(folder) && !isnothing(manifest) && !isabspath(folder) && !startswith(normpath(folder), "..")
+            target = joinpath(dir, normpath(folder), _BLUEPRINT_FILE)
+            mkpath(dirname(target))
+            write(target, last(files[manifest]))
+            placed[_BLUEPRINT_FILE] = joinpath(normpath(folder), _BLUEPRINT_FILE)
+            general = try
+                get(get(first(_read_csv(target)), "Blueprint", Dict()), "General", Dict())
+            catch
+                Dict{String, Any}()
+            end
+            for key in ("sources", "files")
+                listed = get(general, key, String[])
+                for b in (listed isa AbstractVector ? listed : [listed])
+                    rel = normpath(string(b))
+                    (isabspath(rel) || startswith(rel, "..")) && continue
+                    where_ = joinpath(normpath(folder), rel)
+                    if haskey(placed, basename(rel)) && placed[basename(rel)] != where_
+                        _report(:warn, "Not uploaded: the blueprint of $(names[main]) has two files named " *
+                                       "$(basename(rel)) (in different folders), which an upload can't tell apart. " *
+                                       "Copy the export and its blueprint folder to the computer running Julia instead.")
+                        return nothing
+                    end
+                    placed[basename(rel)] = where_
                 end
-                placed[basename(rel)] = rel
             end
         end
     end
@@ -709,7 +708,6 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
     manager.listeners[:Browse_Click] = on(_ -> (@async _browse_for_config()), manager.widgets[:browse_button].clicks)
 
     manager.listeners[:Run_Click] = on(run_btn.clicks) do _
-        _bundle_changed!() && return   # (the first click only says so)
         if !isnothing(manager.pending_domain)
             # The data needs more dimensions (see `simulation_trigger`): rebuild the window with them and run again.
             domain, config = manager.pending_domain, manager.active_config
@@ -718,7 +716,7 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
                 _allow_dims_of!(domain)
                 fig = launch_plotter()
                 _in_browser() || display(fig)   # (a served window is shown by the page)
-                set_sim_config!(config; snapshot = false, copy_config = false)   # (the studio's own configuration again)
+                set_sim_config!(config; snapshot = false, copy_config = false, keep_blueprint = true)   # (the studio's own configuration again)
                 force_simulation()
             end
             return
@@ -741,7 +739,8 @@ function _setup_run_and_drop_interactions!(master_fig::Figure)
             Base.invokelatest() do
                 fig = launch_plotter()
                 _in_browser() || display(fig)   # (a served window is shown by the page)
-                load_and_apply_csv!(staged.parsed, staged.raw; config = staged.config, sources = staged.sources)
+                load_and_apply_csv!(staged.parsed, staged.raw; config = staged.config, sources = staged.sources,
+                                    blueprint = get(staged, :blueprint, nothing))
                 force_simulation()
             end
             return

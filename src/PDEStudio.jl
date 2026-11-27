@@ -9,8 +9,8 @@ using PrecompileTools: @setup_workload, @compile_workload
 @reexport using PDEStudioCore
 
 # PDEStudio needs the refactored backend (cleaned SimulationConfig fields, StatsView, safe str2val).
-# ... and its configuration files and source bundles (`load_config_file`, `bundle_sources`, `param_literal`, …).
-if !(isdefined(PDEStudioCore, :StatsView) && hasfield(SimulationConfig, :varied) && isdefined(PDEStudioCore, :bundle_sources))
+# ... and its configuration files and source bundles (`load_config_file`, `bundle_sources`, `bundle_digest`, `param_literal`, …).
+if !(isdefined(PDEStudioCore, :StatsView) && hasfield(SimulationConfig, :varied) && isdefined(PDEStudioCore, :bundle_digest))
     error("PDEStudio requires a newer PDEStudioCore (configuration files and source bundles: `load_config_file`, " *
           "`bundle_sources`, …), but an older version is loaded from $(pathof(PDEStudioCore)). Use the new version, " *
           "e.g. `pkg> dev /path/to/PDEStudioCore.jl`.")
@@ -97,6 +97,24 @@ A single instance exists (`PDEStudio.manager`); [`reset_manager!`](@ref) returns
 state and [`reset_plotter!`](@ref) closes the window. The `locks` are re-entrancy guards for the
 synchronous observable cascades (see [`@with_lock`](@ref)), not thread locks.
 """
+# The blueprint of the bound configuration: the code that builds it, which a loaded export (a realization of it) runs.
+# A folder of source files that runs on its own (`dir`, with its `digest`, `sources` and the `extras` they include; ""
+# and empty for a configuration that isn't loaded from one), and what builds the configuration (`builds`): `:file`
+# (the last source returns it), `:function` (the function `func` of the target module) or `:none` (nothing: the
+# sources are code only, and a file of values holds the whole configuration).
+struct _Blueprint
+    dir::String
+    digest::String
+    sources::Vector{String}
+    extras::Vector{String}
+    builds::Symbol
+    func::Symbol
+end
+
+# The code that was confirmed in this session (blueprint digests, `function:<name>`): loading another file with the
+# same code doesn't ask again (`_request_load`).
+const _CONFIRMED_CODE = Set{String}()
+
 Base.@kwdef mutable struct PlotManager
     # --- UI dictionaries, widgets and the trigger hierarchy ---
     ui::Dict{Symbol, Dict{Symbol, Any}} = Dict{Symbol, Dict{Symbol, Any}}()     # active UI style scopes
@@ -149,8 +167,7 @@ Base.@kwdef mutable struct PlotManager
     allowed_styles::Vector{Symbol} = Symbol[]                                 # plot styles the data allows (empty: all)
     pending_code_load::String = ""                                            # file that runs code (path#content hash), waiting for a second Load
     source_note::String = ""                                                  # what a loaded export misses here (run files, statistics)
-    bundle_dir::String = ""                                                   # `<name>_sources/` of the loaded export: its sources run there on their own
-    bundle_key::String = ""                                                   # its files as they were confirmed (`_folder_key`; Run asks again if they change)
+    blueprint::Union{Nothing, _Blueprint} = nothing                           # the code that builds the bound configuration (a loaded export, a function)
     source_extras::Vector{String} = String[]                                  # files the sources include themselves (bundled with exports) ...
     extras_of::Vector{String} = String[]                                      # ... of these sources
     preset_kind::Symbol = :simulation                                         # presets listed in the Files tab

@@ -208,13 +208,14 @@ end
 Applies the simulation preset `<save path>/Presets/Simulation/<name>.csv` to the studio and flags the simulation for
 a re-run. Two modes exist:
 
-- `:replace`: the preset defines the whole simulation (shared parameters, methods, active methods, sweep, functions).
+- `:replace`: the preset defines the whole simulation (shared parameters, sweep, active methods and their parameters,
+  functions); the bound configuration's other methods stay as inactive methods to choose from.
   Presets saved with [`save_sim_preset`](@ref) (or *Files → Simulation → Save*) use this mode.
 - `:patch`: only the entries in the file change; everything else of the bound configuration is kept. This is the
   default for hand-written files without a `Metadata, Preset, mode` row, e.g. a two-line "high resolution" preset.
 
-`mode` overrides the mode stored in the file. The source files of the bound configuration are always kept, and so
-are its objects: the preset's `Object` rows (structs etc. it holds as text only) take the bound configuration's object
+`mode` overrides the mode stored in the file. The code of the bound configuration is always kept (its source files
+and its blueprint), and so are its objects: the preset's `Object` rows (structs etc. it holds as text only) take the bound configuration's object
 at that parameter, which must have that text, and a `Simulation` row can't replace an object of the bound
 configuration (both are an `ArgumentError`).
 Returns the new `SimulationConfig` (or `nothing` if the preset was not found).
@@ -237,10 +238,10 @@ function set_sim_preset!(name; mode::Union{Nothing, Symbol} = nothing)
     apply_mode in (:replace, :patch) || (apply_mode = :patch)
 
     current = manager.active_config
-    # (parameters that are objects, e.g. structs, come from the bound configuration: `csv_to_simulation_config`)
-    config = csv_to_simulation_config(parsed; base = (apply_mode === :patch ? current : nothing), objects = current)
-    isnothing(current) || (config.sources = copy(current.sources))  # the code (solvers) stays as it is
-    config = set_sim_config!(config; snapshot = false, copy_config = false)   # (built here: nothing else holds it)
+    # (a preset is a realization of the bound configuration, as a loaded export is one of its blueprint's: its objects,
+    # e.g. structs, its other methods and its code stay; see `csv_to_simulation_config`)
+    config = csv_to_simulation_config(parsed; base = current, mode = apply_mode)
+    config = set_sim_config!(config; snapshot = false, copy_config = false, keep_blueprint = true)   # (built here: nothing else holds it)
 
     manager.sim_presets[Symbol(splitext(basename(path))[1])] = _preset_description(raw, "Custom simulation preset")
     _render_editor!()
@@ -261,5 +262,5 @@ function reset_sim_config!()
         return nothing
     end
     @info "Simulation configuration reset to its baseline. Press 'Run Simulation' to compute it."
-    return set_sim_config!(deepcopy(base); snapshot = false, copy_config = false)
+    return set_sim_config!(deepcopy(base); snapshot = false, copy_config = false, keep_blueprint = true)
 end

@@ -50,7 +50,7 @@ several bound sweeps) are out of scope by design.
 
 | File | What it holds | Created with |
 | :--- | :--- | :--- |
-| **Export CSV** | Everything: physics, look, sweep, git commits, Julia versions, bundled sources | *Export* (next to every figure/animation) |
+| **Export CSV** | Everything: physics, look, sweep, git commits, Julia versions, and the blueprint (the code) it belongs to | *Export* (next to every figure/animation) |
 | **Look (visual) Preset** | The look only (layout, axes, camera, labels, UI styles) | *Files → Look → Save*, [`save_plot_preset`](@ref) |
 | **Simulation Preset** | The physics only (shared/method parameters, active methods, sweep, functions) | *Files → Simulation → Save*, [`save_sim_preset`](@ref) |
 
@@ -60,7 +60,7 @@ Visual presets apply to any simulation; simulation presets swap the physics whil
 *   **Type-Preserving Parsing:** Values are read back with the safe literal parser `str2val` into the type they were saved as (vectors, tuples, symbols, dictionaries, …). Text stays text.
 *   **Loading:** Drop a CSV (or a Julia configuration file) onto the studio window, choose it with *Files → Browse…*, or type its path or file name into *Files → Name / path* and click **Load** to recreate a saved state.
 
-> **Security Note:** CSV values are parsed safely; no code in a value is ever evaluated. However, an export CSV can *bundle source files* (the `sources` of a `SimulationConfig`, copied next to the export), and loading such a CSV **executes those files** to restore the solvers, as does loading a Julia configuration file (`set_sim_config!("config.jl")`). Only load files you trust; the studio asks for a second click before it runs code. Presets never contain source files.
+> **Security Note:** CSV values are parsed safely; no code in a value is ever evaluated. However, an export CSV names its *blueprint* (the code that builds its configuration: the `sources` of the `SimulationConfig` and the files they include, copied into a folder next to the export; or a function), and loading such a CSV **executes that code**, as does loading a Julia configuration file (`set_sim_config!("config.jl")`). Only load files you trust; the studio asks for a second click before it runs code. Presets never contain source files.
 
 ---
 
@@ -178,4 +178,4 @@ end
 # julia> @plot "Euler2D_Shock"
 ```
 
-Simpler: load the configuration file itself with `set_sim_config!("Configs/Euler2D_Shock.jl")` (or *Files → Browse…*); it becomes the last of the config's `sources`, included after the helper files. Every export copies the `sources` into `<name>_sources/` next to the exported CSV, and loading that CSV later runs the copies and so recreates the experiment, solvers included. The exported copies run in place of the originals (so files next to them that aren't bundled are found), also if the originals were edited since; *Run Simulation* and later exports use the exported version of edited files, so the export reproduces itself. How to write configuration files that reload reliably: [File Operations](file_ops.md#Config-Files-and-Bundled-Sources).
+Simpler: load the configuration file itself with `set_sim_config!("Configs/Euler2D_Shock.jl")` (or *Files → Browse…*); it becomes the last of the config's `sources`, included after the helper files. Every export copies the code (the `sources` and the files they include) into a blueprint folder next to the exported CSV (`<config>-<digest>/`, shared by exports with the same code), and loading that CSV later runs the folder on its own and so recreates the experiment, solvers included, also if the originals were edited or are gone. A CSV written by hand can name the same blueprint and list only what differs (another resolution, other methods). How to write configuration files that reload reliably: [File Operations](file_ops.md#Config-Files-and-Bundled-Sources).
